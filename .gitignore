@@ -1,0 +1,33 @@
+# Local environment
+.env
+.env.*
+!.env.example
+
+# Generated logs and temporary files
+logs/**
+!logs/.gitkeep
+test-log/**
+!test-log/.gitkeep
+tmp/
+temp/
+.tmp/
+*.log
+
+# Database backup artifacts
+*.dump
+*.backup
+*.bak
+*.tar
+*.gz
+*.zip
+
+# Keep intentional SQL source/seed files tracked.
+!*.sql
+
+# OS/editor noise
+.DS_Store
+.DS_Store?
+.idea/
+.vscode/
+*.swp
+*.swo

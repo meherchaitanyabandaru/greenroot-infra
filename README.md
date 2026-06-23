@@ -11,9 +11,11 @@ This repository contains infrastructure as code and deployment automation for:
 * GreenRoot API
 * GreenRoot Admin
 * PostgreSQL
+* Redis
 * AWS Services
 * Monitoring
 * CI/CD
+* Project documentation and diagrams
 
 ---
 
@@ -142,33 +144,89 @@ Resources:
 
 ## Repository Structure
 
-terraform/
+```text
+greenroot-infra/
+├── db/
+│   ├── postgresql/
+│   │   ├── README.md
+│   │   └── greenroot-seed.sql
+│   └── redis/
+│       └── README.md
+├── docs/
+│   ├── README.md
+│   ├── diagrams/
+│   │   ├── architecture/
+│   │   ├── er/
+│   │   └── uml/
+│   ├── operations/
+│   └── repositories/
+└── README.md
+```
 
+Planned infrastructure folders:
+
+```text
+terraform/
 ├── modules/
-│
+├── environments/
+│   ├── dev/
+│   └── prod/
 ├── vpc/
 ├── ec2/
 ├── rds/
 ├── s3/
-├── monitoring/
-│
-├── environments/
-│
-├── dev/
-└── prod/
+└── monitoring/
 
 docker/
-
 ├── api/
 └── admin/
 
-github/
-
-├── workflows/
+.github/
+└── workflows/
 
 scripts/
+```
 
-docs/
+Folder ownership:
+
+* `db/postgresql/` - PostgreSQL schema, seed data, migrations, indexes, and DB runbooks
+* `db/redis/` - Redis keyspace design, cache strategy, queues, locks, and local setup notes
+* `docs/diagrams/architecture/` - cloud, system, deployment, and integration diagrams
+* `docs/diagrams/er/` - entity relationship diagrams
+* `docs/diagrams/uml/` - sequence, class, component, and activity diagrams
+* `docs/repositories/` - documentation that explains how other GreenRoot repos fit together
+* `docs/operations/` - deployment, backup, monitoring, and incident runbooks
+
+---
+
+## Database Seed
+
+The reusable PostgreSQL seed file is:
+
+```bash
+db/postgresql/greenroot-seed.sql
+```
+
+Use it to create a local development database:
+
+```bash
+createdb greenroot_dev
+psql -v ON_ERROR_STOP=1 -d greenroot_dev -f db/postgresql/greenroot-seed.sql
+```
+
+The seed file includes:
+
+* Hardened PostgreSQL schema
+* Enum types for finite business states
+* Primary keys, foreign keys, unique constraints, and validation checks
+* Query indexes for orders, inventory, payments, sessions, notifications, and vehicle tracking
+* Demo data for users, roles, nurseries, inventory, orders, payments, dispatches, requests, notifications, subscriptions, sessions, and audit logs
+
+Notes:
+
+* The seed file is intended for development and QA.
+* It includes demo-only data and should not be used as production customer data.
+* If restoring under a different PostgreSQL role, adjust or remove the `OWNER TO meharbandaru` statements.
 
 ---
 
