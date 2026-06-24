@@ -2,13 +2,16 @@
 -- Run after all migrations. Safe to re-run (ON CONFLICT DO NOTHING / DO UPDATE).
 -- Inserts: platform roles, admin user, nurseries, manager users, vehicles, plant sizes, plant categories, sample plants.
 
--- ─── Platform roles (ADMIN / BUYER / NURSERY_OWNER / DRIVER) ──────────────────
+-- ─── Platform roles ───────────────────────────────────────────────────────────
 INSERT INTO public.roles (role_id, role_code, role_name, description, is_active)
 VALUES
-  (1, 'ADMIN',         'Admin',         'Platform administrator', true),
-  (2, 'BUYER',         'Buyer',         'Plant buyer',            true),
-  (3, 'NURSERY_OWNER', 'Nursery Owner', 'Nursery owner',          true),
-  (4, 'DRIVER',        'Driver',        'Delivery driver',        true)
+  (1, 'ADMIN',              'Admin',              'Platform administrator',          true),
+  (2, 'BUYER',              'Buyer',              'Plant buyer / customer',          true),
+  (3, 'NURSERY_OWNER',      'Nursery Owner',      'Nursery owner or co-owner',       true),
+  (4, 'DRIVER',             'Driver',             'Delivery driver',                 true),
+  (5, 'MANAGER',            'Manager',            'Nursery manager (gumastha)',       true),
+  (6, 'SUPER_ADMIN',        'Super Admin',        'Super administrator',             true),
+  (7, 'TRANSPORT_PROVIDER', 'Transport Provider', 'Fleet / transport company owner', true)
 ON CONFLICT (role_id) DO NOTHING;
 
 -- ─── Admin user (login: 9000000777 / OTP 123456) ──────────────────────────────
@@ -107,7 +110,51 @@ FROM (VALUES
 JOIN public.nurseries n ON n.mobile = a.mobile
 ON CONFLICT DO NOTHING;
 
--- ─── 5 Manager users ──────────────────────────────────────────────────────────
+-- ─── Dev test users ───────────────────────────────────────────────────────────
+-- Easy-to-remember dev login numbers (OTP 123456 for all)
+INSERT INTO public.users (first_name, last_name, mobile, status, mobile_verified)
+VALUES
+  ('Arjun',  'Buyer',   '9111111111', 'ACTIVE', true),
+  ('Priya',  'Owner',   '9222222222', 'ACTIVE', true),
+  ('Rahul',  'Driver',  '9333333333', 'ACTIVE', true),
+  ('Suresh', 'Manager', '9555555555', 'ACTIVE', true)
+ON CONFLICT (mobile) DO NOTHING;
+
+INSERT INTO public.user_roles (user_id, role_id, assigned_at)
+SELECT u.user_id, r.role_id, CURRENT_TIMESTAMP
+FROM (VALUES
+  ('9111111111', 'BUYER'),
+  ('9222222222', 'NURSERY_OWNER'),
+  ('9333333333', 'DRIVER'),
+  ('9555555555', 'MANAGER')
+) AS m(mobile, role_code)
+JOIN public.users u ON u.mobile = m.mobile
+JOIN public.roles r ON r.role_code = m.role_code
+ON CONFLICT DO NOTHING;
+
+-- ─── Nursery for dev owner (9222222222) ───────────────────────────────────────
+INSERT INTO public.nurseries (nursery_name, mobile, email, description, status)
+VALUES ('Dev Nursery', '9222222222', 'dev@greenroot.example', 'Default dev nursery', 'ACTIVE')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO public.nursery_users (nursery_id, user_id, nursery_role_id)
+SELECT n.nursery_id, u.user_id, nr.nursery_role_id
+FROM public.nurseries n
+JOIN public.users u ON u.mobile = '9222222222'
+JOIN public.nursery_roles nr ON nr.role_code = 'OWNER'
+WHERE n.mobile = '9222222222'
+ON CONFLICT DO NOTHING;
+
+-- Link dev manager to dev nursery
+INSERT INTO public.nursery_users (nursery_id, user_id, nursery_role_id)
+SELECT n.nursery_id, u.user_id, nr.nursery_role_id
+FROM public.nurseries n
+JOIN public.users u ON u.mobile = '9555555555'
+JOIN public.nursery_roles nr ON nr.role_code = 'MANAGER'
+WHERE n.mobile = '9222222222'
+ON CONFLICT DO NOTHING;
+
+-- ─── 5 sample nursery staff users ─────────────────────────────────────────────
 INSERT INTO public.users (first_name, last_name, mobile, email, status)
 VALUES
   ('Arjun',   'Sharma', '9876500001', 'arjun.sharma@greenroot.example',   'ACTIVE'),
@@ -117,7 +164,15 @@ VALUES
   ('Karthik', 'Nair',   '9876500005', 'karthik.nair@greenroot.example',   'ACTIVE')
 ON CONFLICT (mobile) DO NOTHING;
 
--- ─── Link managers to nurseries (nursery_role_id 3 = MANAGER) ─────────────────
+-- Assign MANAGER platform role to sample staff
+INSERT INTO public.user_roles (user_id, role_id, assigned_at)
+SELECT u.user_id, r.role_id, CURRENT_TIMESTAMP
+FROM public.users u
+JOIN public.roles r ON r.role_code = 'MANAGER'
+WHERE u.mobile IN ('9876500001','9876500002','9876500003','9876500004','9876500005')
+ON CONFLICT DO NOTHING;
+
+-- ─── Link sample staff to nurseries (nursery_role_id 3 = MANAGER) ─────────────
 INSERT INTO public.nursery_users (nursery_id, user_id, nursery_role_id)
 SELECT n.nursery_id, u.user_id, 3
 FROM (VALUES
