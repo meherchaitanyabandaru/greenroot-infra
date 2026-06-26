@@ -212,3 +212,75 @@ ON CONFLICT (code_key, date_key) DO UPDATE SET last_value = EXCLUDED.last_value,
 INSERT INTO public.public_code_sequences (code_key, date_key, last_value)
 SELECT 'plants', '', count(*) FROM public.plants
 ON CONFLICT (code_key, date_key) DO UPDATE SET last_value = EXCLUDED.last_value, updated_at = CURRENT_TIMESTAMP;
+
+-- ─── Sample quotations ─────────────────────────────────────────────────────────
+-- One demo quotation by the admin user linked to nursery 1.
+-- Idempotent: only inserts if no quotations exist yet.
+
+DO $$
+DECLARE
+  v_admin_id   BIGINT;
+  v_admin_name VARCHAR;
+  v_nur_id     BIGINT;
+  v_nur_name   VARCHAR;
+  v_nur_phone  VARCHAR;
+  v_plant1_id  BIGINT;
+  v_plant2_id  BIGINT;
+  v_p1_sci     VARCHAR; v_p1_com VARCHAR;
+  v_p2_sci     VARCHAR; v_p2_com VARCHAR;
+  v_qid        BIGINT;
+  v_code       VARCHAR;
+BEGIN
+  IF (SELECT count(*) FROM public.quotations) > 0 THEN RETURN; END IF;
+
+  SELECT user_id, first_name INTO v_admin_id, v_admin_name
+    FROM public.users WHERE mobile = '9000000777' LIMIT 1;
+  IF v_admin_id IS NULL THEN RETURN; END IF;
+
+  SELECT nursery_id, nursery_name, COALESCE(mobile,'')
+    INTO v_nur_id, v_nur_name, v_nur_phone
+    FROM public.nurseries WHERE nursery_id = 1 LIMIT 1;
+
+  SELECT plant_id, scientific_name, COALESCE(common_name,'')
+    INTO v_plant1_id, v_p1_sci, v_p1_com
+    FROM public.plants WHERE scientific_name = 'Mangifera indica' LIMIT 1;
+
+  SELECT plant_id, scientific_name, COALESCE(common_name,'')
+    INTO v_plant2_id, v_p2_sci, v_p2_com
+    FROM public.plants WHERE scientific_name = 'Azadirachta indica' LIMIT 1;
+
+  v_code := 'QUO-' || to_char(CURRENT_DATE,'YYYYMMDD') || '-0001';
+
+  INSERT INTO public.quotations (
+    quotation_code, created_by_user_id, created_by_name,
+    nursery_id, nursery_name, nursery_phone,
+    recipient_name, recipient_mobile, notes, total_amount, status
+  ) VALUES (
+    v_code, v_admin_id, v_admin_name,
+    v_nur_id, v_nur_name, NULLIF(v_nur_phone,''),
+    'Ravi Kumar', '9800000001', 'Sample quotation for mango and neem plants', 0, 'DRAFT'
+  ) RETURNING quotation_id INTO v_qid;
+
+  IF v_plant1_id IS NOT NULL THEN
+    INSERT INTO public.quotation_items
+      (quotation_id, plant_id, scientific_name, common_name, description, quantity, unit_price, total_price)
+    VALUES (v_qid, v_plant1_id, v_p1_sci, NULLIF(v_p1_com,''), 'Premium grade', 10, 250.00, 2500.00);
+  END IF;
+
+  IF v_plant2_id IS NOT NULL THEN
+    INSERT INTO public.quotation_items
+      (quotation_id, plant_id, scientific_name, common_name, description, quantity, unit_price, total_price)
+    VALUES (v_qid, v_plant2_id, v_p2_sci, NULLIF(v_p2_com,''), 'Standard grade', 5, 180.00, 900.00);
+  END IF;
+
+  UPDATE public.quotations
+    SET total_amount = (SELECT COALESCE(SUM(total_price),0) FROM public.quotation_items WHERE quotation_id = v_qid)
+  WHERE quotation_id = v_qid;
+END;
+$$;
+
+-- Sync quotations public code sequence
+INSERT INTO public.public_code_sequences (code_key, date_key, last_value)
+SELECT 'quotations', to_char(CURRENT_DATE,'YYYYMMDD'), count(*)
+FROM public.quotations
+ON CONFLICT (code_key, date_key) DO UPDATE SET last_value = EXCLUDED.last_value, updated_at = CURRENT_TIMESTAMP;
