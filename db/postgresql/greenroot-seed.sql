@@ -87,7 +87,21 @@ VALUES
   (6, 'DISPATCHER', 'Dispatcher', 'Dispatch operations')
 ON CONFLICT (nursery_role_id) DO NOTHING;
 
--- ─── 5 Nurseries ──────────────────────────────────────────────────────────────
+-- ─── Platform config defaults ─────────────────────────────────────────────────
+-- Also seeded by the schema migration; safe to re-run (ON CONFLICT DO NOTHING).
+INSERT INTO public.platform_config (config_key, config_value, data_type, description) VALUES
+  ('otp_expiry_minutes',      '5',    'integer', 'OTP validity window in minutes'),
+  ('otp_max_attempts',        '5',    'integer', 'Wrong OTP attempts before the code is blocked'),
+  ('otp_resend_cooldown_sec', '30',   'integer', 'Seconds a user must wait before requesting another OTP'),
+  ('min_order_amount',        '100',  'numeric', 'Minimum order total in INR'),
+  ('platform_fee_pct',        '0',    'numeric', 'Platform fee percentage applied to orders'),
+  ('driver_approval_days',    '3',    'integer', 'Days before a pending driver approval auto-expires'),
+  ('nursery_approval_days',   '7',    'integer', 'Days before a pending nursery application auto-expires')
+ON CONFLICT (config_key) DO NOTHING;
+
+-- ─── 5 Nurseries (status='ACTIVE' intentionally bypasses PENDING_APPROVAL) ────
+-- Dev/seed nurseries skip the approval workflow so the app is usable immediately.
+-- Production nurseries start as PENDING_APPROVAL and require Super Admin approval.
 INSERT INTO public.nurseries (nursery_name, mobile, email, description, status)
 VALUES
   ('GreenLeaf Gardens', '9800000001', 'greenleaf@example.com',   'Premium indoor and outdoor plants',    'ACTIVE'),
@@ -133,6 +147,7 @@ JOIN public.roles r ON r.role_code = m.role_code
 ON CONFLICT DO NOTHING;
 
 -- ─── Nursery for dev owner (9222222222) ───────────────────────────────────────
+-- Dev nursery also bypasses PENDING_APPROVAL (same rationale as above)
 INSERT INTO public.nurseries (nursery_name, mobile, email, description, status)
 VALUES ('Dev Nursery', '9222222222', 'dev@greenroot.example', 'Default dev nursery', 'ACTIVE')
 ON CONFLICT DO NOTHING;
@@ -197,21 +212,27 @@ VALUES
 ON CONFLICT (vehicle_number) DO NOTHING;
 
 -- ─── Sync public code sequences ───────────────────────────────────────────────
+-- Use MAX of the numeric part of each code column so the counter is correct
+-- even when rows have been deleted (gaps exist) from previous test runs.
 INSERT INTO public.public_code_sequences (code_key, date_key, last_value)
-SELECT 'users', '', count(*) FROM public.users
-ON CONFLICT (code_key, date_key) DO UPDATE SET last_value = EXCLUDED.last_value, updated_at = CURRENT_TIMESTAMP;
+SELECT 'users', '', COALESCE(MAX(REGEXP_REPLACE(user_code, '[^0-9]', '', 'g')::INTEGER), 0) FROM public.users
+ON CONFLICT (code_key, date_key) DO UPDATE SET last_value = GREATEST(public_code_sequences.last_value, EXCLUDED.last_value), updated_at = CURRENT_TIMESTAMP;
 
 INSERT INTO public.public_code_sequences (code_key, date_key, last_value)
-SELECT 'nurseries', '', count(*) FROM public.nurseries
-ON CONFLICT (code_key, date_key) DO UPDATE SET last_value = EXCLUDED.last_value, updated_at = CURRENT_TIMESTAMP;
+SELECT 'nurseries', '', COALESCE(MAX(REGEXP_REPLACE(nursery_code, '[^0-9]', '', 'g')::INTEGER), 0) FROM public.nurseries
+ON CONFLICT (code_key, date_key) DO UPDATE SET last_value = GREATEST(public_code_sequences.last_value, EXCLUDED.last_value), updated_at = CURRENT_TIMESTAMP;
 
 INSERT INTO public.public_code_sequences (code_key, date_key, last_value)
-SELECT 'vehicles', '', count(*) FROM public.vehicles
-ON CONFLICT (code_key, date_key) DO UPDATE SET last_value = EXCLUDED.last_value, updated_at = CURRENT_TIMESTAMP;
+SELECT 'vehicles', '', COALESCE(MAX(REGEXP_REPLACE(vehicle_code, '[^0-9]', '', 'g')::INTEGER), 0) FROM public.vehicles
+ON CONFLICT (code_key, date_key) DO UPDATE SET last_value = GREATEST(public_code_sequences.last_value, EXCLUDED.last_value), updated_at = CURRENT_TIMESTAMP;
 
 INSERT INTO public.public_code_sequences (code_key, date_key, last_value)
-SELECT 'plants', '', count(*) FROM public.plants
-ON CONFLICT (code_key, date_key) DO UPDATE SET last_value = EXCLUDED.last_value, updated_at = CURRENT_TIMESTAMP;
+SELECT 'plants', '', COALESCE(MAX(REGEXP_REPLACE(plant_code, '[^0-9]', '', 'g')::INTEGER), 0) FROM public.plants
+ON CONFLICT (code_key, date_key) DO UPDATE SET last_value = GREATEST(public_code_sequences.last_value, EXCLUDED.last_value), updated_at = CURRENT_TIMESTAMP;
+
+INSERT INTO public.public_code_sequences (code_key, date_key, last_value)
+SELECT 'nursery_applications', '', COALESCE(MAX(REGEXP_REPLACE(application_code, '[^0-9]', '', 'g')::INTEGER), 0) FROM public.nursery_applications
+ON CONFLICT (code_key, date_key) DO UPDATE SET last_value = GREATEST(public_code_sequences.last_value, EXCLUDED.last_value), updated_at = CURRENT_TIMESTAMP;
 
 -- ─── Sample quotations ─────────────────────────────────────────────────────────
 -- One demo quotation by the admin user linked to nursery 1.
@@ -284,3 +305,102 @@ INSERT INTO public.public_code_sequences (code_key, date_key, last_value)
 SELECT 'quotations', to_char(CURRENT_DATE,'YYYYMMDD'), count(*)
 FROM public.quotations
 ON CONFLICT (code_key, date_key) DO UPDATE SET last_value = EXCLUDED.last_value, updated_at = CURRENT_TIMESTAMP;
+
+-- ─── Sample nursery applications ─────────────────────────────────────────────
+-- One PENDING (buyer wants to open a nursery) and one APPROVED (dev owner's
+-- nursery was onboarded via the application flow and is already linked).
+DO $$
+DECLARE
+  v_buyer_id   BIGINT;
+  v_admin_id   BIGINT;
+  v_nursery_id BIGINT;
+BEGIN
+  SELECT user_id INTO v_buyer_id   FROM public.users     WHERE mobile = '9111111111';
+  SELECT user_id INTO v_admin_id   FROM public.users     WHERE mobile = '9000000777';
+  SELECT nursery_id INTO v_nursery_id FROM public.nurseries WHERE mobile = '9222222222';
+
+  IF v_buyer_id IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM public.nursery_applications WHERE applicant_user_id = v_buyer_id
+  ) THEN
+    INSERT INTO public.nursery_applications (
+      applicant_user_id, nursery_name, mobile, email,
+      address_line1, city, state, postal_code, description, status
+    ) VALUES (
+      v_buyer_id, 'Arjun Buyer Nursery', '9111111111', 'arjun@example.com',
+      '10 Plant Street', 'Hyderabad', 'Telangana', '500001',
+      'Applying to open a nursery for flowering plants', 'PENDING'
+    );
+  END IF;
+
+  IF v_admin_id IS NOT NULL AND v_nursery_id IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM public.nursery_applications WHERE nursery_id = v_nursery_id
+  ) THEN
+    INSERT INTO public.nursery_applications (
+      applicant_user_id, nursery_name, mobile, email,
+      address_line1, city, state, postal_code, description,
+      status, reviewed_by, reviewed_at, nursery_id
+    ) VALUES (
+      v_admin_id, 'Dev Nursery', '9222222222', 'dev@greenroot.example',
+      '1 Dev Lane', 'Bangalore', 'Karnataka', '560001',
+      'Dev nursery application (pre-approved for seed data)',
+      'APPROVED', v_admin_id, CURRENT_TIMESTAMP, v_nursery_id
+    );
+  END IF;
+END;
+$$;
+
+-- Re-sync nursery_applications sequence after sample rows
+INSERT INTO public.public_code_sequences (code_key, date_key, last_value)
+SELECT 'nursery_applications', '', count(*) FROM public.nursery_applications
+ON CONFLICT (code_key, date_key) DO UPDATE SET last_value = EXCLUDED.last_value, updated_at = CURRENT_TIMESTAMP;
+
+-- ─── Plant Sourcing Network seed ─────────────────────────────────────────────
+-- Opt the 5 sample nurseries into the sourcing network.
+-- Featured plants showcase top available plants for each nursery (not inventory).
+DO $$
+DECLARE
+  v_nid   BIGINT;
+  v_uid   BIGINT;
+  rec     RECORD;
+BEGIN
+  -- Enroll sample nurseries into the sourcing network
+  FOR rec IN
+    SELECT n.nursery_id, u.user_id
+    FROM public.nurseries n
+    JOIN public.users u ON u.mobile = '9000000777'
+    WHERE n.mobile IN ('9800000001','9800000002','9800000003','9800000004','9800000005')
+  LOOP
+    INSERT INTO public.sourcing_network_members
+      (nursery_id, is_active, road_accessible, lorry_accessible, service_radius_km, joined_by_user_id)
+    VALUES (rec.nursery_id, true, true, true, 50, rec.user_id)
+    ON CONFLICT (nursery_id) DO NOTHING;
+  END LOOP;
+
+  -- Add featured plants for the first two sample nurseries
+  SELECT nursery_id INTO v_nid FROM public.nurseries WHERE mobile = '9800000001';
+  IF v_nid IS NOT NULL THEN
+    INSERT INTO public.nursery_featured_plants
+      (nursery_id, plant_id, display_order, approximate_quantity, approximate_size, quality_notes)
+    SELECT v_nid, p.plant_id,
+           ROW_NUMBER() OVER (ORDER BY p.plant_id) AS display_order,
+           CASE ROW_NUMBER() OVER (ORDER BY p.plant_id) WHEN 1 THEN 50 WHEN 2 THEN 30 ELSE 20 END,
+           'MEDIUM',
+           'Good quality, ready for dispatch'
+    FROM public.plants p
+    WHERE p.scientific_name IN ('Mangifera indica','Azadirachta indica','Cocos nucifera')
+    ON CONFLICT (nursery_id, plant_id) DO NOTHING;
+  END IF;
+
+  SELECT nursery_id INTO v_nid FROM public.nurseries WHERE mobile = '9800000002';
+  IF v_nid IS NOT NULL THEN
+    INSERT INTO public.nursery_featured_plants
+      (nursery_id, plant_id, display_order, approximate_quantity, approximate_size, quality_notes)
+    SELECT v_nid, p.plant_id,
+           ROW_NUMBER() OVER (ORDER BY p.plant_id) AS display_order,
+           40, 'LARGE', 'Native tree varieties, lorry-accessible farm'
+    FROM public.plants p
+    WHERE p.scientific_name IN ('Moringa oleifera','Hibiscus rosa-sinensis')
+    ON CONFLICT (nursery_id, plant_id) DO NOTHING;
+  END IF;
+END;
+$$;

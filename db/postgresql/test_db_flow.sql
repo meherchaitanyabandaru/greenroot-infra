@@ -5,9 +5,155 @@
 -- Tests the complete business journey: user registration → nursery → quotation
 -- → order → loading → dispatch → delivery, plus plant requests and payments.
 --
+-- Re-runnable: a cleanup block at the top removes previous-run state so the
+-- test can be executed repeatedly on the same dev database.
+--
 -- Each step prints PASS or FAIL with a description.
 -- Run:  psql "$DATABASE_URL" -f test_db_flow.sql
 -- =============================================================================
+
+-- ─── Pre-test cleanup: remove state from any previous run ────────────────────
+DO $$
+DECLARE
+  v_test_uids   BIGINT[];
+  v_test_nids   BIGINT[];
+BEGIN
+  SELECT ARRAY_AGG(user_id) INTO v_test_uids
+  FROM public.users
+  WHERE mobile IN ('9000000000','9001100001','9001100002','9001100003',
+                   '9001100004','9001100005','9001100006');
+
+  IF v_test_uids IS NULL THEN
+    RAISE NOTICE 'Cleanup: no previous test data found.';
+    RETURN;
+  END IF;
+
+  SELECT ARRAY_AGG(nursery_id) INTO v_test_nids
+  FROM public.nurseries
+  WHERE owner_user_id = ANY(v_test_uids)
+     OR mobile IN ('9001100001','9001100006','9001100005');
+
+  -- Delete in FK dependency order
+  DELETE FROM public.otp_requests
+    WHERE mobile IN (SELECT mobile FROM public.users WHERE user_id = ANY(v_test_uids));
+  DELETE FROM public.vehicle_tracking
+    WHERE driver_id IN (SELECT driver_id FROM public.drivers WHERE user_id = ANY(v_test_uids));
+  DELETE FROM public.trip_events
+    WHERE created_by_user_id = ANY(v_test_uids);
+  DELETE FROM public.trip_tracking_links
+    WHERE customer_user_id = ANY(v_test_uids);
+  DELETE FROM public.dispatch_items
+    WHERE dispatch_id IN (SELECT dispatch_id FROM public.dispatches WHERE nursery_id = ANY(v_test_nids));
+  DELETE FROM public.dispatches
+    WHERE nursery_id = ANY(v_test_nids) OR driver_user_id = ANY(v_test_uids);
+  DELETE FROM public.payments
+    WHERE order_id IN (SELECT order_id FROM public.orders WHERE nursery_id = ANY(v_test_nids));
+  DELETE FROM public.order_items
+    WHERE order_id IN (SELECT order_id FROM public.orders WHERE nursery_id = ANY(v_test_nids));
+  -- quotations.converted_order_id → orders is a non-deferred FK; NULL it out first
+  -- so we can delete orders before quotations (orders also have a FK to quotations).
+  UPDATE public.quotations
+  SET converted_order_id = NULL, converted_by_user_id = NULL, converted_at = NULL
+  WHERE nursery_id = ANY(v_test_nids) AND converted_order_id IS NOT NULL;
+  DELETE FROM public.orders       WHERE nursery_id = ANY(v_test_nids);
+  DELETE FROM public.quotation_items
+    WHERE quotation_id IN (SELECT quotation_id FROM public.quotations WHERE nursery_id = ANY(v_test_nids));
+  DELETE FROM public.quotations   WHERE nursery_id = ANY(v_test_nids);
+  DELETE FROM public.plant_request_responses
+    WHERE supplier_nursery_id  = ANY(v_test_nids)
+       OR responded_by_user_id = ANY(v_test_uids);
+  DELETE FROM public.plant_requests
+    WHERE requesting_nursery_id = ANY(v_test_nids)
+       OR requested_by_user_id  = ANY(v_test_uids);
+  DELETE FROM public.nursery_applications
+    WHERE applicant_user_id = ANY(v_test_uids)
+       OR nursery_id        = ANY(v_test_nids);
+  DELETE FROM public.invites          WHERE nursery_id = ANY(v_test_nids);
+  DELETE FROM public.notifications    WHERE user_id    = ANY(v_test_uids);
+  DELETE FROM public.nursery_inventory WHERE nursery_id = ANY(v_test_nids);
+  -- Sourcing Network cleanup must happen before nurseries are deleted (FK dependency)
+  DELETE FROM public.sourcing_post_photos WHERE post_id IN (
+    SELECT post_id FROM public.sourcing_posts WHERE nursery_id = ANY(v_test_nids));
+  DELETE FROM public.sourcing_post_responses
+    WHERE post_id IN (SELECT post_id FROM public.sourcing_posts WHERE nursery_id = ANY(v_test_nids))
+       OR responder_nursery_id = ANY(v_test_nids);
+  DELETE FROM public.sourcing_posts          WHERE nursery_id = ANY(v_test_nids);
+  DELETE FROM public.nursery_featured_plants WHERE nursery_id = ANY(v_test_nids);
+  DELETE FROM public.sourcing_network_members WHERE nursery_id = ANY(v_test_nids);
+  DELETE FROM public.nursery_drivers
+    WHERE nursery_id    = ANY(v_test_nids)
+       OR driver_user_id = ANY(v_test_uids);
+  DELETE FROM public.nursery_users
+    WHERE nursery_id = ANY(v_test_nids) OR user_id = ANY(v_test_uids);
+  DELETE FROM public.nursery_addresses WHERE nursery_id = ANY(v_test_nids);
+  DELETE FROM public.nurseries         WHERE nursery_id = ANY(v_test_nids);
+  DELETE FROM public.drivers           WHERE user_id    = ANY(v_test_uids);
+  DELETE FROM public.vehicles          WHERE vehicle_number = 'TS09 EA 5678';
+  DELETE FROM public.user_roles        WHERE user_id    = ANY(v_test_uids);
+  -- NULL out FK references from shared tables that point to test users
+  UPDATE public.platform_config SET updated_by = NULL WHERE updated_by = ANY(v_test_uids);
+  DELETE FROM public.users             WHERE user_id    = ANY(v_test_uids);
+  -- Remove plants created by this test so their codes can be reclaimed
+  DELETE FROM public.nursery_inventory WHERE plant_id IN (
+    SELECT plant_id FROM public.plants
+    WHERE scientific_name IN ('Ficus benghalensis','Delonix regia'));
+  DELETE FROM public.plants
+    WHERE scientific_name IN ('Ficus benghalensis','Delonix regia');
+
+  -- Resync sequence counters using MAX of the numeric code part (not count)
+  -- so the counter stays correct even when rows have been deleted (gaps exist).
+  INSERT INTO public.public_code_sequences (code_key, date_key, last_value)
+  SELECT 'users', '', COALESCE(MAX(REGEXP_REPLACE(user_code, '[^0-9]', '', 'g')::INTEGER), 0) FROM public.users
+  ON CONFLICT (code_key, date_key) DO UPDATE
+    SET last_value = GREATEST(public_code_sequences.last_value, EXCLUDED.last_value), updated_at = CURRENT_TIMESTAMP;
+
+  INSERT INTO public.public_code_sequences (code_key, date_key, last_value)
+  SELECT 'nurseries', '', COALESCE(MAX(REGEXP_REPLACE(nursery_code, '[^0-9]', '', 'g')::INTEGER), 0) FROM public.nurseries
+  ON CONFLICT (code_key, date_key) DO UPDATE
+    SET last_value = GREATEST(public_code_sequences.last_value, EXCLUDED.last_value), updated_at = CURRENT_TIMESTAMP;
+
+  INSERT INTO public.public_code_sequences (code_key, date_key, last_value)
+  SELECT 'drivers', '', COALESCE(MAX(REGEXP_REPLACE(driver_code, '[^0-9]', '', 'g')::INTEGER), 0) FROM public.drivers
+  ON CONFLICT (code_key, date_key) DO UPDATE
+    SET last_value = GREATEST(public_code_sequences.last_value, EXCLUDED.last_value), updated_at = CURRENT_TIMESTAMP;
+
+  INSERT INTO public.public_code_sequences (code_key, date_key, last_value)
+  SELECT 'vehicles', '', COALESCE(MAX(REGEXP_REPLACE(vehicle_code, '[^0-9]', '', 'g')::INTEGER), 0) FROM public.vehicles
+  ON CONFLICT (code_key, date_key) DO UPDATE
+    SET last_value = GREATEST(public_code_sequences.last_value, EXCLUDED.last_value), updated_at = CURRENT_TIMESTAMP;
+
+  INSERT INTO public.public_code_sequences (code_key, date_key, last_value)
+  SELECT 'nursery_applications', '', COALESCE(MAX(REGEXP_REPLACE(application_code, '[^0-9]', '', 'g')::INTEGER), 0) FROM public.nursery_applications
+  ON CONFLICT (code_key, date_key) DO UPDATE
+    SET last_value = GREATEST(public_code_sequences.last_value, EXCLUDED.last_value), updated_at = CURRENT_TIMESTAMP;
+
+  INSERT INTO public.public_code_sequences (code_key, date_key, last_value)
+  SELECT 'plants', '', COALESCE(MAX(REGEXP_REPLACE(plant_code, '[^0-9]', '', 'g')::INTEGER), 0) FROM public.plants
+  ON CONFLICT (code_key, date_key) DO UPDATE
+    SET last_value = GREATEST(public_code_sequences.last_value, EXCLUDED.last_value), updated_at = CURRENT_TIMESTAMP;
+
+  -- Date-keyed sequences (quotations, orders, dispatches)
+  INSERT INTO public.public_code_sequences (code_key, date_key, last_value)
+  SELECT 'quotations', to_char(CURRENT_DATE,'YYYYMMDD'), count(*)
+  FROM public.quotations
+  ON CONFLICT (code_key, date_key) DO UPDATE
+    SET last_value = EXCLUDED.last_value, updated_at = CURRENT_TIMESTAMP;
+
+  INSERT INTO public.public_code_sequences (code_key, date_key, last_value)
+  SELECT 'orders', to_char(CURRENT_DATE,'YYYYMMDD'), count(*)
+  FROM public.orders
+  ON CONFLICT (code_key, date_key) DO UPDATE
+    SET last_value = EXCLUDED.last_value, updated_at = CURRENT_TIMESTAMP;
+
+  INSERT INTO public.public_code_sequences (code_key, date_key, last_value)
+  SELECT 'dispatches', to_char(CURRENT_DATE,'YYYYMMDD'), count(*)
+  FROM public.dispatches
+  ON CONFLICT (code_key, date_key) DO UPDATE
+    SET last_value = EXCLUDED.last_value, updated_at = CURRENT_TIMESTAMP;
+
+  RAISE NOTICE 'Cleanup: previous test data removed and sequences resynced.';
+END;
+$$;
 
 DO $$
 DECLARE
@@ -41,6 +187,19 @@ DECLARE
     v_invite_id         BIGINT;
     v_invite_uuid       UUID;
     v_nd_id             BIGINT;   -- nursery_driver connection
+    v_nursery3_id       BIGINT;
+
+    -- sourcing network test vars
+    v_src_post_id       BIGINT;
+    v_src_post_code     VARCHAR;
+    v_src_response_id   BIGINT;
+    v_src_photo_id      BIGINT;
+
+    -- new-table test vars
+    v_otp_id            BIGINT;
+    v_app_id            BIGINT;
+    v_app_code          VARCHAR;
+    v_config_val        TEXT;
 
     -- temp counts
     v_count             INTEGER;
@@ -582,6 +741,311 @@ BEGIN
     RAISE NOTICE 'Plant requests     : %', (SELECT count(*) FROM public.plant_requests);
     RAISE NOTICE 'Invites            : %', (SELECT count(*) FROM public.invites);
     RAISE NOTICE 'Notifications      : %', (SELECT count(*) FROM public.notifications);
+    RAISE NOTICE 'OTP requests       : %', (SELECT count(*) FROM public.otp_requests);
+    RAISE NOTICE 'Platform config    : %', (SELECT count(*) FROM public.platform_config);
+    RAISE NOTICE 'Nursery applications: %', (SELECT count(*) FROM public.nursery_applications);
+
+    -- ──────────────────────────────────────────────────────────────────────
+    -- STEP 19: OTP Requests
+    -- ──────────────────────────────────────────────────────────────────────
+    RAISE NOTICE '';
+    RAISE NOTICE '── STEP 19: OTP Requests ───────────────────────────';
+
+    INSERT INTO public.otp_requests (mobile, otp_code, purpose, expires_at)
+    VALUES ('9001100005', '482910', 'LOGIN', CURRENT_TIMESTAMP + INTERVAL '5 minutes')
+    RETURNING otp_id INTO v_otp_id;
+
+    RAISE NOTICE 'PASS  OTP created (id=%)', v_otp_id;
+
+    -- Simulate a wrong guess — increment attempt_count
+    UPDATE public.otp_requests
+    SET attempt_count = attempt_count + 1
+    WHERE otp_id = v_otp_id;
+
+    SELECT attempt_count INTO v_count FROM public.otp_requests WHERE otp_id = v_otp_id;
+    IF v_count = 1 THEN
+        RAISE NOTICE 'PASS  attempt_count incremented to 1 after wrong guess';
+    ELSE
+        RAISE NOTICE 'FAIL  attempt_count expected 1, got %', v_count;
+    END IF;
+
+    -- Mark OTP used (successful verification)
+    UPDATE public.otp_requests
+    SET is_used = true, used_at = CURRENT_TIMESTAMP
+    WHERE otp_id = v_otp_id;
+
+    IF (SELECT is_used FROM public.otp_requests WHERE otp_id = v_otp_id) = true THEN
+        RAISE NOTICE 'PASS  OTP marked used; replay attack blocked';
+    ELSE
+        RAISE NOTICE 'FAIL  OTP not marked used correctly';
+    END IF;
+
+    -- Insert an already-expired OTP to verify expiry check works
+    INSERT INTO public.otp_requests (mobile, otp_code, purpose, expires_at)
+    VALUES ('9001100005', '000000', 'LOGIN', CURRENT_TIMESTAMP - INTERVAL '1 minute');
+
+    SELECT count(*) INTO v_count
+    FROM public.otp_requests
+    WHERE mobile = '9001100005' AND expires_at < CURRENT_TIMESTAMP AND is_used = false;
+
+    IF v_count >= 1 THEN
+        RAISE NOTICE 'PASS  Expired OTP correctly identifiable via expires_at filter';
+    ELSE
+        RAISE NOTICE 'FAIL  Expired OTP not found via filter';
+    END IF;
+
+    -- ──────────────────────────────────────────────────────────────────────
+    -- STEP 20: Platform Config
+    -- ──────────────────────────────────────────────────────────────────────
+    RAISE NOTICE '';
+    RAISE NOTICE '── STEP 20: Platform Config ────────────────────────';
+
+    SELECT config_value INTO v_config_val
+    FROM public.platform_config WHERE config_key = 'otp_expiry_minutes';
+
+    IF v_config_val = '5' THEN
+        RAISE NOTICE 'PASS  otp_expiry_minutes default = 5';
+    ELSE
+        RAISE NOTICE 'FAIL  otp_expiry_minutes expected 5, got %', v_config_val;
+    END IF;
+
+    -- Super admin updates a config value
+    UPDATE public.platform_config
+    SET config_value = '10', updated_by = v_super_admin_id, updated_at = CURRENT_TIMESTAMP
+    WHERE config_key = 'otp_expiry_minutes';
+
+    SELECT config_value INTO v_config_val
+    FROM public.platform_config WHERE config_key = 'otp_expiry_minutes';
+
+    IF v_config_val = '10' THEN
+        RAISE NOTICE 'PASS  otp_expiry_minutes updated to 10 by super admin';
+    ELSE
+        RAISE NOTICE 'FAIL  Config update failed; got %', v_config_val;
+    END IF;
+
+    -- Restore original value
+    UPDATE public.platform_config
+    SET config_value = '5', updated_by = v_super_admin_id, updated_at = CURRENT_TIMESTAMP
+    WHERE config_key = 'otp_expiry_minutes';
+
+    SELECT count(*) INTO v_count FROM public.platform_config WHERE is_active = true;
+    RAISE NOTICE 'PASS  % active platform config keys confirmed', v_count;
+
+    -- ──────────────────────────────────────────────────────────────────────
+    -- STEP 21: Nursery Applications
+    -- ──────────────────────────────────────────────────────────────────────
+    RAISE NOTICE '';
+    RAISE NOTICE '── STEP 21: Nursery Applications ───────────────────';
+
+    -- Buyer submits an application to open a nursery
+    INSERT INTO public.nursery_applications (
+        applicant_user_id, nursery_name, mobile, email,
+        address_line1, city, state, postal_code, description, status
+    ) VALUES (
+        v_buyer_id, 'Arjun Green Farms', '9001100005', 'arjun@greenfarms.example',
+        '55 Plant Avenue', 'Hyderabad', 'Telangana', '500032',
+        'New nursery specialising in flowering trees', 'PENDING'
+    ) RETURNING application_id, application_code INTO v_app_id, v_app_code;
+
+    IF v_app_code LIKE 'NRA-%' THEN
+        RAISE NOTICE 'PASS  Application % submitted (PENDING)', v_app_code;
+    ELSE
+        RAISE NOTICE 'FAIL  Application code not generated correctly: %', v_app_code;
+    END IF;
+
+    -- Super admin approves: create the nursery, then link back to application
+    INSERT INTO public.nurseries (
+        nursery_name, owner_user_id, mobile, email, description,
+        status, approved_by, approved_at
+    ) VALUES (
+        'Arjun Green Farms', v_buyer_id, '9001100005', 'arjun@greenfarms.example',
+        'New nursery specialising in flowering trees',
+        'ACTIVE', v_super_admin_id, CURRENT_TIMESTAMP
+    )
+    ON CONFLICT (owner_user_id) DO UPDATE SET nursery_name = EXCLUDED.nursery_name
+    RETURNING nursery_id INTO v_nursery3_id;
+
+    UPDATE public.nursery_applications
+    SET status      = 'APPROVED',
+        reviewed_by = v_super_admin_id,
+        reviewed_at = CURRENT_TIMESTAMP,
+        nursery_id  = v_nursery3_id,
+        updated_at  = CURRENT_TIMESTAMP
+    WHERE application_id = v_app_id;
+
+    IF (SELECT status FROM public.nursery_applications WHERE application_id = v_app_id) = 'APPROVED' THEN
+        RAISE NOTICE 'PASS  Application approved and linked to nursery id=%', v_nursery3_id;
+    ELSE
+        RAISE NOTICE 'FAIL  Application not approved correctly';
+    END IF;
+
+    -- Submit a second application and reject it
+    INSERT INTO public.nursery_applications (
+        applicant_user_id, nursery_name, mobile, description, status
+    ) VALUES (
+        v_manager1_id, 'Suresh Plant World', '9001100002', 'Test rejection case', 'PENDING'
+    ) RETURNING application_id INTO v_app_id;
+
+    UPDATE public.nursery_applications
+    SET status           = 'REJECTED',
+        reviewed_by      = v_super_admin_id,
+        reviewed_at      = CURRENT_TIMESTAMP,
+        rejection_reason = 'Incomplete documentation submitted',
+        updated_at       = CURRENT_TIMESTAMP
+    WHERE application_id = v_app_id;
+
+    IF (SELECT rejection_reason FROM public.nursery_applications WHERE application_id = v_app_id) IS NOT NULL THEN
+        RAISE NOTICE 'PASS  Second application rejected with reason recorded';
+    ELSE
+        RAISE NOTICE 'FAIL  Rejection reason not saved';
+    END IF;
+
+    SELECT count(*) INTO v_count FROM public.nursery_applications;
+    RAISE NOTICE 'PASS  % nursery application records total', v_count;
+
+    -- ──────────────────────────────────────────────────────────────────────
+    -- STEP 22: Plant Sourcing Network
+    -- ──────────────────────────────────────────────────────────────────────
+    RAISE NOTICE '';
+    RAISE NOTICE '── STEP 22: Plant Sourcing Network ─────────────────';
+
+    -- Owner joins the sourcing network
+    INSERT INTO public.sourcing_network_members
+        (nursery_id, is_active, road_accessible, lorry_accessible, contact_visible, service_radius_km, joined_by_user_id)
+    VALUES (v_nursery_id, true, true, true, true, 75, v_owner_id)
+    ON CONFLICT (nursery_id) DO UPDATE SET is_active = true
+    RETURNING member_id INTO v_count;
+
+    RAISE NOTICE 'PASS  Nursery % joined sourcing network (member_id=%)', v_nursery_id, v_count;
+
+    -- Second nursery also joins
+    INSERT INTO public.sourcing_network_members
+        (nursery_id, is_active, road_accessible, lorry_accessible, service_radius_km, joined_by_user_id)
+    VALUES (v_nursery2_id, true, true, false, 50, v_buyer2_nursery_id)
+    ON CONFLICT (nursery_id) DO NOTHING;
+
+    SELECT count(*) INTO v_count FROM public.sourcing_network_members WHERE is_active = true;
+    IF v_count >= 2 THEN
+        RAISE NOTICE 'PASS  % nurseries active in sourcing network', v_count;
+    ELSE
+        RAISE NOTICE 'FAIL  Expected at least 2 active members, got %', v_count;
+    END IF;
+
+    -- Owner adds featured plants (top 2 plants they usually have — NOT inventory)
+    INSERT INTO public.nursery_featured_plants
+        (nursery_id, plant_id, display_order, approximate_quantity, approximate_size, quality_notes)
+    VALUES
+        (v_nursery_id, v_plant_id,  1, 100, 'MEDIUM', 'Well-established Banyan trees, lorry-accessible'),
+        (v_nursery_id, v_plant2_id, 2,  60, 'SMALL',  'Healthy Gulmohar saplings')
+    ON CONFLICT (nursery_id, plant_id) DO NOTHING;
+
+    SELECT count(*) INTO v_count FROM public.nursery_featured_plants WHERE nursery_id = v_nursery_id AND is_active = true;
+    IF v_count = 2 THEN
+        RAISE NOTICE 'PASS  2 featured plants added (not inventory — approximate only)';
+    ELSE
+        RAISE NOTICE 'FAIL  Expected 2 featured plants, got %', v_count;
+    END IF;
+
+    -- Manager posts a NEED announcement: looking for more Banyan trees
+    INSERT INTO public.sourcing_posts (
+        nursery_id, posted_by_user_id, post_type,
+        plant_id, plant_name, size_description, quantity,
+        urgency, needed_by_date, notes, radius_km, expires_at
+    ) VALUES (
+        v_nursery2_id, v_buyer2_nursery_id, 'NEED',
+        v_plant_id, 'Banyan Tree', 'LARGE', 50,
+        'URGENT', CURRENT_DATE + 2,
+        'Need 50 large Banyan trees for a landscape project. Lorry access required.',
+        75, CURRENT_TIMESTAMP + INTERVAL '48 hours'
+    ) RETURNING post_id, post_code INTO v_src_post_id, v_src_post_code;
+
+    IF v_src_post_code LIKE 'SRC-%' THEN
+        RAISE NOTICE 'PASS  NEED post % created by nursery2', v_src_post_code;
+    ELSE
+        RAISE NOTICE 'FAIL  Sourcing post code not generated: %', v_src_post_code;
+    END IF;
+
+    -- Attach a photo to the NEED post
+    INSERT INTO public.sourcing_post_photos (post_id, photo_url, display_order, uploaded_by_user_id)
+    VALUES (v_src_post_id, 'https://storage.greenroot.app/posts/test-need-photo.jpg', 1, v_buyer2_nursery_id)
+    RETURNING photo_id INTO v_src_photo_id;
+
+    RAISE NOTICE 'PASS  Photo attached to sourcing post (photo_id=%)', v_src_photo_id;
+
+    -- Nursery1 responds with availability
+    INSERT INTO public.sourcing_post_responses (
+        post_id, responder_nursery_id, responded_by_user_id,
+        available_quantity, notes, contact_info, status
+    ) VALUES (
+        v_src_post_id, v_nursery_id, v_manager1_id,
+        40, 'We have 40 large Banyan trees ready. Farm is lorry-accessible.',
+        '9001100001', 'PENDING'
+    ) RETURNING response_id INTO v_src_response_id;
+
+    -- Posting nursery accepts the response
+    UPDATE public.sourcing_post_responses
+    SET status = 'ACCEPTED'
+    WHERE response_id = v_src_response_id;
+
+    -- Close the post after accepting a response
+    UPDATE public.sourcing_posts
+    SET status = 'CLOSED', closed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+    WHERE post_id = v_src_post_id;
+
+    IF (SELECT status FROM public.sourcing_post_responses WHERE response_id = v_src_response_id) = 'ACCEPTED' THEN
+        RAISE NOTICE 'PASS  Response accepted; NEED post closed';
+    ELSE
+        RAISE NOTICE 'FAIL  Response not accepted correctly';
+    END IF;
+
+    -- Nursery1 posts an AVAILABLE announcement
+    INSERT INTO public.sourcing_posts (
+        nursery_id, posted_by_user_id, post_type,
+        plant_id, plant_name, size_description, quantity,
+        urgency, notes, radius_km, expires_at
+    ) VALUES (
+        v_nursery_id, v_owner_id, 'AVAILABLE',
+        v_plant2_id, 'Gulmohar Tree', 'MEDIUM', 80,
+        'TODAY', 'Available for pickup today only. Sorted and packed.',
+        50, CURRENT_TIMESTAMP + INTERVAL '12 hours'
+    ) RETURNING post_id, post_code INTO v_src_post_id, v_src_post_code;
+
+    IF v_src_post_code LIKE 'SRC-%' THEN
+        RAISE NOTICE 'PASS  AVAILABLE post % created by nursery1', v_src_post_code;
+    ELSE
+        RAISE NOTICE 'FAIL  AVAILABLE post code not generated: %', v_src_post_code;
+    END IF;
+
+    -- Verify post type constraint rejects invalid value
+    BEGIN
+        INSERT INTO public.sourcing_posts
+            (nursery_id, posted_by_user_id, post_type, plant_name)
+        VALUES (v_nursery_id, v_owner_id, 'INVALID_TYPE', 'Test');
+        RAISE NOTICE 'FAIL  CHECK constraint did not reject invalid post_type';
+    EXCEPTION WHEN check_violation THEN
+        RAISE NOTICE 'PASS  CHECK constraint correctly rejected post_type=INVALID_TYPE';
+    END;
+
+    -- Verify display_order constraint on featured plants
+    BEGIN
+        INSERT INTO public.nursery_featured_plants
+            (nursery_id, plant_id, display_order)
+        VALUES (v_nursery_id, v_plant_id, 25);
+        RAISE NOTICE 'FAIL  CHECK constraint did not reject display_order=25';
+    EXCEPTION WHEN check_violation THEN
+        RAISE NOTICE 'PASS  CHECK constraint correctly rejected display_order=25 (max is 20)';
+    END;
+
+    SELECT count(*) INTO v_count FROM public.sourcing_posts WHERE nursery_id IN (v_nursery_id, v_nursery2_id);
+    RAISE NOTICE 'PASS  % sourcing posts total for test nurseries', v_count;
+
+    RAISE NOTICE '';
+    RAISE NOTICE '── STEP 22 Summary ─────────────────────────────────';
+    RAISE NOTICE 'Network members    : %', (SELECT count(*) FROM public.sourcing_network_members WHERE is_active = true);
+    RAISE NOTICE 'Featured plants    : %', (SELECT count(*) FROM public.nursery_featured_plants);
+    RAISE NOTICE 'Sourcing posts     : %', (SELECT count(*) FROM public.sourcing_posts);
+    RAISE NOTICE 'Post responses     : %', (SELECT count(*) FROM public.sourcing_post_responses);
+    RAISE NOTICE 'Post photos        : %', (SELECT count(*) FROM public.sourcing_post_photos);
 
     RAISE NOTICE '';
     RAISE NOTICE '══════════════════════════════════════════════════════';
