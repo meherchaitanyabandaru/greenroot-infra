@@ -1,35 +1,105 @@
--- GreenRoot sample seed data
--- Run after all migrations. Safe to re-run (ON CONFLICT DO NOTHING / DO UPDATE).
--- Inserts: platform roles, admin user, nurseries, manager users, vehicles, plant sizes, plant categories, sample plants.
+-- =============================================================================
+-- GreenRoot — Dev Seed
+-- Single canonical seed file. Safe to re-run on an existing DB.
+--
+-- USAGE
+--   Full reset (wipes all data, keeps schema):
+--     psql 'postgres:///greenroot?host=/tmp' -v ON_ERROR_STOP=1 \
+--          -c "SET session_replication_role = replica;" \
+--          -f greenroot-seed.sql \
+--          -c "SET session_replication_role = DEFAULT;"
+--
+--   Or use the helper script:
+--     cd greenroot-api && make db-reset
+--
+-- DEV LOGIN CREDENTIALS  (OTP: 123456 for all)
+-- ─────────────────────────────────────────────
+--   Role            Mobile        Name
+--   Admin           9000000000    GreenRoot Admin
+--   Nursery Owner   9100000000    Priya Owner
+--   Manager         9200000000    Gumastha Manager
+--   Buyer           9300000000    Ravi Buyer
+--   Driver          9400000000    Raju Driver
+-- =============================================================================
 
--- ─── Platform roles ───────────────────────────────────────────────────────────
-INSERT INTO public.roles (role_id, role_code, role_name, description, is_active)
-VALUES
+-- ─────────────────────────────────────────────────────────────────────────────
+-- SECTION 1: CLEAN SLATE
+-- Disable FK checks → truncate all transactional + identity tables → re-enable.
+-- Reference tables (roles, plant_sizes, etc.) are preserved via ON CONFLICT.
+-- ─────────────────────────────────────────────────────────────────────────────
+SET session_replication_role = replica;
+
+TRUNCATE TABLE
+  public.notifications,
+  public.platform_config,
+  public.audit_logs,
+  public.attachments,
+  public.payments,
+  public.trip_events,
+  public.trip_tracking_links,
+  public.vehicle_tracking,
+  public.dispatch_items,
+  public.dispatch_assignments,
+  public.dispatches,
+  public.order_items,
+  public.orders,
+  public.quotation_items,
+  public.quotations,
+  public.invites,
+  public.plant_request_responses,
+  public.plant_requests,
+  public.sourcing_post_photos,
+  public.sourcing_post_responses,
+  public.sourcing_posts,
+  public.sourcing_network_members,
+  public.nursery_featured_plants,
+  public.nursery_inventory,
+  public.nursery_drivers,
+  public.nursery_applications,
+  public.nursery_addresses,
+  public.nursery_users,
+  public.nurseries,
+  public.driver_locations,
+  public.vehicle_locations,
+  public.drivers,
+  public.vehicles,
+  public.user_sessions,
+  public.otp_requests,
+  public.user_activities,
+  public.user_addresses,
+  public.user_subscriptions,
+  public.user_notification_devices,
+  public.user_roles,
+  public.users,
+  public.public_code_sequences
+RESTART IDENTITY;
+
+SET session_replication_role = DEFAULT;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- SECTION 2: REFERENCE DATA (idempotent — safe to re-run)
+-- ─────────────────────────────────────────────────────────────────────────────
+
+INSERT INTO public.roles (role_id, role_code, role_name, description, is_active) VALUES
   (1, 'ADMIN',              'Admin',              'Platform administrator',          true),
   (2, 'BUYER',              'Buyer',              'Plant buyer / customer',          true),
-  (3, 'NURSERY_OWNER',      'Nursery Owner',      'Nursery owner or co-owner',       true),
+  (3, 'NURSERY_OWNER',      'Nursery Owner',      'Nursery owner',                   true),
   (4, 'DRIVER',             'Driver',             'Delivery driver',                 true),
   (5, 'MANAGER',            'Manager',            'Nursery manager (gumastha)',       true),
   (6, 'SUPER_ADMIN',        'Super Admin',        'Super administrator',             true),
   (7, 'TRANSPORT_PROVIDER', 'Transport Provider', 'Fleet / transport company owner', true)
 ON CONFLICT (role_id) DO NOTHING;
 
--- ─── Admin user (login: 9000000777 / OTP 123456) ──────────────────────────────
-INSERT INTO public.users (first_name, last_name, mobile, status, mobile_verified)
-VALUES ('GreenRoot', 'Admin', '9000000777', 'ACTIVE', true)
-ON CONFLICT (mobile) DO NOTHING;
+INSERT INTO public.nursery_roles (nursery_role_id, role_code, role_name, description) VALUES
+  (1, 'OWNER',      'Owner',      'Primary owner of nursery'),
+  (2, 'PARTNER',    'Partner',    'Business partner'),
+  (3, 'MANAGER',    'Manager',    'Nursery manager'),
+  (4, 'OPERATOR',   'Operator',   'Day to day operations'),
+  (5, 'ACCOUNTANT', 'Accountant', 'Accounts and finance'),
+  (6, 'DISPATCHER', 'Dispatcher', 'Dispatch operations')
+ON CONFLICT (nursery_role_id) DO NOTHING;
 
-INSERT INTO public.user_roles (user_id, role_id, assigned_at, assigned_by)
-SELECT u.user_id, 1, CURRENT_TIMESTAMP, u.user_id
-FROM public.users u
-WHERE u.mobile = '9000000777'
-  AND NOT EXISTS (
-    SELECT 1 FROM public.user_roles ur WHERE ur.user_id = u.user_id AND ur.role_id = 1
-  );
-
--- ─── Plant sizes (reference data) ─────────────────────────────────────────────
-INSERT INTO public.plant_sizes (size_id, size_code, display_name, display_order, is_active)
-VALUES
+INSERT INTO public.plant_sizes (size_id, size_code, display_name, display_order, is_active) VALUES
   (1, 'SEED',        'Seed',        1, true),
   (2, 'SAPLING',     'Sapling',     2, true),
   (3, 'SMALL',       'Small',       3, true),
@@ -38,9 +108,7 @@ VALUES
   (6, 'EXTRA_LARGE', 'Extra Large', 6, true)
 ON CONFLICT (size_id) DO NOTHING;
 
--- ─── Plant categories (reference data) ────────────────────────────────────────
-INSERT INTO public.plant_categories (category_name, is_active)
-VALUES
+INSERT INTO public.plant_categories (category_name, is_active) VALUES
   ('Fruit Trees',      true),
   ('Medicinal Plants', true),
   ('Shade Trees',      true),
@@ -50,17 +118,32 @@ VALUES
   ('Indoor Plants',    true)
 ON CONFLICT (category_name) DO NOTHING;
 
--- ─── Sample plants ─────────────────────────────────────────────────────────────
-INSERT INTO public.plants (scientific_name, common_name, plant_type, light_requirement, water_requirement, english_description, is_active)
-VALUES
-  ('Mangifera indica',       'Mango',      'TREE',  'FULL_SUN',      'HIGH',     'Popular tropical fruit tree grown across India.',        true),
-  ('Azadirachta indica',     'Neem',       'TREE',  'FULL_SUN',      'LOW',      'Hardy medicinal tree known for antibacterial properties.', true),
-  ('Hibiscus rosa-sinensis', 'Hibiscus',   'SHRUB', 'FULL_SUN',      'MODERATE', 'Ornamental flowering shrub with large colorful blooms.',  true),
-  ('Cocos nucifera',         'Coconut',    'TREE',  'FULL_SUN',      'HIGH',     'Coastal palm tree producing coconuts.',                  true),
-  ('Moringa oleifera',       'Drumstick',  'TREE',  'FULL_SUN',      'LOW',      'Fast-growing nutritious tree; all parts are edible.',     true)
+INSERT INTO public.languages (language_id, language_code, language_name, is_active, created_at, updated_at)
+VALUES (1, 'en', 'English', true, NOW(), NOW())
+ON CONFLICT DO NOTHING;
+
+INSERT INTO public.platform_config (config_key, config_value, data_type, description) VALUES
+  ('otp_expiry_minutes',      '5',    'integer', 'OTP validity window in minutes'),
+  ('otp_max_attempts',        '5',    'integer', 'Wrong OTP attempts before code is blocked'),
+  ('otp_resend_cooldown_sec', '30',   'integer', 'Seconds to wait before requesting another OTP'),
+  ('min_order_amount',        '100',  'numeric', 'Minimum order total in INR'),
+  ('platform_fee_pct',        '0',    'numeric', 'Platform fee percentage applied to orders'),
+  ('driver_approval_days',    '3',    'integer', 'Days before pending driver approval auto-expires'),
+  ('nursery_approval_days',   '7',    'integer', 'Days before pending nursery application auto-expires')
+ON CONFLICT (config_key) DO NOTHING;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- SECTION 3: SAMPLE PLANTS
+-- ─────────────────────────────────────────────────────────────────────────────
+
+INSERT INTO public.plants (scientific_name, common_name, plant_type, light_requirement, water_requirement, english_description, is_active) VALUES
+  ('Mangifera indica',       'Mango',     'TREE',  'FULL_SUN', 'HIGH',     'Popular tropical fruit tree grown across India.',          true),
+  ('Azadirachta indica',     'Neem',      'TREE',  'FULL_SUN', 'LOW',      'Hardy medicinal tree known for antibacterial properties.', true),
+  ('Hibiscus rosa-sinensis', 'Hibiscus',  'SHRUB', 'FULL_SUN', 'MODERATE', 'Ornamental flowering shrub with large colorful blooms.',   true),
+  ('Cocos nucifera',         'Coconut',   'TREE',  'FULL_SUN', 'HIGH',     'Coastal palm tree producing coconuts.',                   true),
+  ('Moringa oleifera',       'Drumstick', 'TREE',  'FULL_SUN', 'LOW',      'Fast-growing nutritious tree; all parts are edible.',      true)
 ON CONFLICT (scientific_name) DO NOTHING;
 
--- ─── Map sample plants to categories ──────────────────────────────────────────
 INSERT INTO public.plant_category_mapping (plant_id, category_id, created_at)
 SELECT p.plant_id, c.category_id, CURRENT_TIMESTAMP
 FROM (VALUES
@@ -72,335 +155,157 @@ FROM (VALUES
   ('Cocos nucifera',         'Fruit Trees'),
   ('Moringa oleifera',       'Medicinal Plants')
 ) AS m(sci, cat)
-JOIN public.plants           p ON p.scientific_name  = m.sci
-JOIN public.plant_categories c ON c.category_name    = m.cat
+JOIN public.plants           p ON p.scientific_name = m.sci
+JOIN public.plant_categories c ON c.category_name   = m.cat
 ON CONFLICT DO NOTHING;
 
--- ─── Nursery roles (reference data) ───────────────────────────────────────────
-INSERT INTO public.nursery_roles (nursery_role_id, role_code, role_name, description)
-VALUES
-  (1, 'OWNER',      'Owner',      'Primary owner of nursery'),
-  (2, 'PARTNER',    'Partner',    'Business partner'),
-  (3, 'MANAGER',    'Manager',    'Nursery manager'),
-  (4, 'OPERATOR',   'Operator',   'Day to day operations'),
-  (5, 'ACCOUNTANT', 'Accountant', 'Accounts and finance'),
-  (6, 'DISPATCHER', 'Dispatcher', 'Dispatch operations')
-ON CONFLICT (nursery_role_id) DO NOTHING;
+-- ─────────────────────────────────────────────────────────────────────────────
+-- SECTION 4: DEV TEST USERS
+-- 5 users — one per role. OTP: 123456 for all.
+--
+--   Mobile        Role            Name
+--   9000000000    Admin           GreenRoot Admin
+--   9100000000    Nursery Owner   Priya Owner
+--   9200000000    Manager         Gumastha Manager
+--   9300000000    Buyer           Ravi Buyer
+--   9400000000    Driver          Raju Driver
+-- ─────────────────────────────────────────────────────────────────────────────
 
--- ─── Platform config defaults ─────────────────────────────────────────────────
--- Also seeded by the schema migration; safe to re-run (ON CONFLICT DO NOTHING).
-INSERT INTO public.platform_config (config_key, config_value, data_type, description) VALUES
-  ('otp_expiry_minutes',      '5',    'integer', 'OTP validity window in minutes'),
-  ('otp_max_attempts',        '5',    'integer', 'Wrong OTP attempts before the code is blocked'),
-  ('otp_resend_cooldown_sec', '30',   'integer', 'Seconds a user must wait before requesting another OTP'),
-  ('min_order_amount',        '100',  'numeric', 'Minimum order total in INR'),
-  ('platform_fee_pct',        '0',    'numeric', 'Platform fee percentage applied to orders'),
-  ('driver_approval_days',    '3',    'integer', 'Days before a pending driver approval auto-expires'),
-  ('nursery_approval_days',   '7',    'integer', 'Days before a pending nursery application auto-expires')
-ON CONFLICT (config_key) DO NOTHING;
-
--- ─── 5 Nurseries (status='ACTIVE' intentionally bypasses PENDING_APPROVAL) ────
--- Dev/seed nurseries skip the approval workflow so the app is usable immediately.
--- Production nurseries start as PENDING_APPROVAL and require Super Admin approval.
-INSERT INTO public.nurseries (nursery_name, mobile, email, description, status)
-VALUES
-  ('GreenLeaf Gardens', '9800000001', 'greenleaf@example.com',   'Premium indoor and outdoor plants',    'ACTIVE'),
-  ('TreeTop Nursery',   '9800000002', 'treetop@example.com',     'Specialising in native trees',         'ACTIVE'),
-  ('Bloom Valley',      '9800000003', 'bloomvalley@example.com', 'Flowering plants and seasonal blooms', 'ACTIVE'),
-  ('Urban Roots',       '9800000004', 'urbanroots@example.com',  'Urban gardening solutions',            'ACTIVE'),
-  ('EcoGreen Farms',    '9800000005', 'ecogreen@example.com',    'Organic and eco-friendly nursery',     'ACTIVE')
-ON CONFLICT DO NOTHING;
-
--- ─── Nursery addresses ────────────────────────────────────────────────────────
-INSERT INTO public.nursery_addresses (nursery_id, address_type, address_line1, city, state, country, postal_code, is_primary)
-SELECT n.nursery_id, 'BUSINESS', a.line1, a.city, a.state, 'India', a.pin, true
-FROM (VALUES
-  ('9800000001', '12 Garden Lane',   'Mumbai',    'Maharashtra', '400001'),
-  ('9800000002', '45 Forest Road',   'Pune',      'Maharashtra', '411001'),
-  ('9800000003', '78 Valley Street', 'Nashik',    'Maharashtra', '422001'),
-  ('9800000004', '23 Metro Plaza',   'Bangalore', 'Karnataka',   '560001'),
-  ('9800000005', '90 Farm Road',     'Chennai',   'Tamil Nadu',  '600001')
-) AS a(mobile, line1, city, state, pin)
-JOIN public.nurseries n ON n.mobile = a.mobile
-ON CONFLICT DO NOTHING;
-
--- ─── Dev test users ───────────────────────────────────────────────────────────
--- Easy-to-remember dev login numbers (OTP 123456 for all)
-INSERT INTO public.users (first_name, last_name, mobile, status, mobile_verified)
-VALUES
-  ('Arjun',  'Buyer',   '9111111111', 'ACTIVE', true),
-  ('Priya',  'Owner',   '9222222222', 'ACTIVE', true),
-  ('Rahul',  'Driver',  '9333333333', 'ACTIVE', true),
-  ('Suresh', 'Manager', '9555555555', 'ACTIVE', true)
+INSERT INTO public.users (first_name, last_name, mobile, status, mobile_verified) VALUES
+  ('GreenRoot', 'Admin',   '9000000000', 'ACTIVE', true),
+  ('Priya',     'Owner',   '9100000000', 'ACTIVE', true),
+  ('Gumastha',  'Manager', '9200000000', 'ACTIVE', true),
+  ('Ravi',      'Buyer',   '9300000000', 'ACTIVE', true),
+  ('Raju',      'Driver',  '9400000000', 'ACTIVE', true)
 ON CONFLICT (mobile) DO NOTHING;
 
 INSERT INTO public.user_roles (user_id, role_id, assigned_at)
 SELECT u.user_id, r.role_id, CURRENT_TIMESTAMP
 FROM (VALUES
-  ('9111111111', 'BUYER'),
-  ('9222222222', 'NURSERY_OWNER'),
-  ('9333333333', 'DRIVER'),
-  ('9555555555', 'MANAGER')
+  ('9000000000', 'ADMIN'),
+  ('9000000000', 'SUPER_ADMIN'),
+  ('9100000000', 'NURSERY_OWNER'),
+  ('9200000000', 'MANAGER'),
+  ('9300000000', 'BUYER'),
+  ('9400000000', 'DRIVER')
 ) AS m(mobile, role_code)
-JOIN public.users u ON u.mobile = m.mobile
-JOIN public.roles r ON r.role_code = m.role_code
+JOIN public.users u ON u.mobile     = m.mobile
+JOIN public.roles r ON r.role_code  = m.role_code
 ON CONFLICT DO NOTHING;
 
--- ─── Nursery for dev owner (9222222222) ───────────────────────────────────────
--- Dev nursery also bypasses PENDING_APPROVAL (same rationale as above)
-INSERT INTO public.nurseries (nursery_name, mobile, email, description, status)
-VALUES ('Dev Nursery', '9222222222', 'dev@greenroot.example', 'Default dev nursery', 'ACTIVE')
+-- ─────────────────────────────────────────────────────────────────────────────
+-- SECTION 5: NURSERY
+-- One nursery for the Owner. Skips PENDING_APPROVAL (dev convenience).
+-- Manager is linked as an active member.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+INSERT INTO public.nurseries (nursery_name, owner_user_id, mobile, email, description, status)
+SELECT 'GreenRoot Dev Nursery', u.user_id, '9100000000', 'owner@greenroot.dev',
+       'Default dev nursery for testing', 'ACTIVE'
+FROM public.users u WHERE u.mobile = '9100000000'
 ON CONFLICT DO NOTHING;
 
-INSERT INTO public.nursery_users (nursery_id, user_id, nursery_role_id)
-SELECT n.nursery_id, u.user_id, nr.nursery_role_id
+-- Owner membership (nursery_role_id 1 = OWNER)
+INSERT INTO public.nursery_users (nursery_id, user_id, nursery_role_id, role, status)
+SELECT n.nursery_id, u.user_id, 1, 'OWNER', 'ACTIVE'
 FROM public.nurseries n
-JOIN public.users u ON u.mobile = '9222222222'
-JOIN public.nursery_roles nr ON nr.role_code = 'OWNER'
-WHERE n.mobile = '9222222222'
+JOIN public.users     u ON u.mobile = '9100000000'
+WHERE n.mobile = '9100000000'
 ON CONFLICT DO NOTHING;
 
--- Link dev manager to dev nursery
-INSERT INTO public.nursery_users (nursery_id, user_id, nursery_role_id)
-SELECT n.nursery_id, u.user_id, nr.nursery_role_id
+-- Manager membership (nursery_role_id 3 = MANAGER)
+INSERT INTO public.nursery_users (nursery_id, user_id, nursery_role_id, role, status)
+SELECT n.nursery_id, u.user_id, 3, 'MANAGER', 'ACTIVE'
 FROM public.nurseries n
-JOIN public.users u ON u.mobile = '9555555555'
-JOIN public.nursery_roles nr ON nr.role_code = 'MANAGER'
-WHERE n.mobile = '9222222222'
+JOIN public.users     u ON u.mobile = '9200000000'
+WHERE n.mobile = '9100000000'
 ON CONFLICT DO NOTHING;
 
--- ─── 5 sample nursery staff users ─────────────────────────────────────────────
-INSERT INTO public.users (first_name, last_name, mobile, email, status)
-VALUES
-  ('Arjun',   'Sharma', '9876500001', 'arjun.sharma@greenroot.example',   'ACTIVE'),
-  ('Priya',   'Patel',  '9876500002', 'priya.patel@greenroot.example',    'ACTIVE'),
-  ('Rahul',   'Mehta',  '9876500003', 'rahul.mehta@greenroot.example',    'ACTIVE'),
-  ('Sneha',   'Reddy',  '9876500004', 'sneha.reddy@greenroot.example',    'ACTIVE'),
-  ('Karthik', 'Nair',   '9876500005', 'karthik.nair@greenroot.example',   'ACTIVE')
-ON CONFLICT (mobile) DO NOTHING;
+-- ─────────────────────────────────────────────────────────────────────────────
+-- SECTION 6: DRIVER PROFILE (pre-approved for immediate dispatch testing)
+-- ─────────────────────────────────────────────────────────────────────────────
 
--- Assign MANAGER platform role to sample staff
-INSERT INTO public.user_roles (user_id, role_id, assigned_at)
-SELECT u.user_id, r.role_id, CURRENT_TIMESTAMP
-FROM public.users u
-JOIN public.roles r ON r.role_code = 'MANAGER'
-WHERE u.mobile IN ('9876500001','9876500002','9876500003','9876500004','9876500005')
-ON CONFLICT DO NOTHING;
+INSERT INTO public.drivers (user_id, license_number, vehicle_type, vehicle_number, profile_status, approval_status, status)
+SELECT u.user_id, 'DL-KA-2024-001', 'TRUCK', 'KA-01-AA-0001', 'COMPLETE', 'APPROVED', 'ACTIVE'
+FROM public.users u WHERE u.mobile = '9400000000'
+ON CONFLICT (user_id) DO NOTHING;
 
--- ─── Link sample staff to nurseries (nursery_role_id 3 = MANAGER) ─────────────
-INSERT INTO public.nursery_users (nursery_id, user_id, nursery_role_id)
-SELECT n.nursery_id, u.user_id, 3
-FROM (VALUES
-  ('9800000001', '9876500001'),
-  ('9800000002', '9876500002'),
-  ('9800000003', '9876500003'),
-  ('9800000004', '9876500004'),
-  ('9800000005', '9876500005')
-) AS m(nursery_mobile, user_mobile)
-JOIN public.nurseries n ON n.mobile = m.nursery_mobile
-JOIN public.users     u ON u.mobile = m.user_mobile
-ON CONFLICT (nursery_id, user_id, nursery_role_id) DO NOTHING;
+-- ─────────────────────────────────────────────────────────────────────────────
+-- SECTION 7: SAMPLE VEHICLES
+-- ─────────────────────────────────────────────────────────────────────────────
 
--- ─── 5 Vehicles ───────────────────────────────────────────────────────────────
-INSERT INTO public.vehicles (vehicle_number, vehicle_type, capacity_kg, owner_name, mobile, status)
-VALUES
-  ('MH01AB1234', 'TRUCK',  2000.00, 'GreenLeaf Transport',  '9700000001', 'ACTIVE'),
-  ('MH02CD5678', 'VAN',     800.00, 'TreeTop Logistics',    '9700000002', 'ACTIVE'),
-  ('MH03EF9012', 'PICKUP',  600.00, 'Bloom Valley Carrier', '9700000003', 'ACTIVE'),
-  ('KA01GH3456', 'TRUCK',  1500.00, 'Urban Roots Fleet',    '9700000004', 'ACTIVE'),
-  ('TN02IJ7890', 'VAN',     900.00, 'EcoGreen Logistics',   '9700000005', 'ACTIVE')
+INSERT INTO public.vehicles (vehicle_number, vehicle_type, capacity_kg, owner_name, mobile, status) VALUES
+  ('KA-01-AA-1001', 'TRUCK',     2000.00, 'Dev Transport Co',  '9100000000', 'ACTIVE'),
+  ('KA-01-BB-2002', 'MINI_TRUCK', 800.00, 'Dev Logistics',     '9200000000', 'ACTIVE')
 ON CONFLICT (vehicle_number) DO NOTHING;
 
--- ─── Sync public code sequences ───────────────────────────────────────────────
--- Use MAX of the numeric part of each code column so the counter is correct
--- even when rows have been deleted (gaps exist) from previous test runs.
-INSERT INTO public.public_code_sequences (code_key, date_key, last_value)
-SELECT 'users', '', COALESCE(MAX(REGEXP_REPLACE(user_code, '[^0-9]', '', 'g')::INTEGER), 0) FROM public.users
-ON CONFLICT (code_key, date_key) DO UPDATE SET last_value = GREATEST(public_code_sequences.last_value, EXCLUDED.last_value), updated_at = CURRENT_TIMESTAMP;
+-- ─────────────────────────────────────────────────────────────────────────────
+-- SECTION 8: NURSERY FEATURED PLANTS (sourcing network preview)
+-- ─────────────────────────────────────────────────────────────────────────────
+
+INSERT INTO public.sourcing_network_members (nursery_id, is_active, road_accessible, lorry_accessible, service_radius_km, joined_by_user_id)
+SELECT n.nursery_id, true, true, true, 50, u.user_id
+FROM public.nurseries n
+JOIN public.users     u ON u.mobile = '9100000000'
+WHERE n.mobile = '9100000000'
+ON CONFLICT (nursery_id) DO NOTHING;
+
+INSERT INTO public.nursery_featured_plants (nursery_id, plant_id, display_order, approximate_quantity, approximate_size, quality_notes)
+SELECT n.nursery_id, p.plant_id,
+       ROW_NUMBER() OVER (ORDER BY p.plant_id),
+       CASE ROW_NUMBER() OVER (ORDER BY p.plant_id) WHEN 1 THEN 100 WHEN 2 THEN 60 ELSE 40 END,
+       'MEDIUM',
+       'Good quality, available for dispatch'
+FROM public.nurseries n
+CROSS JOIN public.plants p
+WHERE n.mobile = '9100000000'
+  AND p.scientific_name IN ('Mangifera indica', 'Azadirachta indica', 'Cocos nucifera')
+ON CONFLICT (nursery_id, plant_id) DO NOTHING;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- SECTION 9: SYNC PUBLIC CODE SEQUENCES
+-- Ensures next_public_code() generates correct codes after seed data.
+-- ─────────────────────────────────────────────────────────────────────────────
 
 INSERT INTO public.public_code_sequences (code_key, date_key, last_value)
-SELECT 'nurseries', '', COALESCE(MAX(REGEXP_REPLACE(nursery_code, '[^0-9]', '', 'g')::INTEGER), 0) FROM public.nurseries
-ON CONFLICT (code_key, date_key) DO UPDATE SET last_value = GREATEST(public_code_sequences.last_value, EXCLUDED.last_value), updated_at = CURRENT_TIMESTAMP;
+SELECT 'users', '', COALESCE(MAX(REGEXP_REPLACE(user_code, '[^0-9]', '', 'g')::INTEGER), 0)
+FROM public.users
+ON CONFLICT (code_key, date_key) DO UPDATE
+  SET last_value = GREATEST(public_code_sequences.last_value, EXCLUDED.last_value),
+      updated_at = CURRENT_TIMESTAMP;
 
 INSERT INTO public.public_code_sequences (code_key, date_key, last_value)
-SELECT 'vehicles', '', COALESCE(MAX(REGEXP_REPLACE(vehicle_code, '[^0-9]', '', 'g')::INTEGER), 0) FROM public.vehicles
-ON CONFLICT (code_key, date_key) DO UPDATE SET last_value = GREATEST(public_code_sequences.last_value, EXCLUDED.last_value), updated_at = CURRENT_TIMESTAMP;
+SELECT 'nurseries', '', COALESCE(MAX(REGEXP_REPLACE(nursery_code, '[^0-9]', '', 'g')::INTEGER), 0)
+FROM public.nurseries
+ON CONFLICT (code_key, date_key) DO UPDATE
+  SET last_value = GREATEST(public_code_sequences.last_value, EXCLUDED.last_value),
+      updated_at = CURRENT_TIMESTAMP;
 
 INSERT INTO public.public_code_sequences (code_key, date_key, last_value)
-SELECT 'plants', '', COALESCE(MAX(REGEXP_REPLACE(plant_code, '[^0-9]', '', 'g')::INTEGER), 0) FROM public.plants
-ON CONFLICT (code_key, date_key) DO UPDATE SET last_value = GREATEST(public_code_sequences.last_value, EXCLUDED.last_value), updated_at = CURRENT_TIMESTAMP;
+SELECT 'vehicles', '', COALESCE(MAX(REGEXP_REPLACE(vehicle_code, '[^0-9]', '', 'g')::INTEGER), 0)
+FROM public.vehicles
+ON CONFLICT (code_key, date_key) DO UPDATE
+  SET last_value = GREATEST(public_code_sequences.last_value, EXCLUDED.last_value),
+      updated_at = CURRENT_TIMESTAMP;
 
 INSERT INTO public.public_code_sequences (code_key, date_key, last_value)
-SELECT 'nursery_applications', '', COALESCE(MAX(REGEXP_REPLACE(application_code, '[^0-9]', '', 'g')::INTEGER), 0) FROM public.nursery_applications
-ON CONFLICT (code_key, date_key) DO UPDATE SET last_value = GREATEST(public_code_sequences.last_value, EXCLUDED.last_value), updated_at = CURRENT_TIMESTAMP;
+SELECT 'plants', '', COALESCE(MAX(REGEXP_REPLACE(plant_code, '[^0-9]', '', 'g')::INTEGER), 0)
+FROM public.plants
+ON CONFLICT (code_key, date_key) DO UPDATE
+  SET last_value = GREATEST(public_code_sequences.last_value, EXCLUDED.last_value),
+      updated_at = CURRENT_TIMESTAMP;
 
--- ─── Sample quotations ─────────────────────────────────────────────────────────
--- One demo quotation by the admin user linked to nursery 1.
--- Idempotent: only inserts if no quotations exist yet.
-
-DO $$
-DECLARE
-  v_admin_id   BIGINT;
-  v_admin_name VARCHAR;
-  v_nur_id     BIGINT;
-  v_nur_name   VARCHAR;
-  v_nur_phone  VARCHAR;
-  v_plant1_id  BIGINT;
-  v_plant2_id  BIGINT;
-  v_p1_sci     VARCHAR; v_p1_com VARCHAR;
-  v_p2_sci     VARCHAR; v_p2_com VARCHAR;
-  v_qid        BIGINT;
-  v_code       VARCHAR;
-BEGIN
-  IF (SELECT count(*) FROM public.quotations) > 0 THEN RETURN; END IF;
-
-  SELECT user_id, first_name INTO v_admin_id, v_admin_name
-    FROM public.users WHERE mobile = '9000000777' LIMIT 1;
-  IF v_admin_id IS NULL THEN RETURN; END IF;
-
-  SELECT nursery_id, nursery_name, COALESCE(mobile,'')
-    INTO v_nur_id, v_nur_name, v_nur_phone
-    FROM public.nurseries WHERE nursery_id = 1 LIMIT 1;
-
-  SELECT plant_id, scientific_name, COALESCE(common_name,'')
-    INTO v_plant1_id, v_p1_sci, v_p1_com
-    FROM public.plants WHERE scientific_name = 'Mangifera indica' LIMIT 1;
-
-  SELECT plant_id, scientific_name, COALESCE(common_name,'')
-    INTO v_plant2_id, v_p2_sci, v_p2_com
-    FROM public.plants WHERE scientific_name = 'Azadirachta indica' LIMIT 1;
-
-  v_code := 'QUO-' || to_char(CURRENT_DATE,'YYYYMMDD') || '-0001';
-
-  INSERT INTO public.quotations (
-    quotation_code, created_by_user_id, created_by_name,
-    nursery_id, nursery_name, nursery_phone,
-    recipient_name, recipient_mobile, notes, total_amount, status
-  ) VALUES (
-    v_code, v_admin_id, v_admin_name,
-    v_nur_id, v_nur_name, NULLIF(v_nur_phone,''),
-    'Ravi Kumar', '9800000001', 'Sample quotation for mango and neem plants', 0, 'DRAFT'
-  ) RETURNING quotation_id INTO v_qid;
-
-  IF v_plant1_id IS NOT NULL THEN
-    INSERT INTO public.quotation_items
-      (quotation_id, plant_id, scientific_name, common_name, description, quantity, unit_price, total_price)
-    VALUES (v_qid, v_plant1_id, v_p1_sci, NULLIF(v_p1_com,''), 'Premium grade', 10, 250.00, 2500.00);
-  END IF;
-
-  IF v_plant2_id IS NOT NULL THEN
-    INSERT INTO public.quotation_items
-      (quotation_id, plant_id, scientific_name, common_name, description, quantity, unit_price, total_price)
-    VALUES (v_qid, v_plant2_id, v_p2_sci, NULLIF(v_p2_com,''), 'Standard grade', 5, 180.00, 900.00);
-  END IF;
-
-  UPDATE public.quotations
-    SET total_amount = (SELECT COALESCE(SUM(total_price),0) FROM public.quotation_items WHERE quotation_id = v_qid)
-  WHERE quotation_id = v_qid;
-END;
-$$;
-
--- Sync quotations public code sequence
 INSERT INTO public.public_code_sequences (code_key, date_key, last_value)
-SELECT 'quotations', to_char(CURRENT_DATE,'YYYYMMDD'), count(*)
-FROM public.quotations
-ON CONFLICT (code_key, date_key) DO UPDATE SET last_value = EXCLUDED.last_value, updated_at = CURRENT_TIMESTAMP;
+SELECT 'drivers', '', COALESCE(MAX(REGEXP_REPLACE(driver_code, '[^0-9]', '', 'g')::INTEGER), 0)
+FROM public.drivers
+ON CONFLICT (code_key, date_key) DO UPDATE
+  SET last_value = GREATEST(public_code_sequences.last_value, EXCLUDED.last_value),
+      updated_at = CURRENT_TIMESTAMP;
 
--- ─── Sample nursery applications ─────────────────────────────────────────────
--- One PENDING (buyer wants to open a nursery) and one APPROVED (dev owner's
--- nursery was onboarded via the application flow and is already linked).
-DO $$
-DECLARE
-  v_buyer_id   BIGINT;
-  v_admin_id   BIGINT;
-  v_nursery_id BIGINT;
-BEGIN
-  SELECT user_id INTO v_buyer_id   FROM public.users     WHERE mobile = '9111111111';
-  SELECT user_id INTO v_admin_id   FROM public.users     WHERE mobile = '9000000777';
-  SELECT nursery_id INTO v_nursery_id FROM public.nurseries WHERE mobile = '9222222222';
-
-  IF v_buyer_id IS NOT NULL AND NOT EXISTS (
-    SELECT 1 FROM public.nursery_applications WHERE applicant_user_id = v_buyer_id
-  ) THEN
-    INSERT INTO public.nursery_applications (
-      applicant_user_id, nursery_name, mobile, email,
-      address_line1, city, state, postal_code, description, status
-    ) VALUES (
-      v_buyer_id, 'Arjun Buyer Nursery', '9111111111', 'arjun@example.com',
-      '10 Plant Street', 'Hyderabad', 'Telangana', '500001',
-      'Applying to open a nursery for flowering plants', 'PENDING'
-    );
-  END IF;
-
-  IF v_admin_id IS NOT NULL AND v_nursery_id IS NOT NULL AND NOT EXISTS (
-    SELECT 1 FROM public.nursery_applications WHERE nursery_id = v_nursery_id
-  ) THEN
-    INSERT INTO public.nursery_applications (
-      applicant_user_id, nursery_name, mobile, email,
-      address_line1, city, state, postal_code, description,
-      status, reviewed_by, reviewed_at, nursery_id
-    ) VALUES (
-      v_admin_id, 'Dev Nursery', '9222222222', 'dev@greenroot.example',
-      '1 Dev Lane', 'Bangalore', 'Karnataka', '560001',
-      'Dev nursery application (pre-approved for seed data)',
-      'APPROVED', v_admin_id, CURRENT_TIMESTAMP, v_nursery_id
-    );
-  END IF;
-END;
-$$;
-
--- Re-sync nursery_applications sequence after sample rows
-INSERT INTO public.public_code_sequences (code_key, date_key, last_value)
-SELECT 'nursery_applications', '', count(*) FROM public.nursery_applications
-ON CONFLICT (code_key, date_key) DO UPDATE SET last_value = EXCLUDED.last_value, updated_at = CURRENT_TIMESTAMP;
-
--- ─── Plant Sourcing Network seed ─────────────────────────────────────────────
--- Opt the 5 sample nurseries into the sourcing network.
--- Featured plants showcase top available plants for each nursery (not inventory).
-DO $$
-DECLARE
-  v_nid   BIGINT;
-  v_uid   BIGINT;
-  rec     RECORD;
-BEGIN
-  -- Enroll sample nurseries into the sourcing network
-  FOR rec IN
-    SELECT n.nursery_id, u.user_id
-    FROM public.nurseries n
-    JOIN public.users u ON u.mobile = '9000000777'
-    WHERE n.mobile IN ('9800000001','9800000002','9800000003','9800000004','9800000005')
-  LOOP
-    INSERT INTO public.sourcing_network_members
-      (nursery_id, is_active, road_accessible, lorry_accessible, service_radius_km, joined_by_user_id)
-    VALUES (rec.nursery_id, true, true, true, 50, rec.user_id)
-    ON CONFLICT (nursery_id) DO NOTHING;
-  END LOOP;
-
-  -- Add featured plants for the first two sample nurseries
-  SELECT nursery_id INTO v_nid FROM public.nurseries WHERE mobile = '9800000001';
-  IF v_nid IS NOT NULL THEN
-    INSERT INTO public.nursery_featured_plants
-      (nursery_id, plant_id, display_order, approximate_quantity, approximate_size, quality_notes)
-    SELECT v_nid, p.plant_id,
-           ROW_NUMBER() OVER (ORDER BY p.plant_id) AS display_order,
-           CASE ROW_NUMBER() OVER (ORDER BY p.plant_id) WHEN 1 THEN 50 WHEN 2 THEN 30 ELSE 20 END,
-           'MEDIUM',
-           'Good quality, ready for dispatch'
-    FROM public.plants p
-    WHERE p.scientific_name IN ('Mangifera indica','Azadirachta indica','Cocos nucifera')
-    ON CONFLICT (nursery_id, plant_id) DO NOTHING;
-  END IF;
-
-  SELECT nursery_id INTO v_nid FROM public.nurseries WHERE mobile = '9800000002';
-  IF v_nid IS NOT NULL THEN
-    INSERT INTO public.nursery_featured_plants
-      (nursery_id, plant_id, display_order, approximate_quantity, approximate_size, quality_notes)
-    SELECT v_nid, p.plant_id,
-           ROW_NUMBER() OVER (ORDER BY p.plant_id) AS display_order,
-           40, 'LARGE', 'Native tree varieties, lorry-accessible farm'
-    FROM public.plants p
-    WHERE p.scientific_name IN ('Moringa oleifera','Hibiscus rosa-sinensis')
-    ON CONFLICT (nursery_id, plant_id) DO NOTHING;
-  END IF;
-END;
-$$;
+-- Done
+SELECT
+  (SELECT COUNT(*) FROM public.users)     AS users,
+  (SELECT COUNT(*) FROM public.nurseries) AS nurseries,
+  (SELECT COUNT(*) FROM public.plants)    AS plants,
+  (SELECT COUNT(*) FROM public.vehicles)  AS vehicles,
+  (SELECT COUNT(*) FROM public.drivers)   AS drivers;
