@@ -1,36 +1,37 @@
 -- =============================================================================
--- GreenRoot — Dev Seed
--- Single canonical seed file. Safe to re-run on an existing DB.
+-- GreenRoot — Dev Seed  (v2)
+-- Wipes all transactional data, keeps schema + reference tables.
 --
 -- USAGE
---   Full reset (wipes all data, keeps schema):
---     psql 'postgres:///greenroot?host=/tmp' -v ON_ERROR_STOP=1 \
---          -c "SET session_replication_role = replica;" \
---          -f greenroot-seed.sql \
---          -c "SET session_replication_role = DEFAULT;"
---
---   Or use the helper script:
---     cd greenroot-api && make db-reset
+--   psql 'postgres:///greenroot?host=/tmp' -v ON_ERROR_STOP=1 \
+--        -c "SET session_replication_role = replica;" \
+--        -f greenroot-seed.sql \
+--        -c "SET session_replication_role = DEFAULT;"
 --
 -- DEV LOGIN CREDENTIALS  (OTP: 123456 for all)
 -- ─────────────────────────────────────────────
---   Role            Mobile        Name
---   Admin           9000000000    GreenRoot Admin
---   Nursery Owner   9100000000    Priya Owner
---   Manager         9200000000    Gumastha Manager
---   Buyer           9300000000    Ravi Buyer
---   Driver          9400000000    Raju Driver
+--   Mobile        Role                Name
+--   9000000000    Admin + Super Admin  Mehar Bandaru
+--   9100000000    Nursery Owner        Priya Reddy       (Green Valley Nursery)
+--   9110000000    Nursery Owner        Suresh Patel      (Lotus Gardens)
+--   9120000000    Nursery Owner        Kavitha Nair      (Nature's Nest)
+--   9200000000    Manager              Arjun Kumar       (Green Valley)
+--   9210000000    Manager              Lakshmi Devi      (Lotus Gardens)
+--   9300000000    Buyer                Ramesh Gupta
+--   9310000000    Buyer                Ananya Singh
+--   9400000000    Driver               Venkat Rao        (pre-approved)
+--   9410000000    Driver               Balaji Krishnan   (pre-approved)
 -- =============================================================================
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- SECTION 1: CLEAN SLATE
--- Disable FK checks → truncate all transactional + identity tables → re-enable.
--- Reference tables (roles, plant_sizes, etc.) are preserved via ON CONFLICT.
 -- ─────────────────────────────────────────────────────────────────────────────
 SET session_replication_role = replica;
 
 TRUNCATE TABLE
   public.notifications,
+  public.subscription_promos,
+  public.user_subscriptions,
   public.platform_config,
   public.audit_logs,
   public.attachments,
@@ -63,21 +64,31 @@ TRUNCATE TABLE
   public.vehicle_locations,
   public.drivers,
   public.vehicles,
+  public.market_ad_reports,
+  public.market_ad_saves,
+  public.market_ad_views,
+  public.market_ads,
+  public.market_enquiries,
+  public.market_enquiry_messages,
   public.user_sessions,
   public.otp_requests,
   public.user_activities,
   public.user_addresses,
-  public.user_subscriptions,
   public.user_notification_devices,
   public.user_roles,
   public.users,
+  public.plant_category_mapping,
+  public.plant_care_guides,
+  public.plant_images,
+  public.plant_names,
+  public.plants,
   public.public_code_sequences
 RESTART IDENTITY;
 
 SET session_replication_role = DEFAULT;
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- SECTION 2: REFERENCE DATA (idempotent — safe to re-run)
+-- SECTION 2: REFERENCE DATA
 -- ─────────────────────────────────────────────────────────────────────────────
 
 INSERT INTO public.roles (role_id, role_code, role_name, description, is_active) VALUES
@@ -115,7 +126,9 @@ INSERT INTO public.plant_categories (category_name, is_active) VALUES
   ('Herbs',            true),
   ('Ornamental',       true),
   ('Flowering Shrubs', true),
-  ('Indoor Plants',    true)
+  ('Indoor Plants',    true),
+  ('Succulents',       true),
+  ('Climbers',         true)
 ON CONFLICT (category_name) DO NOTHING;
 
 INSERT INTO public.languages (language_id, language_code, language_name, is_active, created_at, updated_at)
@@ -133,50 +146,72 @@ INSERT INTO public.platform_config (config_key, config_value, data_type, descrip
 ON CONFLICT (config_key) DO NOTHING;
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- SECTION 3: SAMPLE PLANTS
+-- SECTION 3: PLANTS  (15 common Indian nursery plants)
 -- ─────────────────────────────────────────────────────────────────────────────
 
 INSERT INTO public.plants (scientific_name, common_name, plant_type, light_requirement, water_requirement, english_description, is_active) VALUES
-  ('Mangifera indica',       'Mango',     'TREE',  'FULL_SUN', 'HIGH',     'Popular tropical fruit tree grown across India.',          true),
-  ('Azadirachta indica',     'Neem',      'TREE',  'FULL_SUN', 'LOW',      'Hardy medicinal tree known for antibacterial properties.', true),
-  ('Hibiscus rosa-sinensis', 'Hibiscus',  'SHRUB', 'FULL_SUN', 'MODERATE', 'Ornamental flowering shrub with large colorful blooms.',   true),
-  ('Cocos nucifera',         'Coconut',   'TREE',  'FULL_SUN', 'HIGH',     'Coastal palm tree producing coconuts.',                   true),
-  ('Moringa oleifera',       'Drumstick', 'TREE',  'FULL_SUN', 'LOW',      'Fast-growing nutritious tree; all parts are edible.',      true)
+  ('Mangifera indica',         'Mango',           'TREE',   'FULL_SUN',    'HIGH',     'King of fruits. Popular tropical tree, grafted varieties fruit in 2–3 years.',          true),
+  ('Azadirachta indica',       'Neem',            'TREE',   'FULL_SUN',    'LOW',      'Hardy medicinal tree. Leaves, bark, and oil used in traditional medicine.',             true),
+  ('Hibiscus rosa-sinensis',   'Hibiscus',        'SHRUB',  'FULL_SUN',    'MODERATE', 'Ornamental shrub with large vibrant flowers, blooms year-round in warm climates.',      true),
+  ('Cocos nucifera',           'Coconut',         'TREE',   'FULL_SUN',    'HIGH',     'Coastal palm producing coconuts; all parts commercially valuable.',                     true),
+  ('Moringa oleifera',         'Drumstick',       'TREE',   'FULL_SUN',    'LOW',      'Fast-growing nutritious tree; pods, leaves, and flowers are edible.',                  true),
+  ('Ocimum tenuiflorum',       'Tulsi',           'HERB',   'FULL_SUN',    'MODERATE', 'Sacred basil plant with strong medicinal properties. Easy to grow in pots.',           true),
+  ('Aloe vera',                'Aloe Vera',       'SHRUB',  'FULL_SUN',    'LOW',      'Succulent known for skin-healing gel. Very low maintenance, ideal for beginners.',      true),
+  ('Psidium guajava',          'Guava',           'TREE',   'FULL_SUN',    'MODERATE', 'Fast-fruiting tropical tree. Rich in Vitamin C, popular in home gardens.',             true),
+  ('Rosa indica',              'Rose',            'SHRUB',  'FULL_SUN',    'MODERATE', 'Classic flowering shrub available in hundreds of varieties and colors.',                true),
+  ('Catharanthus roseus',      'Periwinkle',      'HERB',   'FULL_SUN',    'MODERATE', 'Hardy ground-cover with pink/white flowers. Drought tolerant once established.',        true),
+  ('Ficus benjamina',          'Weeping Fig',     'TREE',   'PARTIAL_SUN', 'MODERATE', 'Popular indoor ornamental tree with glossy leaves. Ideal for large indoor spaces.',    true),
+  ('Epipremnum aureum',        'Money Plant',     'CLIMBER','LOW_LIGHT',   'LOW',      'Extremely easy to grow climber. Thrives in water or soil, purifies indoor air.',       true),
+  ('Sansevieria trifasciata',  'Snake Plant',     'SHRUB',  'LOW_LIGHT',   'LOW',      'Near-indestructible indoor plant. Releases oxygen at night, great for bedrooms.',      true),
+  ('Plumeria rubra',           'Frangipani',      'TREE',   'FULL_SUN',    'LOW',      'Tropical tree with fragrant waxy flowers. Often used in garlands and temples.',        true),
+  ('Duranta erecta',           'Golden Dewdrop',  'SHRUB',  'FULL_SUN',    'MODERATE', 'Fast-growing ornamental shrub with purple flowers and golden berries.',                 true)
 ON CONFLICT (scientific_name) DO NOTHING;
 
 INSERT INTO public.plant_category_mapping (plant_id, category_id, created_at)
 SELECT p.plant_id, c.category_id, CURRENT_TIMESTAMP
 FROM (VALUES
-  ('Mangifera indica',       'Fruit Trees'),
-  ('Azadirachta indica',     'Medicinal Plants'),
-  ('Azadirachta indica',     'Shade Trees'),
-  ('Hibiscus rosa-sinensis', 'Ornamental'),
-  ('Hibiscus rosa-sinensis', 'Flowering Shrubs'),
-  ('Cocos nucifera',         'Fruit Trees'),
-  ('Moringa oleifera',       'Medicinal Plants')
+  ('Mangifera indica',        'Fruit Trees'),
+  ('Azadirachta indica',      'Medicinal Plants'),
+  ('Azadirachta indica',      'Shade Trees'),
+  ('Hibiscus rosa-sinensis',  'Ornamental'),
+  ('Hibiscus rosa-sinensis',  'Flowering Shrubs'),
+  ('Cocos nucifera',          'Fruit Trees'),
+  ('Moringa oleifera',        'Medicinal Plants'),
+  ('Ocimum tenuiflorum',      'Herbs'),
+  ('Ocimum tenuiflorum',      'Medicinal Plants'),
+  ('Aloe vera',               'Medicinal Plants'),
+  ('Aloe vera',               'Succulents'),
+  ('Psidium guajava',         'Fruit Trees'),
+  ('Rosa indica',             'Flowering Shrubs'),
+  ('Rosa indica',             'Ornamental'),
+  ('Catharanthus roseus',     'Flowering Shrubs'),
+  ('Ficus benjamina',         'Indoor Plants'),
+  ('Epipremnum aureum',       'Indoor Plants'),
+  ('Epipremnum aureum',       'Climbers'),
+  ('Sansevieria trifasciata', 'Indoor Plants'),
+  ('Plumeria rubra',          'Flowering Shrubs'),
+  ('Duranta erecta',          'Ornamental'),
+  ('Duranta erecta',          'Flowering Shrubs')
 ) AS m(sci, cat)
 JOIN public.plants           p ON p.scientific_name = m.sci
 JOIN public.plant_categories c ON c.category_name   = m.cat
 ON CONFLICT DO NOTHING;
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- SECTION 4: DEV TEST USERS
--- 5 users — one per role. OTP: 123456 for all.
---
---   Mobile        Role            Name
---   9000000000    Admin           GreenRoot Admin
---   9100000000    Nursery Owner   Priya Owner
---   9200000000    Manager         Gumastha Manager
---   9300000000    Buyer           Ravi Buyer
---   9400000000    Driver          Raju Driver
+-- SECTION 4: USERS  (10 meaningful dev users)
 -- ─────────────────────────────────────────────────────────────────────────────
 
 INSERT INTO public.users (first_name, last_name, mobile, status, mobile_verified) VALUES
-  ('GreenRoot', 'Admin',   '9000000000', 'ACTIVE', true),
-  ('Priya',     'Owner',   '9100000000', 'ACTIVE', true),
-  ('Gumastha',  'Manager', '9200000000', 'ACTIVE', true),
-  ('Ravi',      'Buyer',   '9300000000', 'ACTIVE', true),
-  ('Raju',      'Driver',  '9400000000', 'ACTIVE', true)
+  ('Mehar',    'Bandaru',   '9000000000', 'ACTIVE', true),  -- Admin
+  ('Priya',    'Reddy',     '9100000000', 'ACTIVE', true),  -- Owner 1
+  ('Suresh',   'Patel',     '9110000000', 'ACTIVE', true),  -- Owner 2
+  ('Kavitha',  'Nair',      '9120000000', 'ACTIVE', true),  -- Owner 3
+  ('Arjun',    'Kumar',     '9200000000', 'ACTIVE', true),  -- Manager 1
+  ('Lakshmi',  'Devi',      '9210000000', 'ACTIVE', true),  -- Manager 2
+  ('Ramesh',   'Gupta',     '9300000000', 'ACTIVE', true),  -- Buyer 1
+  ('Ananya',   'Singh',     '9310000000', 'ACTIVE', true),  -- Buyer 2
+  ('Venkat',   'Rao',       '9400000000', 'ACTIVE', true),  -- Driver 1
+  ('Balaji',   'Krishnan',  '9410000000', 'ACTIVE', true)   -- Driver 2
 ON CONFLICT (mobile) DO NOTHING;
 
 INSERT INTO public.user_roles (user_id, role_id, assigned_at)
@@ -185,35 +220,49 @@ FROM (VALUES
   ('9000000000', 'ADMIN'),
   ('9000000000', 'SUPER_ADMIN'),
   ('9100000000', 'NURSERY_OWNER'),
+  ('9110000000', 'NURSERY_OWNER'),
+  ('9120000000', 'NURSERY_OWNER'),
   ('9200000000', 'MANAGER'),
+  ('9210000000', 'MANAGER'),
   ('9300000000', 'BUYER'),
-  ('9400000000', 'DRIVER')
+  ('9310000000', 'BUYER'),
+  ('9400000000', 'DRIVER'),
+  ('9410000000', 'DRIVER')
 ) AS m(mobile, role_code)
-JOIN public.users u ON u.mobile     = m.mobile
-JOIN public.roles r ON r.role_code  = m.role_code
+JOIN public.users u ON u.mobile    = m.mobile
+JOIN public.roles r ON r.role_code = m.role_code
 ON CONFLICT DO NOTHING;
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- SECTION 5: NURSERY
--- One nursery for the Owner. Skips PENDING_APPROVAL (dev convenience).
--- Manager is linked as an active member.
+-- SECTION 5: NURSERIES  (3 nurseries, all ACTIVE)
 -- ─────────────────────────────────────────────────────────────────────────────
 
 INSERT INTO public.nurseries (nursery_name, owner_user_id, mobile, email, description, status)
-SELECT 'GreenRoot Dev Nursery', u.user_id, '9100000000', 'owner@greenroot.dev',
-       'Default dev nursery for testing', 'ACTIVE'
+SELECT 'Green Valley Nursery', u.user_id, '9100000000', 'priya@greenvalley.in',
+       'Specialises in fruit trees and shade trees. Located in Bangalore outskirts.', 'ACTIVE'
 FROM public.users u WHERE u.mobile = '9100000000'
 ON CONFLICT DO NOTHING;
 
--- Owner membership (nursery_role_id 1 = OWNER)
+INSERT INTO public.nurseries (nursery_name, owner_user_id, mobile, email, description, status)
+SELECT 'Lotus Gardens', u.user_id, '9110000000', 'suresh@lotusgardens.in',
+       'Premium ornamental and flowering plant nursery. Hyderabad based.', 'ACTIVE'
+FROM public.users u WHERE u.mobile = '9110000000'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO public.nurseries (nursery_name, owner_user_id, mobile, email, description, status)
+SELECT 'Nature''s Nest', u.user_id, '9120000000', 'kavitha@naturesnest.in',
+       'Indoor plants and succulents specialist. Ships across South India.', 'ACTIVE'
+FROM public.users u WHERE u.mobile = '9120000000'
+ON CONFLICT DO NOTHING;
+
+-- Owner memberships
 INSERT INTO public.nursery_users (nursery_id, user_id, nursery_role_id, role, status)
 SELECT n.nursery_id, u.user_id, 1, 'OWNER', 'ACTIVE'
 FROM public.nurseries n
-JOIN public.users     u ON u.mobile = '9100000000'
-WHERE n.mobile = '9100000000'
+JOIN public.users     u ON u.mobile = n.mobile
 ON CONFLICT DO NOTHING;
 
--- Manager membership (nursery_role_id 3 = MANAGER)
+-- Arjun Kumar → Manager at Green Valley Nursery
 INSERT INTO public.nursery_users (nursery_id, user_id, nursery_role_id, role, status)
 SELECT n.nursery_id, u.user_id, 3, 'MANAGER', 'ACTIVE'
 FROM public.nurseries n
@@ -221,50 +270,122 @@ JOIN public.users     u ON u.mobile = '9200000000'
 WHERE n.mobile = '9100000000'
 ON CONFLICT DO NOTHING;
 
+-- Lakshmi Devi → Manager at Lotus Gardens
+INSERT INTO public.nursery_users (nursery_id, user_id, nursery_role_id, role, status)
+SELECT n.nursery_id, u.user_id, 3, 'MANAGER', 'ACTIVE'
+FROM public.nurseries n
+JOIN public.users     u ON u.mobile = '9210000000'
+WHERE n.mobile = '9110000000'
+ON CONFLICT DO NOTHING;
+
 -- ─────────────────────────────────────────────────────────────────────────────
--- SECTION 6: DRIVER PROFILE (pre-approved for immediate dispatch testing)
+-- SECTION 6: DRIVERS  (2 pre-approved)
 -- ─────────────────────────────────────────────────────────────────────────────
 
 INSERT INTO public.drivers (user_id, license_number, vehicle_type, vehicle_number, profile_status, approval_status, status)
-SELECT u.user_id, 'DL-KA-2024-001', 'TRUCK', 'KA-01-AA-0001', 'COMPLETE', 'APPROVED', 'ACTIVE'
+SELECT u.user_id, 'KA-2024-DL-7821', 'TRUCK', 'KA-01-AA-0001', 'COMPLETE', 'APPROVED', 'ACTIVE'
 FROM public.users u WHERE u.mobile = '9400000000'
 ON CONFLICT (user_id) DO NOTHING;
 
+INSERT INTO public.drivers (user_id, license_number, vehicle_type, vehicle_number, profile_status, approval_status, status)
+SELECT u.user_id, 'TN-2023-DL-4456', 'MINI_TRUCK', 'TN-07-CB-5522', 'COMPLETE', 'APPROVED', 'ACTIVE'
+FROM public.users u WHERE u.mobile = '9410000000'
+ON CONFLICT (user_id) DO NOTHING;
+
 -- ─────────────────────────────────────────────────────────────────────────────
--- SECTION 7: SAMPLE VEHICLES
+-- SECTION 7: VEHICLES
 -- ─────────────────────────────────────────────────────────────────────────────
 
 INSERT INTO public.vehicles (vehicle_number, vehicle_type, capacity_kg, owner_name, mobile, status) VALUES
-  ('KA-01-AA-1001', 'TRUCK',     2000.00, 'Dev Transport Co',  '9100000000', 'ACTIVE'),
-  ('KA-01-BB-2002', 'MINI_TRUCK', 800.00, 'Dev Logistics',     '9200000000', 'ACTIVE')
+  ('KA-01-AA-0001', 'TRUCK',      2000.00, 'Venkat Rao',      '9400000000', 'ACTIVE'),
+  ('TN-07-CB-5522', 'MINI_TRUCK',  800.00, 'Balaji Krishnan', '9410000000', 'ACTIVE')
 ON CONFLICT (vehicle_number) DO NOTHING;
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- SECTION 8: NURSERY FEATURED PLANTS (sourcing network preview)
+-- SECTION 8: SOURCING NETWORK + FEATURED PLANTS
 -- ─────────────────────────────────────────────────────────────────────────────
 
 INSERT INTO public.sourcing_network_members (nursery_id, is_active, road_accessible, lorry_accessible, service_radius_km, joined_by_user_id)
-SELECT n.nursery_id, true, true, true, 50, u.user_id
+SELECT n.nursery_id, true, true, true,
+       CASE n.mobile WHEN '9100000000' THEN 75 WHEN '9110000000' THEN 50 ELSE 40 END,
+       u.user_id
 FROM public.nurseries n
-JOIN public.users     u ON u.mobile = '9100000000'
-WHERE n.mobile = '9100000000'
+JOIN public.users     u ON u.mobile = n.mobile
 ON CONFLICT (nursery_id) DO NOTHING;
 
+-- Green Valley: fruit + shade trees
 INSERT INTO public.nursery_featured_plants (nursery_id, plant_id, display_order, approximate_quantity, approximate_size, quality_notes)
 SELECT n.nursery_id, p.plant_id,
-       ROW_NUMBER() OVER (ORDER BY p.plant_id),
-       CASE ROW_NUMBER() OVER (ORDER BY p.plant_id) WHEN 1 THEN 100 WHEN 2 THEN 60 ELSE 40 END,
-       'MEDIUM',
-       'Good quality, available for dispatch'
+       ROW_NUMBER() OVER (PARTITION BY n.nursery_id ORDER BY p.plant_id),
+       (ARRAY[120, 80, 50, 200])[MOD(p.plant_id::int, 4) + 1],
+       'MEDIUM', 'Well-maintained. Available for bulk dispatch.'
 FROM public.nurseries n
 CROSS JOIN public.plants p
 WHERE n.mobile = '9100000000'
-  AND p.scientific_name IN ('Mangifera indica', 'Azadirachta indica', 'Cocos nucifera')
+  AND p.scientific_name IN ('Mangifera indica', 'Azadirachta indica', 'Cocos nucifera', 'Moringa oleifera', 'Psidium guajava')
+ON CONFLICT (nursery_id, plant_id) DO NOTHING;
+
+-- Lotus Gardens: ornamental + flowering
+INSERT INTO public.nursery_featured_plants (nursery_id, plant_id, display_order, approximate_quantity, approximate_size, quality_notes)
+SELECT n.nursery_id, p.plant_id,
+       ROW_NUMBER() OVER (PARTITION BY n.nursery_id ORDER BY p.plant_id),
+       (ARRAY[300, 150, 200])[MOD(p.plant_id::int, 3) + 1],
+       'SMALL', 'Premium blooming stock, freshly potted.'
+FROM public.nurseries n
+CROSS JOIN public.plants p
+WHERE n.mobile = '9110000000'
+  AND p.scientific_name IN ('Hibiscus rosa-sinensis', 'Rosa indica', 'Catharanthus roseus', 'Duranta erecta', 'Plumeria rubra')
+ON CONFLICT (nursery_id, plant_id) DO NOTHING;
+
+-- Nature's Nest: indoor + succulents
+INSERT INTO public.nursery_featured_plants (nursery_id, plant_id, display_order, approximate_quantity, approximate_size, quality_notes)
+SELECT n.nursery_id, p.plant_id,
+       ROW_NUMBER() OVER (PARTITION BY n.nursery_id ORDER BY p.plant_id),
+       (ARRAY[500, 400, 250, 180])[MOD(p.plant_id::int, 4) + 1],
+       'SMALL', 'Healthy indoor stock. Suitable for gifting or bulk orders.'
+FROM public.nurseries n
+CROSS JOIN public.plants p
+WHERE n.mobile = '9120000000'
+  AND p.scientific_name IN ('Ficus benjamina', 'Epipremnum aureum', 'Sansevieria trifasciata', 'Aloe vera', 'Ocimum tenuiflorum')
 ON CONFLICT (nursery_id, plant_id) DO NOTHING;
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- SECTION 9: SYNC PUBLIC CODE SEQUENCES
--- Ensures next_public_code() generates correct codes after seed data.
+-- SECTION 9: SUBSCRIPTION PLANS  (updated pricing + anchor MRP)
+-- ─────────────────────────────────────────────────────────────────────────────
+
+INSERT INTO public.subscription_plans
+  (plan_code, plan_name, description, monthly_price, yearly_price, max_managers, is_active, features)
+VALUES
+  ('TRIAL',
+   '🌱 Community (Free)',
+   '6-month free trial — full platform access, 1 manager, unlimited orders & quotations.',
+   0.00, 0.00, 1, true,
+   '{"support":"community","analytics":"basic","max_managers":1,"billing_cycles":["TRIAL"],"unlimited_orders":true,"unlimited_quotations":true,"market_posts_per_day":3}'::jsonb),
+
+  ('GROWTH',
+   '🚀 Growth',
+   'For growing nurseries — unlimited orders, quotations, and up to 5 managers.',
+   2499.00, 3999.00, 5, true,
+   '{"support":"email","analytics":"full","max_managers":5,"billing_cycles":["SIX_MONTH","YEARLY"],"unlimited_orders":true,"unlimited_quotations":true,"market_posts_per_day":5,"mrp_six_month":4999,"mrp_yearly":19999}'::jsonb),
+
+  ('ENTERPRISE',
+   '🏢 Enterprise',
+   'For large operations — unlimited managers, advanced analytics, and priority support.',
+   7499.00, 11999.00, NULL, true,
+   '{"support":"priority","analytics":"advanced","max_managers":null,"billing_cycles":["SIX_MONTH","YEARLY"],"unlimited_orders":true,"unlimited_quotations":true,"market_posts_per_day":null,"mrp_six_month":14999,"mrp_yearly":59999}'::jsonb)
+
+ON CONFLICT (plan_code) DO UPDATE
+  SET plan_name     = EXCLUDED.plan_name,
+      description   = EXCLUDED.description,
+      monthly_price = EXCLUDED.monthly_price,
+      yearly_price  = EXCLUDED.yearly_price,
+      max_managers  = EXCLUDED.max_managers,
+      is_active     = EXCLUDED.is_active,
+      features      = EXCLUDED.features,
+      updated_at    = CURRENT_TIMESTAMP;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- SECTION 10: SYNC PUBLIC CODE SEQUENCES
 -- ─────────────────────────────────────────────────────────────────────────────
 
 INSERT INTO public.public_code_sequences (code_key, date_key, last_value)
@@ -304,8 +425,9 @@ ON CONFLICT (code_key, date_key) DO UPDATE
 
 -- Done
 SELECT
-  (SELECT COUNT(*) FROM public.users)     AS users,
-  (SELECT COUNT(*) FROM public.nurseries) AS nurseries,
-  (SELECT COUNT(*) FROM public.plants)    AS plants,
-  (SELECT COUNT(*) FROM public.vehicles)  AS vehicles,
-  (SELECT COUNT(*) FROM public.drivers)   AS drivers;
+  (SELECT COUNT(*) FROM public.users)         AS users,
+  (SELECT COUNT(*) FROM public.nurseries)     AS nurseries,
+  (SELECT COUNT(*) FROM public.plants)        AS plants,
+  (SELECT COUNT(*) FROM public.vehicles)      AS vehicles,
+  (SELECT COUNT(*) FROM public.drivers)       AS drivers,
+  (SELECT COUNT(*) FROM public.subscription_plans WHERE plan_code IN ('TRIAL','GROWTH','ENTERPRISE')) AS plans;
