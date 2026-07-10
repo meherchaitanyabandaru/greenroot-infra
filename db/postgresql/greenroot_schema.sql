@@ -1633,6 +1633,8 @@ CREATE TABLE public.quotations (
     notes text,
     total_amount numeric(12,2) DEFAULT 0 NOT NULL,
     status character varying(20) DEFAULT 'CUSTOMER_DRAFT'::character varying NOT NULL,
+    sent_at timestamp without time zone,
+    customer_responded_at timestamp without time zone,
     converted_order_id bigint,
     converted_by_user_id bigint,
     converted_at timestamp without time zone,
@@ -5660,4 +5662,3 @@ ALTER TABLE ONLY public.vehicle_tracking
 --
 
 \unrestrict L6U0vkRlclCa3F22b30hSdL8rstbC8ufufqeAZ1wGycORgvmp7er9ShE2O7VBVu
-

@@ -41,7 +41,9 @@
 | `recipient_mobile` | VARCHAR | Customer mobile |
 | `status` | VARCHAR | See status machine below |
 | `total_amount` | NUMERIC | Sum of all item totals |
-| `valid_until` | TIMESTAMP | Expiry date — set by owner on create/edit; falls back to 15 days after Approve if not set |
+| `valid_until` | TIMESTAMP | Expiry date — set by owner on create/edit; falls back to 15 days after Send if not set |
+| `sent_at` | TIMESTAMP | Set when `POST /quotations/:id/send` makes a customer quotation visible |
+| `customer_responded_at` | TIMESTAMP | Set when the customer accepts or rejects |
 | `rejection_reason` | TEXT | Set by buyer on reject; stored separately, never appended to notes |
 | `converted_order_id` | BIGINT FK | Set when converted to an order |
 | `deleted_at` | TIMESTAMP | Soft-delete |
@@ -80,7 +82,7 @@ CUSTOMER type:
 |---|---|
 | `INTERNAL_DRAFT` | Planning-only quotation, no buyer |
 | `CUSTOMER_DRAFT` | Draft for a customer, not yet sent |
-| `CUSTOMER_SENT` | Sent to buyer (via `approve`) |
+| `CUSTOMER_SENT` | Sent to buyer (via `send`) |
 | `CUSTOMER_ACCEPTED` | Buyer accepted |
 | `CUSTOMER_REJECTED` | Buyer rejected |
 | `CONVERTED` | Linked to an order via convert-to-order |
@@ -95,6 +97,11 @@ A quotation is **expired** when `valid_until < NOW()` and status is `CUSTOMER_SE
 - `INTERNAL` — no buyer required. Used for planning and internal estimates.
 - `CUSTOMER` — requires recipient info. Can be sent to a buyer for acceptance.
 
+**Customer visibility**
+- A newly created customer quotation remains `CUSTOMER_DRAFT` and is invisible to the customer.
+- Customer list/detail access only includes `CUSTOMER_SENT`, `CUSTOMER_ACCEPTED`, `CUSTOMER_REJECTED`, and `CONVERTED`.
+- Customers can accept or reject only `CUSTOMER_SENT` quotations.
+
 **Conversion lock**
 - Once a quotation is converted to an order (`status = 'CONVERTED'`, `converted_order_id` set), it is permanently read-only.
 - Blocked for all roles (including admin): `Update`, `Delete`, `AssignManager`, `UnassignManager`.
@@ -103,14 +110,15 @@ A quotation is **expired** when `valid_until < NOW()` and status is `CUSTOMER_SE
 - The linked order code (`converted_order_code`) and conversion timestamp (`converted_at`) are returned in the API response.
 
 **Editing (exclusive-editor rule)**
-- Quotations are editable (items, recipient, notes) until `approve` is called.
+- Quotations are editable (items, recipient, notes) until `send` is called.
 - Once `CUSTOMER_SENT`, the quotation is read-only.
 - **When a quotation has an `assigned_manager_user_id`, only that assignee may edit its content (`PUT /quotations/:id`).** All other users, including the owner, are read-only.
 - The owner regains edit access by first reassigning the quotation to themselves (`POST /quotations/:id/assign-manager` with their own `user_id`) or removing the assignment entirely (`DELETE /quotations/:id/assign-manager`).
 - State transitions (Approve, Recall, Convert to Order) are NOT restricted by assignment — any authorized user may trigger them regardless of who is the assignee.
 
-**Approve = send to buyer**
-- `POST /quotations/:id/approve` transitions `CUSTOMER_DRAFT` → `CUSTOMER_SENT`.
+**Send to buyer**
+- `POST /quotations/:id/send` transitions `CUSTOMER_DRAFT` → `CUSTOMER_SENT`, stamps `sent_at`, and notifies the customer when linked.
+- `POST /quotations/:id/approve` is retained as a backward-compatible alias for send.
 - Only valid for CUSTOMER type quotations.
 
 **Delete rules**
@@ -138,7 +146,7 @@ A quotation is **expired** when `valid_until < NOW()` and status is `CUSTOMER_SE
 
 **Expiry / valid_until**
 - `valid_until` is set by the owner (or manager) on create or edit via `valid_until` in the request body.
-- If the owner did not set it, `valid_until` is auto-set to `NOW() + 15 days` when `approve` is called.
+- If the owner did not set it, `valid_until` is auto-set to `NOW() + 15 days` when `send` is called.
 - Once in `CUSTOMER_SENT`, an expired quotation (where `valid_until < NOW()`) cannot be accepted by the buyer.
 - Mobile: create/edit screens show a "Valid Until" date picker below the Notes field.
 
@@ -153,7 +161,7 @@ A quotation is **expired** when `valid_until < NOW()` and status is `CUSTOMER_SE
 | Event | Recipient |
 |---|---|
 | Owner assigns manager | Assigned manager |
-| Owner approves (sends to buyer) | Buyer (if `customer_user_id` set) |
+| Owner/manager sends to buyer | Buyer (if `customer_user_id` set) |
 | Buyer accepts | Nursery owner |
 | Buyer rejects | Nursery owner |
 
@@ -170,7 +178,7 @@ A quotation is **expired** when `valid_until < NOW()` and status is `CUSTOMER_SE
 | View quotation detail | ✅ | created by or assigned to them only | own (CUSTOMER_SENT+) | all |
 | **See recipient_name / recipient_mobile** | **✅ full** | **❌ always nil (backend-masked)** | own only | **✅ full** |
 | Edit quotation content | assignee only (or owner when unassigned) | assignee only | — | ✅ |
-| Approve (send to buyer) | ✅ | ✅ (if can view) | — | ✅ |
+| Send to buyer | ✅ | ✅ (if can view) | — | ✅ |
 | Delete quotation | ✅ only | — | — | ✅ |
 | Assign manager | ✅ only | — | — | ✅ |
 | Unassign manager | ✅ only | — | — | ✅ |
@@ -192,7 +200,8 @@ PUT    /quotations/:id                    Edit (pre-approve only)
 DELETE /quotations/:id                    Soft-delete (owner only)
 POST   /quotations/:id/assign-manager     Assign or reassign manager (owner only)
 DELETE /quotations/:id/assign-manager     Remove manager assignment (owner only)
-POST   /quotations/:id/approve            Send to buyer (CUSTOMER_DRAFT → CUSTOMER_SENT)
+POST   /quotations/:id/send               Send to buyer (CUSTOMER_DRAFT → CUSTOMER_SENT)
+POST   /quotations/:id/approve            Alias for send
 POST   /quotations/:id/recall             Recall sent quotation (CUSTOMER_SENT → CUSTOMER_DRAFT)
 POST   /quotations/:id/buyer-accept       Buyer accepts (CUSTOMER_SENT → CUSTOMER_ACCEPTED)
 POST   /quotations/:id/buyer-reject       Buyer rejects (CUSTOMER_SENT → CUSTOMER_REJECTED); body: {reason?: string}
