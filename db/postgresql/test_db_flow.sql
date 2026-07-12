@@ -291,8 +291,8 @@ BEGIN
     RAISE NOTICE '';
     RAISE NOTICE '── STEP 2: Nurseries ───────────────────────────────';
 
-    INSERT INTO public.nurseries (nursery_name, owner_user_id, mobile, gst_number, status)
-    VALUES ('Priya Green Nursery', v_owner_id, '9001100001', 'GST29ABCDE1234F1Z5', 'ACTIVE')
+    INSERT INTO public.nurseries (nursery_name, owner_user_id, mobile, status)
+    VALUES ('Priya Green Nursery', v_owner_id, '9001100001', 'ACTIVE')
     ON CONFLICT (owner_user_id) DO UPDATE SET nursery_name = EXCLUDED.nursery_name
     RETURNING nursery_id INTO v_nursery_id;
 

@@ -2,7 +2,7 @@
 -- Adds logo_url, brand_icon_key, and brand_color to nurseries.
 -- logo_url and brand_icon_key are mutually exclusive (enforced in application layer).
 -- brand_color stores a 7-character hex value e.g. #2E7D32.
--- GST, website, and description remain optional and are NOT affected by this migration.
+-- Website and description remain optional and are NOT affected by this migration.
 
 ALTER TABLE public.nurseries
     ADD COLUMN logo_url       TEXT,

@@ -77,30 +77,18 @@ Managers do not subscribe. On every manager API call the middleware must:
 
 ---
 
-## 2. GST & Pricing
-
-Subscription services fall under **SAC code 997331** (software licensing / SaaS).  
-GST rate: **18%** (9% CGST + 9% SGST for intra-state; 18% IGST for inter-state).
+## 2. Pricing
 
 ### Breakdown shown to user at payment
 
 | Line | Calculation |
 |---|---|
-| Plan price (base) | ₹X |
-| GST @ 18% | ₹X × 0.18 |
-| **Total charged** | ₹X × 1.18 |
+| Plan price | ₹X |
+| **Total charged** | ₹X |
 
 ### DB storage
 
-Two columns to be **added to `payments`** (not yet in schema):
-
-| Column | Type | Notes |
-|---|---|---|
-| `tax_amount` | `numeric(12,2)` | GST amount in ₹ |
-| `tax_rate` | `numeric(5,2)` | Rate applied e.g. `18.00` |
-
-Until the migration is done, store the GST note in the `notes` field as:  
-`"Subscription renewed. Base: ₹X, GST 18%: ₹Y, Total: ₹Z"`
+No separate tax fields are required for the current subscription flow.
 
 ---
 
@@ -110,8 +98,7 @@ Real Razorpay integration comes later. For now:
 
 **Mobile payment screen shows:**
 - Plan name + billing cycle selector (Monthly / Yearly)
-- Base price
-- GST 18% line
+- Price
 - Total
 - "Pay Now" button
 
@@ -191,7 +178,7 @@ Subscription payments share the `payments` table with order payments. Identified
 | `user_subscription_id` | `bigint` FK | Links to subscription |
 | `payment_for` | `varchar(30)` | Always `'SUBSCRIPTION'` |
 | `payer_user_id` | `bigint` FK → `users` | Nursery owner |
-| `amount` | `numeric(15,2)` | **Base price only** (excl. GST until tax columns added) |
+| `amount` | `numeric(15,2)` | Charged amount |
 | `payment_method` | `varchar(50)` | See allowed methods §6 |
 | `payment_status` | `varchar(30)` | `PENDING` or `SUCCESS` |
 | `payment_date` | `timestamp` | Set when SUCCESS |
@@ -200,11 +187,7 @@ Subscription payments share the `payments` table with order payments. Identified
 | `provider_order_id` | `varchar(255)` | Gateway order ID |
 | `provider_signature` | `text` | Gateway signature |
 | `transaction_reference` | `varchar(255)` | Internal ref |
-| `notes` | `text` | Includes mock/GST remarks |
-| `tax_amount` ⚠️ | `numeric(12,2)` | **To be added** — GST amount in ₹ |
-| `tax_rate` ⚠️ | `numeric(5,2)` | **To be added** — e.g. `18.00` |
-
-⚠️ = column not yet in schema. Migration required.
+| `notes` | `text` | Includes mock payment remarks |
 
 Index: `idx_payments_subscription ON (user_subscription_id)`
 
@@ -384,7 +367,7 @@ For a paid renewal:
       "payment_status": "SUCCESS",
       "provider": "razorpay_mock",
       "provider_order_id": "MOCK-ORDER-1720432900",
-      "notes": "Mock payment — Razorpay integration pending. Base: ₹499, GST 18%: ₹89.82, Total: ₹588.82"
+      "notes": "Mock payment — Razorpay integration pending. Total: ₹499"
     }
   }
 }
@@ -422,20 +405,18 @@ Every create, status update, renew, and cancel writes to `public.audit_logs`:
 ## 10. What Needs to Be Built
 
 ### DB migrations
-- [ ] Add `tax_amount numeric(12,2)` and `tax_rate numeric(5,2)` columns to `payments`
 - [ ] Seed `TRIAL` and `STANDARD` plans in `subscription_plans`
 
 ### API
 - [ ] **Auto-create TRIAL subscription** when admin approves a nursery (`PATCH /nurseries/{id}/status → APPROVED` handler must call `subscriptions.Create` with TRIAL plan, 6-month end_date, ₹0)
 - [ ] **Manager gate middleware** — check nursery owner's active subscription before allowing manager API calls; return `402 subscription_required` if lapsed
-- [ ] **`tax_amount` / `tax_rate`** stored on payment create and renew
 - [ ] **Auto-expiry cron** — daily job sets `subscription_status = EXPIRED` where `end_date < today AND subscription_status = ACTIVE`
 - [ ] **Auto-renew cron** — when `auto_renew = true` and subscription expires, trigger renewal (future)
 - [ ] **Razorpay webhook handler** — receive `payment.captured` event, set `payment_status = SUCCESS` (future — when going live)
 
 ### Mobile
 - [ ] **Subscription status screen** — show current plan, start/end date, payment history; shown if trial expiring or expired
-- [ ] **Payment screen** — plan selector (Monthly / Yearly), base price, GST 18% line, total, "Pay Now" button calling mock Razorpay flow
+- [ ] **Payment screen** — plan selector (Monthly / Yearly), price, total, "Pay Now" button calling mock Razorpay flow
 - [ ] **Trial expiry banner** — in-app banner 30 days before expiry
 
 ### Admin UI
