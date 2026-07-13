@@ -1,7 +1,7 @@
 # GreenRoot — Subscription Lifecycle
 
 > Source of truth: `greenroot-api/internal/modules/subscriptions/`  
-> Schema: `greenroot-infra/db/postgresql/greenroot_schema.sql`  
+> Schema: `greenroot-infra/db/postgresql/schema.sql`
 > Last updated: 2026-07-08
 
 ---

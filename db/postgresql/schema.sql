@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict L6U0vkRlclCa3F22b30hSdL8rstbC8ufufqeAZ1wGycORgvmp7er9ShE2O7VBVu
+\restrict zH2Y3cfVT2NFaXPdgPnOtha05GdbFJAK8rgInCtUgBO47xkinHq4hvO3X1E1hcT
 
 -- Dumped from database version 17.10 (Homebrew)
 -- Dumped by pg_dump version 17.10 (Homebrew)
@@ -18,6 +18,16 @@ SET check_function_bodies = false;
 SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
+
+--
+-- Name: public; Type: SCHEMA; Schema: -; Owner: -
+--
+
+CREATE SCHEMA public;
+
+
+CREATE EXTENSION IF NOT EXISTS postgis WITH SCHEMA public;
+
 
 --
 -- Name: gender_type; Type: TYPE; Schema: public; Owner: -
@@ -279,7 +289,7 @@ CREATE TABLE public.driver_locations (
     driver_id bigint NOT NULL,
     latitude numeric(10,7) NOT NULL,
     longitude numeric(10,7) NOT NULL,
-    location geography(Point, 4326),
+    location public.geography(Point,4326),
     recorded_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     created_by bigint
 );
@@ -433,8 +443,8 @@ CREATE TABLE public.market_ad_reports (
     reviewed_by_user_id bigint,
     reviewed_at timestamp without time zone,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT chk_market_report_reason CHECK (((reason)::text = ANY ((ARRAY['SPAM'::character varying, 'WRONG_PLANT'::character varying, 'DUPLICATE'::character varying, 'FRAUD'::character varying, 'OTHER'::character varying])::text[]))),
-    CONSTRAINT chk_market_report_status CHECK (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'REVIEWED'::character varying, 'DISMISSED'::character varying])::text[])))
+    CONSTRAINT chk_market_report_reason CHECK (((reason)::text = ANY (ARRAY[('SPAM'::character varying)::text, ('WRONG_PLANT'::character varying)::text, ('DUPLICATE'::character varying)::text, ('FRAUD'::character varying)::text, ('OTHER'::character varying)::text]))),
+    CONSTRAINT chk_market_report_status CHECK (((status)::text = ANY (ARRAY[('PENDING'::character varying)::text, ('REVIEWED'::character varying)::text, ('DISMISSED'::character varying)::text])))
 );
 
 
@@ -491,7 +501,7 @@ CREATE TABLE public.market_ads (
     pickup_location_source character varying(50),
     pickup_confirmed_by bigint,
     pickup_confirmed_at timestamp without time zone,
-    pickup_location geography(Point, 4326),
+    pickup_location public.geography(Point,4326),
     status character varying(20) DEFAULT 'DRAFT'::character varying NOT NULL,
     view_count integer DEFAULT 0 NOT NULL,
     save_count integer DEFAULT 0 NOT NULL,
@@ -503,7 +513,7 @@ CREATE TABLE public.market_ads (
     expires_at timestamp without time zone,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT chk_market_listing_status CHECK (((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'PUBLISHED'::character varying, 'PAUSED'::character varying, 'EXPIRED'::character varying, 'ARCHIVED'::character varying])::text[])))
+    CONSTRAINT chk_market_listing_status CHECK (((status)::text = ANY (ARRAY[('DRAFT'::character varying)::text, ('PUBLISHED'::character varying)::text, ('PAUSED'::character varying)::text, ('EXPIRED'::character varying)::text, ('ARCHIVED'::character varying)::text])))
 );
 
 
@@ -528,7 +538,7 @@ CREATE TABLE public.market_enquiries (
     cancelled_at timestamp without time zone,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT chk_market_enquiry_status CHECK (((status)::text = ANY ((ARRAY['NEW'::character varying, 'IN_PROGRESS'::character varying, 'QUOTATION_CREATED'::character varying, 'CLOSED'::character varying, 'CANCELLED'::character varying])::text[])))
+    CONSTRAINT chk_market_enquiry_status CHECK (((status)::text = ANY (ARRAY[('NEW'::character varying)::text, ('IN_PROGRESS'::character varying)::text, ('QUOTATION_CREATED'::character varying)::text, ('CLOSED'::character varying)::text, ('CANCELLED'::character varying)::text])))
 );
 
 
@@ -750,6 +760,9 @@ CREATE TABLE public.nurseries (
     email character varying(255),
     website character varying(255),
     description text,
+    logo_url text,
+    brand_icon_key character varying(50),
+    brand_color character varying(20),
     status character varying(20) DEFAULT 'PENDING_APPROVAL'::character varying,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
@@ -802,7 +815,9 @@ CREATE TABLE public.nursery_addresses (
     longitude numeric(10,7),
     gps_accuracy_meters numeric(8,2),
     location_source character varying(50),
-    location geography(Point, 4326),
+    location_confirmed_by bigint,
+    location_confirmed_at timestamp without time zone,
+    location public.geography(Point,4326),
     is_primary boolean DEFAULT false,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
@@ -887,6 +902,8 @@ CREATE TABLE public.nursery_drivers (
     approved_by_user_id bigint,
     connection_status character varying(20) DEFAULT 'REQUESTED'::character varying NOT NULL,
     connected_at timestamp without time zone,
+    disconnected_at timestamp without time zone,
+    disconnected_by bigint,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
@@ -1061,6 +1078,62 @@ ALTER SEQUENCE public.nursery_users_nursery_user_id_seq OWNED BY public.nursery_
 
 
 --
+-- Name: order_delivery_snapshots; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.order_delivery_snapshots (
+    snapshot_id bigint NOT NULL,
+    order_id bigint NOT NULL,
+    contact_name character varying(100),
+    contact_mobile character varying(20),
+    alternate_mobile character varying(20),
+    address_line1 character varying(255),
+    address_line2 character varying(255),
+    city character varying(100),
+    state character varying(100),
+    country character varying(100),
+    postal_code character varying(20),
+    landmark character varying(255),
+    delivery_instructions text,
+    latitude numeric(10,7),
+    longitude numeric(10,7),
+    location public.geography(Point,4326),
+    gps_accuracy_meters numeric(8,2),
+    location_source character varying(40),
+    confirmed_by bigint,
+    confirmed_at timestamp without time zone,
+    emergency_updated boolean DEFAULT false NOT NULL,
+    requires_driver_ack boolean DEFAULT false NOT NULL,
+    driver_acknowledged_by bigint,
+    driver_acknowledged_at timestamp without time zone,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT chk_order_delivery_snapshot_latitude CHECK (((latitude IS NULL) OR ((latitude >= ('-90'::integer)::numeric) AND (latitude <= (90)::numeric)))),
+    CONSTRAINT chk_order_delivery_snapshot_location_source CHECK (((location_source IS NULL) OR ((location_source)::text = ANY ((ARRAY['gps_confirmed'::character varying, 'nursery_default'::character varying, 'map_selected'::character varying, 'address_search'::character varying, 'admin_updated'::character varying])::text[])))),
+    CONSTRAINT chk_order_delivery_snapshot_longitude CHECK (((longitude IS NULL) OR ((longitude >= ('-180'::integer)::numeric) AND (longitude <= (180)::numeric))))
+);
+
+
+--
+-- Name: order_delivery_snapshots_snapshot_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.order_delivery_snapshots_snapshot_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: order_delivery_snapshots_snapshot_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.order_delivery_snapshots_snapshot_id_seq OWNED BY public.order_delivery_snapshots.snapshot_id;
+
+
+--
 -- Name: order_items; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1153,45 +1226,6 @@ CREATE SEQUENCE public.orders_order_id_seq
 --
 
 ALTER SEQUENCE public.orders_order_id_seq OWNED BY public.orders.order_id;
-
-
---
--- Name: order_delivery_snapshots; Type: TABLE; Schema: public; Owner: -
--- Added in migration 013_postgis_foundation.sql
---
-
-CREATE TABLE public.order_delivery_snapshots (
-    snapshot_id            bigint                      NOT NULL GENERATED BY DEFAULT AS IDENTITY,
-    order_id               bigint                      NOT NULL,
-    contact_name           character varying(100),
-    contact_mobile         character varying(20),
-    alternate_mobile       character varying(20),
-    address_line1          character varying(255),
-    address_line2          character varying(255),
-    city                   character varying(100),
-    state                  character varying(100),
-    country                character varying(100),
-    postal_code            character varying(20),
-    landmark               character varying(255),
-    delivery_instructions  text,
-    latitude               numeric(10,7),
-    longitude              numeric(10,7),
-    location               geography(Point, 4326),
-    gps_accuracy_meters    numeric(8,2),
-    location_source        character varying(50),
-    confirmed_by           bigint,
-    confirmed_at           timestamp without time zone,
-    emergency_updated      boolean                     DEFAULT false NOT NULL,
-    requires_driver_ack    boolean                     DEFAULT false NOT NULL,
-    driver_acknowledged_by bigint,
-    driver_acknowledged_at timestamp without time zone,
-    created_at             timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at             timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT order_delivery_snapshots_pkey PRIMARY KEY (snapshot_id),
-    CONSTRAINT order_delivery_snapshots_order_id_key UNIQUE (order_id),
-    CONSTRAINT order_delivery_snapshots_order_id_fkey
-        FOREIGN KEY (order_id) REFERENCES public.orders(order_id) ON DELETE CASCADE
-);
 
 
 --
@@ -1682,6 +1716,7 @@ CREATE TABLE public.quotations (
     recipient_mobile character varying(20),
     buyer_nursery_id bigint,
     notes text,
+    rejection_reason text,
     total_amount numeric(12,2) DEFAULT 0 NOT NULL,
     status character varying(20) DEFAULT 'CUSTOMER_DRAFT'::character varying NOT NULL,
     sent_at timestamp without time zone,
@@ -1694,8 +1729,8 @@ CREATE TABLE public.quotations (
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     quotation_type character varying(20) DEFAULT 'CUSTOMER'::character varying NOT NULL,
     valid_until timestamp without time zone,
-    CONSTRAINT chk_quotation_status CHECK (((status)::text = ANY ((ARRAY['INTERNAL_DRAFT'::character varying, 'CUSTOMER_DRAFT'::character varying, 'CUSTOMER_SENT'::character varying, 'CUSTOMER_ACCEPTED'::character varying, 'CUSTOMER_REJECTED'::character varying, 'CONVERTED'::character varying])::text[]))),
-    CONSTRAINT chk_quotation_type CHECK (((quotation_type)::text = ANY ((ARRAY['INTERNAL'::character varying, 'CUSTOMER'::character varying])::text[])))
+    CONSTRAINT chk_quotation_status CHECK (((status)::text = ANY ((ARRAY['INTERNAL_DRAFT'::character varying, 'CUSTOMER_DRAFT'::character varying, 'CUSTOMER_SENT'::character varying, 'CUSTOMER_ACCEPTED'::character varying, 'CUSTOMER_REJECTED'::character varying, 'CONVERTED'::character varying, 'EXPIRED'::character varying])::text[]))),
+    CONSTRAINT chk_quotation_type CHECK (((quotation_type)::text = ANY (ARRAY[('INTERNAL'::character varying)::text, ('CUSTOMER'::character varying)::text])))
 );
 
 
@@ -1716,6 +1751,44 @@ CREATE SEQUENCE public.quotations_quotation_id_seq
 --
 
 ALTER SEQUENCE public.quotations_quotation_id_seq OWNED BY public.quotations.quotation_id;
+
+
+--
+-- Name: quotation_documents; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.quotation_documents (
+    doc_id bigserial PRIMARY KEY,
+    quotation_id bigint NOT NULL,
+    version integer NOT NULL DEFAULT 1,
+    object_key text NOT NULL,
+    sha256_hash character varying(64) NOT NULL,
+    mime_type character varying(100) NOT NULL DEFAULT 'application/pdf',
+    file_size bigint NOT NULL DEFAULT 0,
+    generated_by bigint,
+    generated_by_name character varying(255),
+    is_current boolean NOT NULL DEFAULT true,
+    created_at timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT quotation_documents_version_positive CHECK (version > 0),
+    CONSTRAINT quotation_documents_file_size_nonnegative CHECK (file_size >= 0),
+    CONSTRAINT quotation_documents_unique_version UNIQUE (quotation_id, version)
+);
+
+
+--
+-- Name: quotation_verifications; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.quotation_verifications (
+    verification_id bigserial PRIMARY KEY,
+    quotation_id bigint NOT NULL,
+    token character varying(128) NOT NULL UNIQUE,
+    status character varying(20) NOT NULL DEFAULT 'ACTIVE',
+    created_at timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    revoked_at timestamp without time zone,
+    revoked_by bigint,
+    CONSTRAINT quotation_verifications_status_check CHECK (status IN ('ACTIVE', 'REVOKED'))
+);
 
 
 --
@@ -1934,8 +2007,8 @@ CREATE TABLE public.sourcing_posts (
     deleted_at timestamp without time zone,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT chk_sourcing_post_type CHECK (((post_type)::text = ANY ((ARRAY['NEED'::character varying, 'AVAILABLE'::character varying])::text[]))),
-    CONSTRAINT chk_sourcing_urgency CHECK (((urgency)::text = ANY ((ARRAY['TODAY'::character varying, 'URGENT'::character varying, 'FLEXIBLE'::character varying])::text[])))
+    CONSTRAINT chk_sourcing_post_type CHECK (((post_type)::text = ANY (ARRAY[('NEED'::character varying)::text, ('AVAILABLE'::character varying)::text]))),
+    CONSTRAINT chk_sourcing_urgency CHECK (((urgency)::text = ANY (ARRAY[('TODAY'::character varying)::text, ('URGENT'::character varying)::text, ('FLEXIBLE'::character varying)::text])))
 );
 
 
@@ -2020,7 +2093,7 @@ CREATE TABLE public.subscription_promos (
     created_by bigint,
     created_at timestamp without time zone DEFAULT now() NOT NULL,
     updated_at timestamp without time zone,
-    CONSTRAINT subscription_promos_discount_type_check CHECK (((discount_type)::text = ANY ((ARRAY['PERCENTAGE'::character varying, 'FLAT'::character varying])::text[])))
+    CONSTRAINT subscription_promos_discount_type_check CHECK (((discount_type)::text = ANY (ARRAY[('PERCENTAGE'::character varying)::text, ('FLAT'::character varying)::text])))
 );
 
 
@@ -2170,7 +2243,9 @@ CREATE TABLE public.user_addresses (
     longitude numeric(10,7),
     gps_accuracy_meters numeric(8,2),
     location_source character varying(50),
-    location geography(Point, 4326),
+    location_confirmed_by bigint,
+    location_confirmed_at timestamp without time zone,
+    location public.geography(Point,4326),
     is_default boolean DEFAULT false,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
@@ -2622,6 +2697,13 @@ ALTER TABLE ONLY public.nursery_roles ALTER COLUMN nursery_role_id SET DEFAULT n
 --
 
 ALTER TABLE ONLY public.nursery_users ALTER COLUMN nursery_user_id SET DEFAULT nextval('public.nursery_users_nursery_user_id_seq'::regclass);
+
+
+--
+-- Name: order_delivery_snapshots snapshot_id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.order_delivery_snapshots ALTER COLUMN snapshot_id SET DEFAULT nextval('public.order_delivery_snapshots_snapshot_id_seq'::regclass);
 
 
 --
@@ -3182,6 +3264,22 @@ ALTER TABLE ONLY public.nursery_users
 
 ALTER TABLE ONLY public.nursery_users
     ADD CONSTRAINT nursery_users_uq UNIQUE (nursery_id, user_id, nursery_role_id);
+
+
+--
+-- Name: order_delivery_snapshots order_delivery_snapshots_order_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.order_delivery_snapshots
+    ADD CONSTRAINT order_delivery_snapshots_order_id_key UNIQUE (order_id);
+
+
+--
+-- Name: order_delivery_snapshots order_delivery_snapshots_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.order_delivery_snapshots
+    ADD CONSTRAINT order_delivery_snapshots_pkey PRIMARY KEY (snapshot_id);
 
 
 --
@@ -4111,6 +4209,20 @@ CREATE INDEX idx_nursery_users_user ON public.nursery_users USING btree (user_id
 
 
 --
+-- Name: idx_order_delivery_snapshots_driver_ack; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_order_delivery_snapshots_driver_ack ON public.order_delivery_snapshots USING btree (requires_driver_ack) WHERE (requires_driver_ack = true);
+
+
+--
+-- Name: idx_order_delivery_snapshots_location; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_order_delivery_snapshots_location ON public.order_delivery_snapshots USING gist (location);
+
+
+--
 -- Name: idx_order_items_order; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4297,6 +4409,20 @@ CREATE INDEX idx_platform_config_active ON public.platform_config USING btree (c
 --
 
 CREATE INDEX idx_quotation_items_quotation_id ON public.quotation_items USING btree (quotation_id);
+
+
+--
+-- Name: idx_quotation_documents_current; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_quotation_documents_current ON public.quotation_documents USING btree (quotation_id) WHERE (is_current = true);
+
+
+--
+-- Name: idx_quotation_verifications_active; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_quotation_verifications_active ON public.quotation_verifications USING btree (quotation_id) WHERE ((status)::text = 'ACTIVE'::text);
 
 
 --
@@ -5049,6 +5175,14 @@ ALTER TABLE ONLY public.nursery_drivers
 
 
 --
+-- Name: nursery_drivers nursery_drivers_disconnected_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.nursery_drivers
+    ADD CONSTRAINT nursery_drivers_disconnected_by_fkey FOREIGN KEY (disconnected_by) REFERENCES public.users(user_id);
+
+
+--
 -- Name: nursery_drivers nursery_drivers_driver_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5158,6 +5292,30 @@ ALTER TABLE ONLY public.nursery_users
 
 ALTER TABLE ONLY public.nursery_users
     ADD CONSTRAINT nursery_users_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(user_id) ON DELETE CASCADE;
+
+
+--
+-- Name: order_delivery_snapshots order_delivery_snapshots_confirmed_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.order_delivery_snapshots
+    ADD CONSTRAINT order_delivery_snapshots_confirmed_by_fkey FOREIGN KEY (confirmed_by) REFERENCES public.users(user_id);
+
+
+--
+-- Name: order_delivery_snapshots order_delivery_snapshots_driver_acknowledged_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.order_delivery_snapshots
+    ADD CONSTRAINT order_delivery_snapshots_driver_acknowledged_by_fkey FOREIGN KEY (driver_acknowledged_by) REFERENCES public.users(user_id);
+
+
+--
+-- Name: order_delivery_snapshots order_delivery_snapshots_order_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.order_delivery_snapshots
+    ADD CONSTRAINT order_delivery_snapshots_order_id_fkey FOREIGN KEY (order_id) REFERENCES public.orders(order_id) ON DELETE CASCADE;
 
 
 --
@@ -5465,6 +5623,38 @@ ALTER TABLE ONLY public.quotations
 
 
 --
+-- Name: quotation_documents quotation_documents_generated_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.quotation_documents
+    ADD CONSTRAINT quotation_documents_generated_by_fkey FOREIGN KEY (generated_by) REFERENCES public.users(user_id);
+
+
+--
+-- Name: quotation_documents quotation_documents_quotation_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.quotation_documents
+    ADD CONSTRAINT quotation_documents_quotation_id_fkey FOREIGN KEY (quotation_id) REFERENCES public.quotations(quotation_id) ON DELETE CASCADE;
+
+
+--
+-- Name: quotation_verifications quotation_verifications_quotation_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.quotation_verifications
+    ADD CONSTRAINT quotation_verifications_quotation_id_fkey FOREIGN KEY (quotation_id) REFERENCES public.quotations(quotation_id) ON DELETE CASCADE;
+
+
+--
+-- Name: quotation_verifications quotation_verifications_revoked_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.quotation_verifications
+    ADD CONSTRAINT quotation_verifications_revoked_by_fkey FOREIGN KEY (revoked_by) REFERENCES public.users(user_id);
+
+
+--
 -- Name: sourcing_network_members sourcing_network_members_joined_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5716,4 +5906,4 @@ ALTER TABLE ONLY public.vehicle_tracking
 -- PostgreSQL database dump complete
 --
 
-\unrestrict L6U0vkRlclCa3F22b30hSdL8rstbC8ufufqeAZ1wGycORgvmp7er9ShE2O7VBVu
+\unrestrict zH2Y3cfVT2NFaXPdgPnOtha05GdbFJAK8rgInCtUgBO47xkinHq4hvO3X1E1hcT
