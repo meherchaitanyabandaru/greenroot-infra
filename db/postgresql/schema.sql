@@ -4716,7 +4716,7 @@ CREATE INDEX idx_vehicle_tracking_dispatch_time ON public.vehicle_tracking USING
 -- Name: uq_driver_one_active_trip; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX uq_driver_one_active_trip ON public.dispatches USING btree (driver_user_id) WHERE ((dispatch_status)::text = 'TRIP_STARTED'::text);
+CREATE UNIQUE INDEX uq_driver_one_active_trip ON public.dispatches USING btree (driver_user_id) WHERE ((dispatch_status)::text = ANY ((ARRAY['ACCEPTED'::character varying, 'DISPATCHED'::character varying, 'IN_TRANSIT'::character varying])::text[]));
 
 
 --
