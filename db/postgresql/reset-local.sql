@@ -16,3 +16,4 @@ DROP SCHEMA IF EXISTS public CASCADE;
 \ir schema.sql
 \ir seed-master.sql
 \ir seed-dev-admin.sql
+\ir seed-dev-data.sql
