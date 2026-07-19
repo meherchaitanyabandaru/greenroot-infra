@@ -2407,6 +2407,9 @@ CREATE TABLE public.users (
     profile_image_url text,
     mobile_verified boolean DEFAULT false,
     email_verified boolean DEFAULT false,
+    onboarding_completed boolean DEFAULT false NOT NULL,
+    initial_activity character varying(30),
+    onboarding_completed_at timestamp without time zone,
     gender public.gender_type,
     status character varying(20) DEFAULT 'ACTIVE'::character varying,
     last_login_at timestamp without time zone,
@@ -3784,6 +3787,14 @@ ALTER TABLE ONLY public.user_subscriptions
 
 ALTER TABLE ONLY public.user_subscriptions
     ADD CONSTRAINT user_subscriptions_subscription_code_key UNIQUE (subscription_code);
+
+
+--
+-- Name: users chk_users_initial_activity; Type: CHECK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT chk_users_initial_activity CHECK (((initial_activity IS NULL) OR ((initial_activity)::text = ANY ((ARRAY['CUSTOMER'::character varying, 'OWNER'::character varying, 'DRIVER'::character varying, 'MANAGER'::character varying])::text[]))));
 
 
 --
