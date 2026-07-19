@@ -773,7 +773,12 @@ CREATE TABLE public.nurseries (
     rejected_by bigint,
     rejected_at timestamp without time zone,
     rejection_reason text,
-    deleted_at timestamp without time zone
+    deleted_at timestamp without time zone,
+    suspension_reason text,
+    suspended_by bigint,
+    suspended_at timestamp with time zone,
+    unsuspended_by bigint,
+    unsuspended_at timestamp with time zone
 );
 
 
@@ -2417,7 +2422,12 @@ CREATE TABLE public.users (
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     created_by bigint,
-    updated_by bigint
+    updated_by bigint,
+    suspension_reason text,
+    suspended_by bigint,
+    suspended_at timestamp with time zone,
+    unsuspended_by bigint,
+    unsuspended_at timestamp with time zone
 );
 
 
