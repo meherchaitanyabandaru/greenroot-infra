@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict zH2Y3cfVT2NFaXPdgPnOtha05GdbFJAK8rgInCtUgBO47xkinHq4hvO3X1E1hcT
+\restrict DN9rFpc75BjmDuVmlEfy84QzuhbWjbjEGutl4gef4j1g2C61d8NcnAoDEhqpWFa
 
 -- Dumped from database version 17.10 (Homebrew)
 -- Dumped by pg_dump version 17.10 (Homebrew)
@@ -23,10 +23,28 @@ SET row_security = off;
 -- Name: public; Type: SCHEMA; Schema: -; Owner: -
 --
 
-CREATE SCHEMA public;
+-- *not* creating schema, since initdb creates it
 
+
+--
+-- Name: SCHEMA public; Type: COMMENT; Schema: -; Owner: -
+--
+
+COMMENT ON SCHEMA public IS '';
+
+
+--
+-- Name: postgis; Type: EXTENSION; Schema: -; Owner: -
+--
 
 CREATE EXTENSION IF NOT EXISTS postgis WITH SCHEMA public;
+
+
+--
+-- Name: EXTENSION postgis; Type: COMMENT; Schema: -; Owner: -
+--
+
+COMMENT ON EXTENSION postgis IS 'PostGIS geometry and geography spatial types and functions';
 
 
 --
@@ -1114,7 +1132,7 @@ CREATE TABLE public.order_delivery_snapshots (
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT chk_order_delivery_snapshot_latitude CHECK (((latitude IS NULL) OR ((latitude >= ('-90'::integer)::numeric) AND (latitude <= (90)::numeric)))),
-    CONSTRAINT chk_order_delivery_snapshot_location_source CHECK (((location_source IS NULL) OR ((location_source)::text = ANY ((ARRAY['gps_confirmed'::character varying, 'nursery_default'::character varying, 'map_selected'::character varying, 'address_search'::character varying, 'admin_updated'::character varying])::text[])))),
+    CONSTRAINT chk_order_delivery_snapshot_location_source CHECK (((location_source IS NULL) OR ((location_source)::text = ANY (ARRAY[('gps_confirmed'::character varying)::text, ('nursery_default'::character varying)::text, ('map_selected'::character varying)::text, ('address_search'::character varying)::text, ('admin_updated'::character varying)::text])))),
     CONSTRAINT chk_order_delivery_snapshot_longitude CHECK (((longitude IS NULL) OR ((longitude >= ('-180'::integer)::numeric) AND (longitude <= (180)::numeric))))
 );
 
@@ -1136,6 +1154,46 @@ CREATE SEQUENCE public.order_delivery_snapshots_snapshot_id_seq
 --
 
 ALTER SEQUENCE public.order_delivery_snapshots_snapshot_id_seq OWNED BY public.order_delivery_snapshots.snapshot_id;
+
+
+--
+-- Name: order_documents; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.order_documents (
+    doc_id bigint NOT NULL,
+    order_id bigint NOT NULL,
+    version integer DEFAULT 1 NOT NULL,
+    object_key text NOT NULL,
+    sha256_hash character varying(64) NOT NULL,
+    mime_type character varying(100) DEFAULT 'application/pdf'::character varying NOT NULL,
+    file_size bigint DEFAULT 0 NOT NULL,
+    generated_by bigint,
+    generated_by_name character varying(255),
+    is_current boolean DEFAULT true NOT NULL,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT order_documents_file_size_nonnegative CHECK ((file_size >= 0)),
+    CONSTRAINT order_documents_version_positive CHECK ((version > 0))
+);
+
+
+--
+-- Name: order_documents_doc_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.order_documents_doc_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: order_documents_doc_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.order_documents_doc_id_seq OWNED BY public.order_documents.doc_id;
 
 
 --
@@ -1176,6 +1234,41 @@ CREATE SEQUENCE public.order_items_order_item_id_seq
 --
 
 ALTER SEQUENCE public.order_items_order_item_id_seq OWNED BY public.order_items.order_item_id;
+
+
+--
+-- Name: order_verifications; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.order_verifications (
+    verification_id bigint NOT NULL,
+    order_id bigint NOT NULL,
+    token character varying(128) NOT NULL,
+    status character varying(20) DEFAULT 'ACTIVE'::character varying NOT NULL,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    revoked_at timestamp without time zone,
+    revoked_by bigint,
+    CONSTRAINT order_verifications_status_check CHECK (((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'REVOKED'::character varying])::text[])))
+);
+
+
+--
+-- Name: order_verifications_verification_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.order_verifications_verification_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: order_verifications_verification_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.order_verifications_verification_id_seq OWNED BY public.order_verifications.verification_id;
 
 
 --
@@ -1667,6 +1760,46 @@ CREATE TABLE public.public_code_sequences (
 
 
 --
+-- Name: quotation_documents; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.quotation_documents (
+    doc_id bigint NOT NULL,
+    quotation_id bigint NOT NULL,
+    version integer DEFAULT 1 NOT NULL,
+    object_key text NOT NULL,
+    sha256_hash character varying(64) NOT NULL,
+    mime_type character varying(100) DEFAULT 'application/pdf'::character varying NOT NULL,
+    file_size bigint DEFAULT 0 NOT NULL,
+    generated_by bigint,
+    generated_by_name character varying(255),
+    is_current boolean DEFAULT true NOT NULL,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT quotation_documents_file_size_nonnegative CHECK ((file_size >= 0)),
+    CONSTRAINT quotation_documents_version_positive CHECK ((version > 0))
+);
+
+
+--
+-- Name: quotation_documents_doc_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.quotation_documents_doc_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: quotation_documents_doc_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.quotation_documents_doc_id_seq OWNED BY public.quotation_documents.doc_id;
+
+
+--
 -- Name: quotation_items; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1704,6 +1837,41 @@ ALTER SEQUENCE public.quotation_items_quotation_item_id_seq OWNED BY public.quot
 
 
 --
+-- Name: quotation_verifications; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.quotation_verifications (
+    verification_id bigint NOT NULL,
+    quotation_id bigint NOT NULL,
+    token character varying(128) NOT NULL,
+    status character varying(20) DEFAULT 'ACTIVE'::character varying NOT NULL,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    revoked_at timestamp without time zone,
+    revoked_by bigint,
+    CONSTRAINT quotation_verifications_status_check CHECK (((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'REVOKED'::character varying])::text[])))
+);
+
+
+--
+-- Name: quotation_verifications_verification_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.quotation_verifications_verification_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: quotation_verifications_verification_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.quotation_verifications_verification_id_seq OWNED BY public.quotation_verifications.verification_id;
+
+
+--
 -- Name: quotations; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1734,7 +1902,7 @@ CREATE TABLE public.quotations (
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     quotation_type character varying(20) DEFAULT 'CUSTOMER'::character varying NOT NULL,
     valid_until timestamp without time zone,
-    CONSTRAINT chk_quotation_status CHECK (((status)::text = ANY ((ARRAY['INTERNAL_DRAFT'::character varying, 'CUSTOMER_DRAFT'::character varying, 'CUSTOMER_SENT'::character varying, 'CUSTOMER_ACCEPTED'::character varying, 'CUSTOMER_REJECTED'::character varying, 'CONVERTED'::character varying, 'EXPIRED'::character varying])::text[]))),
+    CONSTRAINT chk_quotation_status CHECK (((status)::text = ANY (ARRAY[('INTERNAL_DRAFT'::character varying)::text, ('CUSTOMER_DRAFT'::character varying)::text, ('CUSTOMER_SENT'::character varying)::text, ('CUSTOMER_ACCEPTED'::character varying)::text, ('CUSTOMER_REJECTED'::character varying)::text, ('CONVERTED'::character varying)::text, ('EXPIRED'::character varying)::text]))),
     CONSTRAINT chk_quotation_type CHECK (((quotation_type)::text = ANY (ARRAY[('INTERNAL'::character varying)::text, ('CUSTOMER'::character varying)::text])))
 );
 
@@ -1756,44 +1924,6 @@ CREATE SEQUENCE public.quotations_quotation_id_seq
 --
 
 ALTER SEQUENCE public.quotations_quotation_id_seq OWNED BY public.quotations.quotation_id;
-
-
---
--- Name: quotation_documents; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.quotation_documents (
-    doc_id bigserial PRIMARY KEY,
-    quotation_id bigint NOT NULL,
-    version integer NOT NULL DEFAULT 1,
-    object_key text NOT NULL,
-    sha256_hash character varying(64) NOT NULL,
-    mime_type character varying(100) NOT NULL DEFAULT 'application/pdf',
-    file_size bigint NOT NULL DEFAULT 0,
-    generated_by bigint,
-    generated_by_name character varying(255),
-    is_current boolean NOT NULL DEFAULT true,
-    created_at timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT quotation_documents_version_positive CHECK (version > 0),
-    CONSTRAINT quotation_documents_file_size_nonnegative CHECK (file_size >= 0),
-    CONSTRAINT quotation_documents_unique_version UNIQUE (quotation_id, version)
-);
-
-
---
--- Name: quotation_verifications; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.quotation_verifications (
-    verification_id bigserial PRIMARY KEY,
-    quotation_id bigint NOT NULL,
-    token character varying(128) NOT NULL UNIQUE,
-    status character varying(20) NOT NULL DEFAULT 'ACTIVE',
-    created_at timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    revoked_at timestamp without time zone,
-    revoked_by bigint,
-    CONSTRAINT quotation_verifications_status_check CHECK (status IN ('ACTIVE', 'REVOKED'))
-);
 
 
 --
@@ -2427,7 +2557,8 @@ CREATE TABLE public.users (
     suspended_by bigint,
     suspended_at timestamp with time zone,
     unsuspended_by bigint,
-    unsuspended_at timestamp with time zone
+    unsuspended_at timestamp with time zone,
+    CONSTRAINT chk_users_initial_activity CHECK (((initial_activity IS NULL) OR ((initial_activity)::text = ANY (ARRAY[('CUSTOMER'::character varying)::text, ('OWNER'::character varying)::text, ('DRIVER'::character varying)::text, ('MANAGER'::character varying)::text]))))
 );
 
 
@@ -2720,10 +2851,24 @@ ALTER TABLE ONLY public.order_delivery_snapshots ALTER COLUMN snapshot_id SET DE
 
 
 --
+-- Name: order_documents doc_id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.order_documents ALTER COLUMN doc_id SET DEFAULT nextval('public.order_documents_doc_id_seq'::regclass);
+
+
+--
 -- Name: order_items order_item_id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.order_items ALTER COLUMN order_item_id SET DEFAULT nextval('public.order_items_order_item_id_seq'::regclass);
+
+
+--
+-- Name: order_verifications verification_id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.order_verifications ALTER COLUMN verification_id SET DEFAULT nextval('public.order_verifications_verification_id_seq'::regclass);
 
 
 --
@@ -2811,10 +2956,24 @@ ALTER TABLE ONLY public.platform_config ALTER COLUMN config_id SET DEFAULT nextv
 
 
 --
+-- Name: quotation_documents doc_id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.quotation_documents ALTER COLUMN doc_id SET DEFAULT nextval('public.quotation_documents_doc_id_seq'::regclass);
+
+
+--
 -- Name: quotation_items quotation_item_id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.quotation_items ALTER COLUMN quotation_item_id SET DEFAULT nextval('public.quotation_items_quotation_item_id_seq'::regclass);
+
+
+--
+-- Name: quotation_verifications verification_id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.quotation_verifications ALTER COLUMN verification_id SET DEFAULT nextval('public.quotation_verifications_verification_id_seq'::regclass);
 
 
 --
@@ -3296,11 +3455,43 @@ ALTER TABLE ONLY public.order_delivery_snapshots
 
 
 --
+-- Name: order_documents order_documents_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.order_documents
+    ADD CONSTRAINT order_documents_pkey PRIMARY KEY (doc_id);
+
+
+--
+-- Name: order_documents order_documents_unique_version; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.order_documents
+    ADD CONSTRAINT order_documents_unique_version UNIQUE (order_id, version);
+
+
+--
 -- Name: order_items order_items_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.order_items
     ADD CONSTRAINT order_items_pkey PRIMARY KEY (order_item_id);
+
+
+--
+-- Name: order_verifications order_verifications_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.order_verifications
+    ADD CONSTRAINT order_verifications_pkey PRIMARY KEY (verification_id);
+
+
+--
+-- Name: order_verifications order_verifications_token_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.order_verifications
+    ADD CONSTRAINT order_verifications_token_key UNIQUE (token);
 
 
 --
@@ -3496,11 +3687,43 @@ ALTER TABLE ONLY public.public_code_sequences
 
 
 --
+-- Name: quotation_documents quotation_documents_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.quotation_documents
+    ADD CONSTRAINT quotation_documents_pkey PRIMARY KEY (doc_id);
+
+
+--
+-- Name: quotation_documents quotation_documents_unique_version; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.quotation_documents
+    ADD CONSTRAINT quotation_documents_unique_version UNIQUE (quotation_id, version);
+
+
+--
 -- Name: quotation_items quotation_items_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.quotation_items
     ADD CONSTRAINT quotation_items_pkey PRIMARY KEY (quotation_item_id);
+
+
+--
+-- Name: quotation_verifications quotation_verifications_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.quotation_verifications
+    ADD CONSTRAINT quotation_verifications_pkey PRIMARY KEY (verification_id);
+
+
+--
+-- Name: quotation_verifications quotation_verifications_token_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.quotation_verifications
+    ADD CONSTRAINT quotation_verifications_token_key UNIQUE (token);
 
 
 --
@@ -3797,14 +4020,6 @@ ALTER TABLE ONLY public.user_subscriptions
 
 ALTER TABLE ONLY public.user_subscriptions
     ADD CONSTRAINT user_subscriptions_subscription_code_key UNIQUE (subscription_code);
-
-
---
--- Name: users chk_users_initial_activity; Type: CHECK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.users
-    ADD CONSTRAINT chk_users_initial_activity CHECK (((initial_activity IS NULL) OR ((initial_activity)::text = ANY ((ARRAY['CUSTOMER'::character varying, 'OWNER'::character varying, 'DRIVER'::character varying, 'MANAGER'::character varying])::text[]))));
 
 
 --
@@ -4244,6 +4459,13 @@ CREATE INDEX idx_order_delivery_snapshots_location ON public.order_delivery_snap
 
 
 --
+-- Name: idx_order_documents_current; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_order_documents_current ON public.order_documents USING btree (order_id) WHERE (is_current = true);
+
+
+--
 -- Name: idx_order_items_order; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4255,6 +4477,20 @@ CREATE INDEX idx_order_items_order ON public.order_items USING btree (order_id);
 --
 
 CREATE INDEX idx_order_items_plant ON public.order_items USING btree (plant_id);
+
+
+--
+-- Name: idx_order_verifications_active; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_order_verifications_active ON public.order_verifications USING btree (order_id) WHERE ((status)::text = 'ACTIVE'::text);
+
+
+--
+-- Name: idx_order_verifications_token; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_order_verifications_token ON public.order_verifications USING btree (token);
 
 
 --
@@ -4426,17 +4662,17 @@ CREATE INDEX idx_platform_config_active ON public.platform_config USING btree (c
 
 
 --
--- Name: idx_quotation_items_quotation_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_quotation_items_quotation_id ON public.quotation_items USING btree (quotation_id);
-
-
---
 -- Name: idx_quotation_documents_current; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE UNIQUE INDEX idx_quotation_documents_current ON public.quotation_documents USING btree (quotation_id) WHERE (is_current = true);
+
+
+--
+-- Name: idx_quotation_items_quotation_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_quotation_items_quotation_id ON public.quotation_items USING btree (quotation_id);
 
 
 --
@@ -4737,7 +4973,7 @@ CREATE INDEX idx_vehicle_tracking_dispatch_time ON public.vehicle_tracking USING
 -- Name: uq_driver_one_active_trip; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX uq_driver_one_active_trip ON public.dispatches USING btree (driver_user_id) WHERE ((dispatch_status)::text = ANY ((ARRAY['ACCEPTED'::character varying, 'DISPATCHED'::character varying, 'IN_TRANSIT'::character varying])::text[]));
+CREATE UNIQUE INDEX uq_driver_one_active_trip ON public.dispatches USING btree (driver_user_id) WHERE ((dispatch_status)::text = ANY (ARRAY[('ACCEPTED'::character varying)::text, ('DISPATCHED'::character varying)::text, ('IN_TRANSIT'::character varying)::text]));
 
 
 --
@@ -5340,6 +5576,22 @@ ALTER TABLE ONLY public.order_delivery_snapshots
 
 
 --
+-- Name: order_documents order_documents_generated_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.order_documents
+    ADD CONSTRAINT order_documents_generated_by_fkey FOREIGN KEY (generated_by) REFERENCES public.users(user_id);
+
+
+--
+-- Name: order_documents order_documents_order_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.order_documents
+    ADD CONSTRAINT order_documents_order_id_fkey FOREIGN KEY (order_id) REFERENCES public.orders(order_id) ON DELETE CASCADE;
+
+
+--
 -- Name: order_items order_items_order_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5361,6 +5613,22 @@ ALTER TABLE ONLY public.order_items
 
 ALTER TABLE ONLY public.order_items
     ADD CONSTRAINT order_items_size_id_fkey FOREIGN KEY (size_id) REFERENCES public.plant_sizes(size_id);
+
+
+--
+-- Name: order_verifications order_verifications_order_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.order_verifications
+    ADD CONSTRAINT order_verifications_order_id_fkey FOREIGN KEY (order_id) REFERENCES public.orders(order_id) ON DELETE CASCADE;
+
+
+--
+-- Name: order_verifications order_verifications_revoked_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.order_verifications
+    ADD CONSTRAINT order_verifications_revoked_by_fkey FOREIGN KEY (revoked_by) REFERENCES public.users(user_id);
 
 
 --
@@ -5580,6 +5848,22 @@ ALTER TABLE ONLY public.plant_request_responses
 
 
 --
+-- Name: quotation_documents quotation_documents_generated_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.quotation_documents
+    ADD CONSTRAINT quotation_documents_generated_by_fkey FOREIGN KEY (generated_by) REFERENCES public.users(user_id);
+
+
+--
+-- Name: quotation_documents quotation_documents_quotation_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.quotation_documents
+    ADD CONSTRAINT quotation_documents_quotation_id_fkey FOREIGN KEY (quotation_id) REFERENCES public.quotations(quotation_id) ON DELETE CASCADE;
+
+
+--
 -- Name: quotation_items quotation_items_plant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5593,6 +5877,22 @@ ALTER TABLE ONLY public.quotation_items
 
 ALTER TABLE ONLY public.quotation_items
     ADD CONSTRAINT quotation_items_quotation_id_fkey FOREIGN KEY (quotation_id) REFERENCES public.quotations(quotation_id) ON DELETE CASCADE;
+
+
+--
+-- Name: quotation_verifications quotation_verifications_quotation_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.quotation_verifications
+    ADD CONSTRAINT quotation_verifications_quotation_id_fkey FOREIGN KEY (quotation_id) REFERENCES public.quotations(quotation_id) ON DELETE CASCADE;
+
+
+--
+-- Name: quotation_verifications quotation_verifications_revoked_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.quotation_verifications
+    ADD CONSTRAINT quotation_verifications_revoked_by_fkey FOREIGN KEY (revoked_by) REFERENCES public.users(user_id);
 
 
 --
@@ -5641,38 +5941,6 @@ ALTER TABLE ONLY public.quotations
 
 ALTER TABLE ONLY public.quotations
     ADD CONSTRAINT quotations_nursery_id_fkey FOREIGN KEY (nursery_id) REFERENCES public.nurseries(nursery_id);
-
-
---
--- Name: quotation_documents quotation_documents_generated_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.quotation_documents
-    ADD CONSTRAINT quotation_documents_generated_by_fkey FOREIGN KEY (generated_by) REFERENCES public.users(user_id);
-
-
---
--- Name: quotation_documents quotation_documents_quotation_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.quotation_documents
-    ADD CONSTRAINT quotation_documents_quotation_id_fkey FOREIGN KEY (quotation_id) REFERENCES public.quotations(quotation_id) ON DELETE CASCADE;
-
-
---
--- Name: quotation_verifications quotation_verifications_quotation_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.quotation_verifications
-    ADD CONSTRAINT quotation_verifications_quotation_id_fkey FOREIGN KEY (quotation_id) REFERENCES public.quotations(quotation_id) ON DELETE CASCADE;
-
-
---
--- Name: quotation_verifications quotation_verifications_revoked_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.quotation_verifications
-    ADD CONSTRAINT quotation_verifications_revoked_by_fkey FOREIGN KEY (revoked_by) REFERENCES public.users(user_id);
 
 
 --
@@ -5927,4 +6195,5 @@ ALTER TABLE ONLY public.vehicle_tracking
 -- PostgreSQL database dump complete
 --
 
-\unrestrict zH2Y3cfVT2NFaXPdgPnOtha05GdbFJAK8rgInCtUgBO47xkinHq4hvO3X1E1hcT
+\unrestrict DN9rFpc75BjmDuVmlEfy84QzuhbWjbjEGutl4gef4j1g2C61d8NcnAoDEhqpWFa
+
