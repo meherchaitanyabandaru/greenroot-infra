@@ -6,6 +6,9 @@ registered **Principal Entity (PE) ID**, a registered **header** (sender ID) and
 registered **content template**. The operator scrubs each message against the
 template before delivering it.
 
+SMS is one channel of the shared messaging core; see [messaging.md](messaging.md)
+for events, fan-out to email, and the shared OTP store.
+
 Status: built and tested in **mock mode**. Nothing reaches a handset until DLT
 registration is done and a real gateway is added in `greenroot-api/platform/sms`.
 
@@ -98,8 +101,8 @@ Message statuses: `SENT`, `MOCKED`, `BLOCKED`, `FAILED` (`DELIVERED` is reserved
 
 - **Login vs registration OTP:** `send-otp` uses `AUTH_LOGIN_OTP` when the number has an account, otherwise `AUTH_REGISTER_OTP`. The API response is the same either way.
 - **OTP security (live):** 6 random digits from `crypto/rand`; stored in Redis as a SHA-256 hash with a 5-minute TTL; compared in constant time; single use; burned after 5 wrong guesses; one send per 30 s and at most 5 per hour per number (on top of the per-IP middleware limit). If the SMS send fails, the OTP is deleted and the API returns `503 otp_unavailable`.
-- **Welcome SMS:** sent once, when OTP verification creates a new user. Runs in the background and never delays login.
-- **Payment SMS:** sent to the payer when a payment is created as, or moves into, `SUCCESS` or `FAILED`. Re-saving the same status does not send again. Runs after the payment is saved, in the background; an SMS failure never affects the payment.
+- **Welcome SMS:** auth raises the `ACCOUNT_WELCOME` event once, when OTP verification creates a new user. It goes through the messaging notifier in the background and never delays login.
+- **Payment SMS:** payments raises a `PAYMENT_*` event when a payment is created as, or moves into, `SUCCESS` or `FAILED`. The event carries `amount`, `order_code` and `payment_code`, and the core expands them into the split DLT values. Re-saving the same status does not send again. It runs in the background after the payment is saved, and the same event also reaches a verified email.
 - **System templates** (the six above) cannot be renamed or deactivated, because the API sends them by code.
 - **Every attempt is logged,** including blocked ones, with a machine-readable `error_code` (`template_not_approved`, `consent_required`, `outside_promotional_window`, `invalid_variables`, ...).
 

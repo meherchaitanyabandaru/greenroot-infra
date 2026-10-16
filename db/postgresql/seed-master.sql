@@ -183,4 +183,55 @@ INSERT INTO public.sms_templates (template_code, template_name, category, header
    'Your payment of Rs.{#numeric#}.{#numeric#} on GreenRoot (ref PAY-{#numeric#}-{#numeric#}) was not successful. Please try again. - GreenRoot',
    '["amount_rupees", "amount_paise", "payment_date", "payment_seq"]');
 
+-- Email channel. Set the From address in Admin > Email and mark the domain
+-- verified (SPF/DKIM/DMARC) before switching EMAIL_PROVIDER off mock.
+-- body_html is content only; the API wraps it in the shared layout.
+INSERT INTO public.email_sender (from_name) VALUES ('GreenRoot');
+
+INSERT INTO public.email_templates (template_code, template_name, subject, body_html, body_text) VALUES
+  ('EMAIL_VERIFY_OTP', 'Email verification code', 'Verify your email for GreenRoot',
+   $html$<p>Use this code to verify your email address on GreenRoot:</p>
+<p style="font-size:30px;font-weight:bold;letter-spacing:6px;margin:16px 0;">{{otp}}</p>
+<p>The code is valid for {{valid_minutes}} minutes. Never share it with anyone, including GreenRoot staff.</p>$html$,
+   $text$Use this code to verify your email address on GreenRoot: {{otp}}
+
+The code is valid for {{valid_minutes}} minutes. Never share it with anyone, including GreenRoot staff.$text$),
+
+  ('PAYMENT_RECEIVED_ORDER', 'Order payment received', 'Payment received for order {{order_code}}',
+   $html$<p>We have received your payment.</p>
+<table role="presentation" cellpadding="6" cellspacing="0" style="border-collapse:collapse;margin:12px 0;">
+<tr><td style="color:#6b7c72;">Amount</td><td style="font-weight:bold;">&#8377;{{amount}}</td></tr>
+<tr><td style="color:#6b7c72;">Order</td><td>{{order_code}}</td></tr>
+<tr><td style="color:#6b7c72;">Payment reference</td><td>{{payment_code}}</td></tr>
+</table>
+<p>You can see the order and its payments in the GreenRoot app.</p>$html$,
+   $text$We have received your payment.
+
+Amount: Rs.{{amount}}
+Order: {{order_code}}
+Payment reference: {{payment_code}}
+
+You can see the order and its payments in the GreenRoot app.$text$),
+
+  ('PAYMENT_RECEIVED_SUBSCRIPTION', 'Subscription payment received', 'Payment received for your GreenRoot subscription',
+   $html$<p>We have received your subscription payment.</p>
+<table role="presentation" cellpadding="6" cellspacing="0" style="border-collapse:collapse;margin:12px 0;">
+<tr><td style="color:#6b7c72;">Amount</td><td style="font-weight:bold;">&#8377;{{amount}}</td></tr>
+<tr><td style="color:#6b7c72;">Payment reference</td><td>{{payment_code}}</td></tr>
+</table>
+<p>Your plan details are in the GreenRoot app under Subscription.</p>$html$,
+   $text$We have received your subscription payment.
+
+Amount: Rs.{{amount}}
+Payment reference: {{payment_code}}
+
+Your plan details are in the GreenRoot app under Subscription.$text$),
+
+  ('PAYMENT_FAILED', 'Payment failed', 'Your GreenRoot payment {{payment_code}} was not successful',
+   $html$<p>Your payment of <strong>&#8377;{{amount}}</strong> (reference {{payment_code}}) was not successful.</p>
+<p>Please try again from the GreenRoot app.</p>$html$,
+   $text$Your payment of Rs.{{amount}} (reference {{payment_code}}) was not successful.
+
+Please try again from the GreenRoot app.$text$);
+
 COMMIT;

@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict fZWue2fBb6ER9SyiXVqi88WbMsPYCQmuSY3Kr10VeyfEsPoxJTt9txHk8gxN6r8
+\restrict GthwfcyEvMdAvTekaSaoZOfZQdwoeZA3EmYONswqxAQl9cYMGvhE98EwTMig7FY
 
 -- Dumped from database version 17.10 (Homebrew)
 -- Dumped by pg_dump version 17.10 (Homebrew)
@@ -368,6 +368,122 @@ CREATE SEQUENCE public.drivers_driver_id_seq
 --
 
 ALTER SEQUENCE public.drivers_driver_id_seq OWNED BY public.drivers.driver_id;
+
+
+--
+-- Name: email_messages; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.email_messages (
+    email_message_id bigint NOT NULL,
+    email_template_id bigint,
+    template_code character varying(60) NOT NULL,
+    user_id bigint,
+    to_email character varying(254) NOT NULL,
+    subject text NOT NULL,
+    body text NOT NULL,
+    provider character varying(30) NOT NULL,
+    provider_message_id character varying(200),
+    status character varying(20) NOT NULL,
+    error_code character varying(60),
+    error_message text,
+    reference_type character varying(30),
+    reference_id bigint,
+    sent_at timestamp without time zone,
+    delivered_at timestamp without time zone,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT chk_email_messages_status CHECK (((status)::text = ANY (ARRAY['SENT'::text, 'DELIVERED'::text, 'BOUNCED'::text, 'FAILED'::text, 'BLOCKED'::text, 'MOCKED'::text])))
+);
+
+
+--
+-- Name: email_messages_email_message_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.email_messages_email_message_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: email_messages_email_message_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.email_messages_email_message_id_seq OWNED BY public.email_messages.email_message_id;
+
+
+--
+-- Name: email_sender; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.email_sender (
+    sender_id bigint NOT NULL,
+    from_name character varying(100) DEFAULT 'GreenRoot'::character varying NOT NULL,
+    from_address character varying(254),
+    reply_to character varying(254),
+    domain_verified boolean DEFAULT false NOT NULL,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+--
+-- Name: email_sender_sender_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.email_sender_sender_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: email_sender_sender_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.email_sender_sender_id_seq OWNED BY public.email_sender.sender_id;
+
+
+--
+-- Name: email_templates; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.email_templates (
+    email_template_id bigint NOT NULL,
+    template_code character varying(60) NOT NULL,
+    template_name character varying(255) NOT NULL,
+    subject character varying(200) NOT NULL,
+    body_html text DEFAULT ''::text NOT NULL,
+    body_text text DEFAULT ''::text NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+--
+-- Name: email_templates_email_template_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.email_templates_email_template_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: email_templates_email_template_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.email_templates_email_template_id_seq OWNED BY public.email_templates.email_template_id;
 
 
 --
@@ -2906,6 +3022,27 @@ ALTER TABLE ONLY public.drivers ALTER COLUMN driver_id SET DEFAULT nextval('publ
 
 
 --
+-- Name: email_messages email_message_id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.email_messages ALTER COLUMN email_message_id SET DEFAULT nextval('public.email_messages_email_message_id_seq'::regclass);
+
+
+--
+-- Name: email_sender sender_id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.email_sender ALTER COLUMN sender_id SET DEFAULT nextval('public.email_sender_sender_id_seq'::regclass);
+
+
+--
+-- Name: email_templates email_template_id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.email_templates ALTER COLUMN email_template_id SET DEFAULT nextval('public.email_templates_email_template_id_seq'::regclass);
+
+
+--
 -- Name: invites id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -3412,6 +3549,30 @@ ALTER TABLE ONLY public.drivers
 
 ALTER TABLE ONLY public.drivers
     ADD CONSTRAINT drivers_user_id_key UNIQUE (user_id);
+
+
+--
+-- Name: email_messages email_messages_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.email_messages
+    ADD CONSTRAINT email_messages_pkey PRIMARY KEY (email_message_id);
+
+
+--
+-- Name: email_sender email_sender_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.email_sender
+    ADD CONSTRAINT email_sender_pkey PRIMARY KEY (sender_id);
+
+
+--
+-- Name: email_templates email_templates_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.email_templates
+    ADD CONSTRAINT email_templates_pkey PRIMARY KEY (email_template_id);
 
 
 --
@@ -4135,6 +4296,14 @@ ALTER TABLE ONLY public.trip_tracking_links
 
 
 --
+-- Name: email_templates uq_email_templates_code; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.email_templates
+    ADD CONSTRAINT uq_email_templates_code UNIQUE (template_code);
+
+
+--
 -- Name: nursery_inventory uq_inventory; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4504,6 +4673,27 @@ CREATE INDEX idx_drivers_approval_status ON public.drivers USING btree (approval
 --
 
 CREATE INDEX idx_drivers_user_id ON public.drivers USING btree (user_id);
+
+
+--
+-- Name: idx_email_messages_status_created; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_email_messages_status_created ON public.email_messages USING btree (status, created_at DESC);
+
+
+--
+-- Name: idx_email_messages_template_created; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_email_messages_template_created ON public.email_messages USING btree (template_code, created_at DESC);
+
+
+--
+-- Name: idx_email_messages_to_created; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_email_messages_to_created ON public.email_messages USING btree (to_email, created_at DESC);
 
 
 --
@@ -5270,6 +5460,13 @@ CREATE UNIQUE INDEX uq_driver_one_active_trip ON public.dispatches USING btree (
 
 
 --
+-- Name: uq_email_sender_singleton; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_email_sender_singleton ON public.email_sender USING btree ((true));
+
+
+--
 -- Name: uq_manager_one_active_nursery; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5441,6 +5638,22 @@ ALTER TABLE ONLY public.drivers
 
 ALTER TABLE ONLY public.drivers
     ADD CONSTRAINT drivers_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(user_id);
+
+
+--
+-- Name: email_messages fk_email_messages_template; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.email_messages
+    ADD CONSTRAINT fk_email_messages_template FOREIGN KEY (email_template_id) REFERENCES public.email_templates(email_template_id);
+
+
+--
+-- Name: email_messages fk_email_messages_user; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.email_messages
+    ADD CONSTRAINT fk_email_messages_user FOREIGN KEY (user_id) REFERENCES public.users(user_id) ON DELETE SET NULL;
 
 
 --
@@ -6527,5 +6740,5 @@ ALTER TABLE ONLY public.vehicle_tracking
 -- PostgreSQL database dump complete
 --
 
-\unrestrict fZWue2fBb6ER9SyiXVqi88WbMsPYCQmuSY3Kr10VeyfEsPoxJTt9txHk8gxN6r8
+\unrestrict GthwfcyEvMdAvTekaSaoZOfZQdwoeZA3EmYONswqxAQl9cYMGvhE98EwTMig7FY
 
