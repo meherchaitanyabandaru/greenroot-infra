@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict DN9rFpc75BjmDuVmlEfy84QzuhbWjbjEGutl4gef4j1g2C61d8NcnAoDEhqpWFa
+\restrict fZWue2fBb6ER9SyiXVqi88WbMsPYCQmuSY3Kr10VeyfEsPoxJTt9txHk8gxN6r8
 
 -- Dumped from database version 17.10 (Homebrew)
 -- Dumped by pg_dump version 17.10 (Homebrew)
@@ -2009,6 +2009,194 @@ ALTER SEQUENCE public.security_audit_logs_id_seq OWNED BY public.security_audit_
 
 
 --
+-- Name: sms_dlt_entities; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.sms_dlt_entities (
+    entity_id bigint NOT NULL,
+    pe_id character varying(30),
+    entity_name character varying(255) NOT NULL,
+    dlt_operator character varying(30) DEFAULT 'JIO'::character varying NOT NULL,
+    telemarketer_name character varying(255),
+    telemarketer_id character varying(50),
+    registration_status character varying(30) DEFAULT 'NOT_REGISTERED'::character varying NOT NULL,
+    notes text,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT chk_sms_dlt_entities_operator CHECK (((dlt_operator)::text = ANY (ARRAY['JIO'::text, 'AIRTEL'::text, 'VI'::text, 'BSNL'::text, 'TATA'::text, 'SMARTPING'::text]))),
+    CONSTRAINT chk_sms_dlt_entities_pe_id CHECK (((pe_id IS NULL) OR ((pe_id)::text ~ '^[0-9]{10,30}$'::text))),
+    CONSTRAINT chk_sms_dlt_entities_status CHECK (((registration_status)::text = ANY (ARRAY['NOT_REGISTERED'::text, 'SUBMITTED'::text, 'APPROVED'::text, 'REJECTED'::text])))
+);
+
+
+--
+-- Name: sms_dlt_entities_entity_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.sms_dlt_entities_entity_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: sms_dlt_entities_entity_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.sms_dlt_entities_entity_id_seq OWNED BY public.sms_dlt_entities.entity_id;
+
+
+--
+-- Name: sms_headers; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.sms_headers (
+    header_id bigint NOT NULL,
+    header character varying(11) NOT NULL,
+    header_type character varying(20) NOT NULL,
+    dlt_header_id character varying(30),
+    registration_status character varying(30) DEFAULT 'DRAFT'::character varying NOT NULL,
+    rejection_reason text,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT chk_sms_headers_status CHECK (((registration_status)::text = ANY (ARRAY['DRAFT'::text, 'SUBMITTED'::text, 'APPROVED'::text, 'REJECTED'::text, 'INACTIVE'::text]))),
+    CONSTRAINT chk_sms_headers_type CHECK (((header_type)::text = ANY (ARRAY['TRANSACTIONAL'::text, 'SERVICE'::text, 'PROMOTIONAL'::text, 'GOVERNMENT'::text])))
+);
+
+
+--
+-- Name: sms_headers_header_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.sms_headers_header_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: sms_headers_header_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.sms_headers_header_id_seq OWNED BY public.sms_headers.header_id;
+
+
+--
+-- Name: sms_messages; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.sms_messages (
+    sms_message_id bigint NOT NULL,
+    sms_template_id bigint,
+    template_code character varying(60) NOT NULL,
+    user_id bigint,
+    mobile character varying(15) NOT NULL,
+    message_body text NOT NULL,
+    header character varying(11),
+    dlt_entity_id character varying(30),
+    dlt_template_id character varying(30),
+    category character varying(30) NOT NULL,
+    parts smallint DEFAULT 1 NOT NULL,
+    provider character varying(30) NOT NULL,
+    provider_message_id character varying(100),
+    status character varying(20) NOT NULL,
+    error_code character varying(60),
+    error_message text,
+    reference_type character varying(30),
+    reference_id bigint,
+    sent_at timestamp without time zone,
+    delivered_at timestamp without time zone,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT chk_sms_messages_status CHECK (((status)::text = ANY (ARRAY['QUEUED'::text, 'SENT'::text, 'DELIVERED'::text, 'FAILED'::text, 'BLOCKED'::text, 'MOCKED'::text])))
+);
+
+
+--
+-- Name: sms_messages_sms_message_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.sms_messages_sms_message_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: sms_messages_sms_message_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.sms_messages_sms_message_id_seq OWNED BY public.sms_messages.sms_message_id;
+
+
+--
+-- Name: sms_preferences; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.sms_preferences (
+    user_id bigint NOT NULL,
+    promotional_opt_in boolean DEFAULT false NOT NULL,
+    promotional_consent_at timestamp without time zone,
+    promotional_revoked_at timestamp without time zone,
+    consent_source character varying(30),
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+--
+-- Name: sms_templates; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.sms_templates (
+    sms_template_id bigint NOT NULL,
+    template_code character varying(60) NOT NULL,
+    template_name character varying(255) NOT NULL,
+    category character varying(30) NOT NULL,
+    header_id bigint,
+    body text NOT NULL,
+    variables jsonb DEFAULT '[]'::jsonb NOT NULL,
+    is_unicode boolean DEFAULT false NOT NULL,
+    dlt_template_id character varying(30),
+    registration_status character varying(30) DEFAULT 'DRAFT'::character varying NOT NULL,
+    rejection_reason text,
+    whitelisted_urls jsonb DEFAULT '[]'::jsonb NOT NULL,
+    whitelisted_numbers jsonb DEFAULT '[]'::jsonb NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    approved_at timestamp without time zone,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT chk_sms_templates_category CHECK (((category)::text = ANY (ARRAY['TRANSACTIONAL'::text, 'SERVICE_IMPLICIT'::text, 'SERVICE_EXPLICIT'::text, 'PROMOTIONAL'::text]))),
+    CONSTRAINT chk_sms_templates_dlt_id CHECK (((dlt_template_id IS NULL) OR ((dlt_template_id)::text ~ '^[0-9]{10,30}$'::text))),
+    CONSTRAINT chk_sms_templates_status CHECK (((registration_status)::text = ANY (ARRAY['DRAFT'::text, 'SUBMITTED'::text, 'APPROVED'::text, 'REJECTED'::text, 'INACTIVE'::text])))
+);
+
+
+--
+-- Name: sms_templates_sms_template_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.sms_templates_sms_template_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: sms_templates_sms_template_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.sms_templates_sms_template_id_seq OWNED BY public.sms_templates.sms_template_id;
+
+
+--
 -- Name: sourcing_network_members; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -2998,6 +3186,34 @@ ALTER TABLE ONLY public.security_audit_logs ALTER COLUMN id SET DEFAULT nextval(
 
 
 --
+-- Name: sms_dlt_entities entity_id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sms_dlt_entities ALTER COLUMN entity_id SET DEFAULT nextval('public.sms_dlt_entities_entity_id_seq'::regclass);
+
+
+--
+-- Name: sms_headers header_id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sms_headers ALTER COLUMN header_id SET DEFAULT nextval('public.sms_headers_header_id_seq'::regclass);
+
+
+--
+-- Name: sms_messages sms_message_id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sms_messages ALTER COLUMN sms_message_id SET DEFAULT nextval('public.sms_messages_sms_message_id_seq'::regclass);
+
+
+--
+-- Name: sms_templates sms_template_id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sms_templates ALTER COLUMN sms_template_id SET DEFAULT nextval('public.sms_templates_sms_template_id_seq'::regclass);
+
+
+--
 -- Name: sourcing_network_members member_id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -3775,6 +3991,46 @@ ALTER TABLE ONLY public.security_audit_logs
 
 
 --
+-- Name: sms_dlt_entities sms_dlt_entities_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sms_dlt_entities
+    ADD CONSTRAINT sms_dlt_entities_pkey PRIMARY KEY (entity_id);
+
+
+--
+-- Name: sms_headers sms_headers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sms_headers
+    ADD CONSTRAINT sms_headers_pkey PRIMARY KEY (header_id);
+
+
+--
+-- Name: sms_messages sms_messages_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sms_messages
+    ADD CONSTRAINT sms_messages_pkey PRIMARY KEY (sms_message_id);
+
+
+--
+-- Name: sms_preferences sms_preferences_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sms_preferences
+    ADD CONSTRAINT sms_preferences_pkey PRIMARY KEY (user_id);
+
+
+--
+-- Name: sms_templates sms_templates_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sms_templates
+    ADD CONSTRAINT sms_templates_pkey PRIMARY KEY (sms_template_id);
+
+
+--
 -- Name: sourcing_network_members sourcing_network_members_nursery_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3956,6 +4212,22 @@ ALTER TABLE ONLY public.sourcing_post_responses
 
 ALTER TABLE ONLY public.plant_request_responses
     ADD CONSTRAINT uq_request_supplier UNIQUE (request_id, supplier_nursery_id);
+
+
+--
+-- Name: sms_headers uq_sms_headers_header; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sms_headers
+    ADD CONSTRAINT uq_sms_headers_header UNIQUE (header);
+
+
+--
+-- Name: sms_templates uq_sms_templates_code; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sms_templates
+    ADD CONSTRAINT uq_sms_templates_code UNIQUE (template_code);
 
 
 --
@@ -4767,6 +5039,27 @@ CREATE INDEX idx_sec_audit_user_id ON public.security_audit_logs USING btree (us
 
 
 --
+-- Name: idx_sms_messages_mobile_created; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_sms_messages_mobile_created ON public.sms_messages USING btree (mobile, created_at DESC);
+
+
+--
+-- Name: idx_sms_messages_status_created; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_sms_messages_status_created ON public.sms_messages USING btree (status, created_at DESC);
+
+
+--
+-- Name: idx_sms_messages_template_created; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_sms_messages_template_created ON public.sms_messages USING btree (template_code, created_at DESC);
+
+
+--
 -- Name: idx_sourcing_members_active; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4984,6 +5277,13 @@ CREATE UNIQUE INDEX uq_manager_one_active_nursery ON public.nursery_users USING 
 
 
 --
+-- Name: uq_sms_dlt_entities_singleton; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_sms_dlt_entities_singleton ON public.sms_dlt_entities USING btree ((true));
+
+
+--
 -- Name: attachments attachments_uploaded_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5157,6 +5457,38 @@ ALTER TABLE ONLY public.quotation_items
 
 ALTER TABLE ONLY public.quotations
     ADD CONSTRAINT fk_quotations_converted_order FOREIGN KEY (converted_order_id) REFERENCES public.orders(order_id);
+
+
+--
+-- Name: sms_messages fk_sms_messages_template; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sms_messages
+    ADD CONSTRAINT fk_sms_messages_template FOREIGN KEY (sms_template_id) REFERENCES public.sms_templates(sms_template_id);
+
+
+--
+-- Name: sms_messages fk_sms_messages_user; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sms_messages
+    ADD CONSTRAINT fk_sms_messages_user FOREIGN KEY (user_id) REFERENCES public.users(user_id) ON DELETE SET NULL;
+
+
+--
+-- Name: sms_preferences fk_sms_preferences_user; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sms_preferences
+    ADD CONSTRAINT fk_sms_preferences_user FOREIGN KEY (user_id) REFERENCES public.users(user_id) ON DELETE CASCADE;
+
+
+--
+-- Name: sms_templates fk_sms_templates_header; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sms_templates
+    ADD CONSTRAINT fk_sms_templates_header FOREIGN KEY (header_id) REFERENCES public.sms_headers(header_id);
 
 
 --
@@ -6195,5 +6527,5 @@ ALTER TABLE ONLY public.vehicle_tracking
 -- PostgreSQL database dump complete
 --
 
-\unrestrict DN9rFpc75BjmDuVmlEfy84QzuhbWjbjEGutl4gef4j1g2C61d8NcnAoDEhqpWFa
+\unrestrict fZWue2fBb6ER9SyiXVqi88WbMsPYCQmuSY3Kr10VeyfEsPoxJTt9txHk8gxN6r8
 

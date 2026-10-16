@@ -151,4 +151,36 @@ SELECT setval('public.plant_categories_category_id_seq', (SELECT max(category_id
 SELECT setval('public.languages_language_id_seq', (SELECT max(language_id) FROM public.languages), true);
 SELECT setval('public.subscription_plans_plan_id_seq', (SELECT max(plan_id) FROM public.subscription_plans), true);
 
+-- SMS / TRAI DLT registry. Everything starts DRAFT with no DLT IDs: fill pe_id,
+-- dlt_header_id and dlt_template_id from the DLT portal (Admin > SMS / DLT) and
+-- mark them APPROVED before switching SMS_PROVIDER off mock.
+-- Template bodies must match the DLT-registered text character for character.
+INSERT INTO public.sms_dlt_entities (entity_name, dlt_operator, registration_status) VALUES
+  ('GreenRoot', 'JIO', 'NOT_REGISTERED');
+
+INSERT INTO public.sms_headers (header_id, header, header_type, registration_status) VALUES
+  (1, 'GRROOT', 'SERVICE', 'DRAFT');
+
+SELECT setval('public.sms_headers_header_id_seq', (SELECT max(header_id) FROM public.sms_headers), true);
+
+INSERT INTO public.sms_templates (template_code, template_name, category, header_id, body, variables) VALUES
+  ('AUTH_LOGIN_OTP', 'Login OTP', 'SERVICE_IMPLICIT', 1,
+   '{#numeric#} is your OTP to log in to GreenRoot. It is valid for {#numeric#} minutes. Do not share this OTP with anyone. - GreenRoot',
+   '["otp", "valid_minutes"]'),
+  ('AUTH_REGISTER_OTP', 'Registration OTP', 'SERVICE_IMPLICIT', 1,
+   '{#numeric#} is your OTP to create your GreenRoot account. It is valid for {#numeric#} minutes. Do not share this OTP with anyone. - GreenRoot',
+   '["otp", "valid_minutes"]'),
+  ('ACCOUNT_WELCOME', 'Account created', 'SERVICE_IMPLICIT', 1,
+   'Welcome to GreenRoot. Your account for the mobile number ending {#numeric#} has been created successfully. - GreenRoot',
+   '["mobile_last4"]'),
+  ('PAYMENT_RECEIVED_ORDER', 'Order payment received', 'SERVICE_IMPLICIT', 1,
+   'Payment of Rs.{#numeric#}.{#numeric#} received for GreenRoot order ORD-{#numeric#}-{#numeric#}. Payment ref PAY-{#numeric#}-{#numeric#}. - GreenRoot',
+   '["amount_rupees", "amount_paise", "order_date", "order_seq", "payment_date", "payment_seq"]'),
+  ('PAYMENT_RECEIVED_SUBSCRIPTION', 'Subscription payment received', 'SERVICE_IMPLICIT', 1,
+   'Payment of Rs.{#numeric#}.{#numeric#} received for your GreenRoot subscription. Payment ref PAY-{#numeric#}-{#numeric#}. - GreenRoot',
+   '["amount_rupees", "amount_paise", "payment_date", "payment_seq"]'),
+  ('PAYMENT_FAILED', 'Payment failed', 'SERVICE_IMPLICIT', 1,
+   'Your payment of Rs.{#numeric#}.{#numeric#} on GreenRoot (ref PAY-{#numeric#}-{#numeric#}) was not successful. Please try again. - GreenRoot',
+   '["amount_rupees", "amount_paise", "payment_date", "payment_seq"]');
+
 COMMIT;
