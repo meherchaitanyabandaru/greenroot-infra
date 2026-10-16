@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict GthwfcyEvMdAvTekaSaoZOfZQdwoeZA3EmYONswqxAQl9cYMGvhE98EwTMig7FY
+\restrict fapyAk8B8duwsDHBbkk0Lo4YWW2yl2DSlwQgIROMlw9YcN3tZijMW9bS4fiUyUQ
 
 -- Dumped from database version 17.10 (Homebrew)
 -- Dumped by pg_dump version 17.10 (Homebrew)
@@ -4844,6 +4844,13 @@ CREATE INDEX idx_nurseries_status ON public.nurseries USING btree (status);
 
 
 --
+-- Name: idx_nursery_addresses_nursery; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_nursery_addresses_nursery ON public.nursery_addresses USING btree (nursery_id);
+
+
+--
 -- Name: idx_nursery_apps_applicant; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4967,6 +4974,13 @@ CREATE INDEX idx_orders_buyer ON public.orders USING btree (buyer_user_id);
 --
 
 CREATE INDEX idx_orders_buyer_nursery ON public.orders USING btree (buyer_nursery_id);
+
+
+--
+-- Name: idx_orders_customer_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_orders_customer_user ON public.orders USING btree (customer_user_id);
 
 
 --
@@ -5142,6 +5156,13 @@ CREATE INDEX idx_quotation_items_quotation_id ON public.quotation_items USING bt
 --
 
 CREATE UNIQUE INDEX idx_quotation_verifications_active ON public.quotation_verifications USING btree (quotation_id) WHERE ((status)::text = 'ACTIVE'::text);
+
+
+--
+-- Name: idx_quotations_assigned_manager; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_quotations_assigned_manager ON public.quotations USING btree (assigned_manager_user_id) WHERE (deleted_at IS NULL);
 
 
 --
@@ -5380,6 +5401,13 @@ CREATE INDEX idx_user_activities_type ON public.user_activities USING btree (act
 --
 
 CREATE INDEX idx_user_activities_user ON public.user_activities USING btree (user_id);
+
+
+--
+-- Name: idx_user_addresses_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_user_addresses_user ON public.user_addresses USING btree (user_id);
 
 
 --
@@ -6740,5 +6768,5 @@ ALTER TABLE ONLY public.vehicle_tracking
 -- PostgreSQL database dump complete
 --
 
-\unrestrict GthwfcyEvMdAvTekaSaoZOfZQdwoeZA3EmYONswqxAQl9cYMGvhE98EwTMig7FY
+\unrestrict fapyAk8B8duwsDHBbkk0Lo4YWW2yl2DSlwQgIROMlw9YcN3tZijMW9bS4fiUyUQ
 
