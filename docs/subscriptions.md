@@ -420,8 +420,8 @@ Every create, status update, renew, and cancel writes to `public.audit_logs`:
 - [ ] **Trial expiry banner** — in-app banner 30 days before expiry
 
 ### Admin UI
-- [ ] **Renew form** — `POST /subscriptions/{id}/renew`
-- [ ] **Cancel form** — `POST /subscriptions/{id}/cancel`
+- [x] **Renew form** — `POST /subscriptions/{id}/renew`
+- [x] **Cancel form** — `POST /subscriptions/{id}/cancel`
 - [ ] **Extend trial** — admin sets `end_date` via `PUT /subscriptions/{id}/status`
 
 ### Known gaps (existing code)
