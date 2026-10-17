@@ -41,14 +41,14 @@
 | `recipient_mobile` | VARCHAR | Customer mobile |
 | `status` | VARCHAR | See status machine below |
 | `total_amount` | NUMERIC | Sum of all item totals |
-| `valid_until` | TIMESTAMP | Expiry date — set by owner on create/edit; falls back to 15 days after Send if not set |
-| `sent_at` | TIMESTAMP | Set when `POST /quotations/:id/send` makes a customer quotation visible |
-| `customer_responded_at` | TIMESTAMP | Set when the customer accepts or rejects |
+| `valid_until` | TIMESTAMPTZ | Expiry date — set by owner on create/edit; falls back to 15 days after Send if not set |
+| `sent_at` | TIMESTAMPTZ | Set when `POST /quotations/:id/send` makes a customer quotation visible |
+| `customer_responded_at` | TIMESTAMPTZ | Set when the customer accepts or rejects |
 | `rejection_reason` | TEXT | Set by buyer on reject; stored separately, never appended to notes |
 | `converted_order_id` | BIGINT FK | Set when converted to an order |
-| `deleted_at` | TIMESTAMP | Soft-delete |
+| `deleted_at` | TIMESTAMPTZ | Soft-delete |
 | `notes` | TEXT | Internal notes |
-| `created_at` | TIMESTAMP | |
+| `created_at` | TIMESTAMPTZ | |
 
 ### `quotation_items` — key columns
 

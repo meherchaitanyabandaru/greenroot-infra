@@ -13,15 +13,15 @@
 |---|---|---|
 | `order_id` | BIGSERIAL PK | Internal ID |
 | `order_number` | VARCHAR | Public code, e.g. `ORD-20260622-0001` |
-| `nursery_id` | BIGINT FK | Selling nursery |
+| `seller_nursery_id` | BIGINT FK | Selling nursery |
 | `buyer_user_id` | BIGINT FK | Buyer (null for walk-in) |
 | `assigned_manager_user_id` | BIGINT FK | Manager handling this order |
 | `status` | VARCHAR | `PENDING` `CONFIRMED` `LOADING` `LOADED` `PARTIALLY_FULFILLED` `COMPLETED` `CANCELLED` |
 | `total_amount` | NUMERIC | Recalculated at complete-loading if partially fulfilled |
-| `order_date` | TIMESTAMP | |
-| `cancelled_at` | TIMESTAMP | Set on cancel |
+| `ordered_at` | TIMESTAMPTZ | API field: `order_date` |
+| `cancelled_at` | TIMESTAMPTZ | Set on cancel |
 | `cancel_reason` | TEXT | Optional |
-| `deleted_at` | TIMESTAMP | Soft-delete (PENDING only) |
+| `deleted_at` | TIMESTAMPTZ | Soft-delete (PENDING only) |
 
 ### `order_items` — key columns
 

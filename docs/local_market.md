@@ -46,8 +46,8 @@ The domain is **`market`** across all layers:
 | `view_count` | INTEGER | Denormalized for cheap reads |
 | `save_count` | INTEGER | Denormalized |
 | `enquiry_count` | INTEGER | Denormalized |
-| `expires_at` | TIMESTAMP | Auto-expire 30 days after publish |
-| `published_at` | TIMESTAMP | |
+| `expires_at` | TIMESTAMPTZ | Auto-expire 30 days after publish |
+| `published_at` | TIMESTAMPTZ | |
 
 ### `market_enquiries` — key columns
 

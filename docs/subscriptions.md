@@ -56,7 +56,7 @@ Owner uses platform freely for 6 months
         ↓
 [TODO] 30 days before expiry → push notification + in-app banner
         ↓
-Trial expires → subscription_status = EXPIRED (set by expiry job — not yet built)
+Trial expires → `user_subscriptions.status = EXPIRED` (set by expiry job — not yet built)
         ↓
 Owner must pay → in-app Razorpay screen → subscription renewed
         ↓
@@ -137,8 +137,8 @@ Real Razorpay integration comes later. For now:
 | `max_users` | `integer` | NULL = unlimited |
 | `max_nurseries` | `integer` | 1 for both plans (one owner = one nursery) |
 | `is_active` | `boolean` DEFAULT `true` | |
-| `created_at` | `timestamp` | |
-| `updated_at` | `timestamp` | |
+| `created_at` | `timestamptz` | |
+| `updated_at` | `timestamptz` | |
 
 Index: `idx_subscription_plans_active ON (is_active)`
 
@@ -156,13 +156,13 @@ One row per subscription instance. A user may have at most one `ACTIVE` subscrip
 | `plan_id` | `bigint` FK → `subscription_plans` | Plan at time of create/renew |
 | `start_date` | `date` | Inclusive |
 | `end_date` | `date` | Inclusive; NULL = open-ended |
-| `subscription_status` | `varchar(30)` DEFAULT `ACTIVE` | See §5 |
-| `auto_renew` | `boolean` DEFAULT `false` | Stored — no background job yet |
-| `created_at` | `timestamp` | |
-| `updated_at` | `timestamp` | |
+| `status` | `varchar(30)` DEFAULT `ACTIVE` | See §5 (API field: `subscription_status`) |
+| `is_auto_renew` | `boolean` DEFAULT `false` | Stored — no background job yet (API field: `auto_renew`) |
+| `created_at` | `timestamptz` | |
+| `updated_at` | `timestamptz` | |
 
 Indexes:
-- `idx_user_subscriptions_user_status ON (user_id, subscription_status)`
+- `idx_user_subscriptions_user_status ON (user_id, status)`
 - `idx_user_subscriptions_plan ON (plan_id)`
 
 ---
@@ -180,8 +180,8 @@ Subscription payments share the `payments` table with order payments. Identified
 | `payer_user_id` | `bigint` FK → `users` | Nursery owner |
 | `amount` | `numeric(15,2)` | Charged amount |
 | `payment_method` | `varchar(50)` | See allowed methods §6 |
-| `payment_status` | `varchar(30)` | `PENDING` or `SUCCESS` |
-| `payment_date` | `timestamp` | Set when SUCCESS |
+| `status` | `varchar(30)` | `PENDING` or `SUCCESS` (API field: `payment_status`) |
+| `paid_at` | `timestamptz` | Set when SUCCESS (API field: `payment_date`) |
 | `provider` | `varchar(50)` | `razorpay_mock` now; `razorpay` later |
 | `provider_payment_id` | `varchar(255)` | Gateway payment ID |
 | `provider_order_id` | `varchar(255)` | Gateway order ID |
@@ -198,7 +198,7 @@ Index: `idx_payments_subscription ON (user_subscription_id)`
 ```
 Nursery approved by admin
         ↓
-  subscription_status = ACTIVE  (TRIAL plan, ₹0)
+  status = ACTIVE  (TRIAL plan, ₹0)
         ↓
         ├──────────────────────────────┐
         ▼                              ▼
@@ -218,8 +218,8 @@ Nursery approved by admin
 |---|---|---|
 | `ACTIVE` | Subscription live — owner + managers can operate | Created on approve; restored by RENEW |
 | `PAUSED` | Temporarily suspended by admin | Admin only |
-| `CANCELLED` | Terminated; `auto_renew` forced false | Owner or Admin |
-| `EXPIRED` | Period ended; `auto_renew` forced false | Admin (manual for now); future cron |
+| `CANCELLED` | Terminated; `is_auto_renew` forced false | Owner or Admin |
+| `EXPIRED` | Period ended; `is_auto_renew` forced false | Admin (manual for now); future cron |
 
 ---
 
@@ -396,7 +396,7 @@ Every create, status update, renew, and cancel writes to `public.audit_logs`:
 | `record_id` | `user_subscription_id` |
 | `action_type` | `INSERT` (create) or `UPDATE` (all others) |
 | `new_data` | JSON of changed fields |
-| `changed_by` | Actor user ID |
+| `changed_by_user_id` | Actor user ID |
 | `source_ip` | Request IP |
 | `user_agent` | Request user agent |
 
@@ -410,9 +410,9 @@ Every create, status update, renew, and cancel writes to `public.audit_logs`:
 ### API
 - [ ] **Auto-create TRIAL subscription** when admin approves a nursery (`PATCH /nurseries/{id}/status → APPROVED` handler must call `subscriptions.Create` with TRIAL plan, 6-month end_date, ₹0)
 - [ ] **Manager gate middleware** — check nursery owner's active subscription before allowing manager API calls; return `402 subscription_required` if lapsed
-- [ ] **Auto-expiry cron** — daily job sets `subscription_status = EXPIRED` where `end_date < today AND subscription_status = ACTIVE`
-- [ ] **Auto-renew cron** — when `auto_renew = true` and subscription expires, trigger renewal (future)
-- [ ] **Razorpay webhook handler** — receive `payment.captured` event, set `payment_status = SUCCESS` (future — when going live)
+- [ ] **Auto-expiry cron** — daily job sets `status = EXPIRED` where `end_date < today AND status = ACTIVE` (the expiry worker in `internal/app/expiry_worker.go` now does this)
+- [ ] **Auto-renew cron** — when `is_auto_renew = true` and subscription expires, trigger renewal (future)
+- [ ] **Razorpay webhook handler** — receive `payment.captured` event, set `payments.status = SUCCESS` (future — when going live)
 
 ### Mobile
 - [ ] **Subscription status screen** — show current plan, start/end date, payment history; shown if trial expiring or expired

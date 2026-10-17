@@ -41,7 +41,7 @@ Two layers:
 | AWS RDS / Aurora PostgreSQL | Automated backups, retention **35 days**; Multi-AZ; copy snapshots to a second region |
 | Self-managed | `pgBackRest` with `archive_mode = on`, `archive_command = 'pgbackrest --stanza=greenroot archive-push %p'`, full backup weekly + differential daily, repository in a different region; `archive_timeout = 60` keeps the RPO under 5 minutes on quiet systems |
 
-Record the chosen host and its settings in this file when production is provisioned.
+Record the chosen host and its settings in this file when production is provisioned. **Until a host exists, production RPO/RTO are targets, not measurements**; the drills above prove the procedure and the tooling.
 
 ### Logical backups
 
@@ -51,6 +51,16 @@ DATABASE_URL=<greenroot_readonly URL> BACKUP_DIR=/var/backups/greenroot BACKUP_R
 
 - The dump and a **manifest** (row count per table + applied migrations) come from one `REPEATABLE READ` snapshot, so the manifest exactly describes the dump even while the database is being written.
 - Each dump is checked with `pg_restore --list` and gets a SHA-256 file. Files are created `0600` (dumps hold personal data). Copy them to storage in another region with encryption at rest.
+
+### Point-in-time recovery drill
+
+```bash
+scripts/pitr-drill.sh
+```
+
+Proves the PITR mechanism end to end on a throwaway PostgreSQL 17 cluster: continuous WAL archiving → base backup → writes after the backup → disaster (`TRUNCATE orders CASCADE`) → restore the base backup and replay WAL to the second before the disaster → verify that the orders and items are back, the post-backup write was replayed and every constraint is valid. Managed hosts and pgBackRest use the same WAL mechanism; on a managed host, also run the host's own restore-to-time into a new server once per quarter.
+
+**Automated:** `.github/workflows/recovery-drills.yml` runs the PITR drill and the backup/restore drill on every push to this repo and on the 1st of every month (PostgreSQL 17 + PostGIS from PGDG).
 
 ### Restore drill — monthly and after every schema change
 
@@ -63,8 +73,9 @@ The drill verifies the checksum, restores the newest dump into a scratch databas
 | Date | Backup | Result | Restore time | By |
 |---|---|---|---|---|
 | 2026-10-17 | local CI database | ✅ 77 tables match, migrations match, constraints valid | 1 s | development check |
+| 2026-10-17 | PITR drill (local PG 17.10) | ✅ recovered to the second before `TRUNCATE orders CASCADE`; 5 orders + 8 items back; post-backup write replayed | 1–2 s | development check |
 
-Verified failure modes (2026-10-17): a tampered manifest and a corrupted dump both fail the drill.
+Verified failure modes (2026-10-17): a tampered manifest and a corrupted dump both fail the restore drill; replaying WAL *through* the disaster fails the PITR drill (orders 0, expected 5).
 
 **Full recovery runbook:**
 1. Restore: PITR to the chosen time on the host, or `pg_restore` the latest dump into a new database.

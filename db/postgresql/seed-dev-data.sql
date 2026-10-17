@@ -33,7 +33,7 @@ BEGIN;
 -- the public_code_sequences entry for 'users' starting from last_value=1
 -- ─────────────────────────────────────────────────────────────────────────────
 INSERT INTO public.users
-  (user_id, first_name, last_name, mobile, email, mobile_verified, email_verified, status)
+  (user_id, first_name, last_name, mobile, email, is_mobile_verified, is_email_verified, status)
 VALUES
   (2,  'Priya',    'Owner',   '9100000000', 'priya@greenroot.local',    true, true, 'ACTIVE'),
   (3,  'Gumastha', 'Manager', '9200000000', 'gumastha@greenroot.local', true, true, 'ACTIVE'),
@@ -137,7 +137,7 @@ VALUES
 -- size_ids: 1=Seed 2=Sapling 3=Small 4=Medium 5=Large
 -- ─────────────────────────────────────────────────────────────────────────────
 INSERT INTO public.nursery_inventory
-  (nursery_id, plant_id, size_id, available_quantity, inventory_status, last_updated_by)
+  (nursery_id, plant_id, size_id, available_quantity, status, last_updated_by_user_id)
 VALUES
   -- GreenLeaf Nursery (nursery 1)
   (1, 1,  2,  50, 'AVAILABLE', 2),   -- Mango Sapling
@@ -229,7 +229,7 @@ INSERT INTO public.orders
   (order_id, order_number, seller_nursery_id,
    buyer_user_id, customer_user_id, customer_name, customer_mobile,
    assigned_manager_user_id, created_by_user_id,
-   order_status, total_amount, quotation_id)
+   status, total_amount, quotation_id)
 VALUES
   -- GreenLeaf Nursery orders
   (1, 'GRN-ORD-001', 1,  4,  4,  'Ravi Buyer',  '9300000000', 3, 4,  'PENDING',   5625.00, NULL),
@@ -272,12 +272,12 @@ VALUES
 -- dispatch_code uses DEFAULT next_public_code()
 -- ─────────────────────────────────────────────────────────────────────────────
 INSERT INTO public.dispatches
-  (dispatch_id, order_id, nursery_id, dispatch_status,
-   dispatched_by, assigned_manager_user_id,
+  (dispatch_id, order_id, nursery_id, status,
+   dispatched_by_user_id, assigned_manager_user_id,
    vehicle_id, driver_id, driver_user_id,
-   owner_user_id_snapshot, customer_user_id,
+   snapshot_owner_user_id, customer_user_id,
    customer_name_snapshot, customer_mobile_snapshot,
-   destination_address, dispatch_date, delivery_date,
+   destination_address, dispatched_at, delivered_at,
    trip_started_at, completed_at, notes)
 VALUES
   -- Dispatch 1: order 2 (CONFIRMED), driver assigned, pending acceptance

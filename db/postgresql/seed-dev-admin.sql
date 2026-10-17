@@ -12,7 +12,7 @@ BEGIN;
 
 -- Single platform admin
 INSERT INTO public.users
-  (user_id, user_code, first_name, last_name, mobile, email, mobile_verified, email_verified, status)
+  (user_id, user_code, first_name, last_name, mobile, email, is_mobile_verified, is_email_verified, status)
 VALUES
   (1, 'USR-000001', 'GreenRoot', 'Admin', '9000000000', 'admin@greenroot.local', true, true, 'ACTIVE');
 

@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict DTUWq13ac9CvRQoOUXG3v0f3GmUg9cC7LQgjUhzM6bZfUsykrHYgfdDQwt2l2Io
+\restrict xgHoeEYtWzNYxlY0gDJUg1Z2JHc2jsfHvg9wdfXgVOzwLrsaQir0sLj37l06YHy
 
 -- Dumped from database version 17.10 (Homebrew)
 -- Dumped by pg_dump version 17.10 (Homebrew)
@@ -130,7 +130,7 @@ CREATE TABLE public.attachments (
     file_url text NOT NULL,
     file_type character varying(100),
     file_size bigint,
-    uploaded_by bigint,
+    uploaded_by_user_id bigint,
     uploaded_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     deleted_at timestamp with time zone
 );
@@ -166,7 +166,7 @@ CREATE TABLE public.audit_logs (
     action_type character varying(50),
     old_data jsonb,
     new_data jsonb,
-    changed_by bigint,
+    changed_by_user_id bigint,
     source_ip character varying(100),
     user_agent text,
     changed_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
@@ -210,7 +210,7 @@ CREATE TABLE public.dispatch_assignments (
     vehicle_id bigint NOT NULL,
     driver_id bigint NOT NULL,
     assigned_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    assigned_by bigint,
+    assigned_by_user_id bigint,
     status character varying(20) DEFAULT 'ASSIGNED'::character varying
 );
 
@@ -274,19 +274,19 @@ CREATE TABLE public.dispatches (
     dispatch_number character varying(50),
     order_id bigint NOT NULL,
     nursery_id bigint,
-    dispatch_status character varying(30) DEFAULT 'PENDING'::character varying,
-    dispatched_by bigint,
+    status character varying(30) DEFAULT 'PENDING'::character varying,
+    dispatched_by_user_id bigint,
     assigned_manager_user_id bigint,
     vehicle_id bigint,
     driver_id bigint,
     driver_user_id bigint,
-    owner_user_id_snapshot bigint,
+    snapshot_owner_user_id bigint,
     customer_user_id bigint,
     customer_name_snapshot character varying(255),
     customer_mobile_snapshot character varying(20),
     destination_address text,
-    dispatch_date timestamp with time zone,
-    delivery_date timestamp with time zone,
+    dispatched_at timestamp with time zone,
+    delivered_at timestamp with time zone,
     trip_started_at timestamp with time zone,
     trip_started_by_user_id bigint,
     completed_at timestamp with time zone,
@@ -299,7 +299,7 @@ CREATE TABLE public.dispatches (
     deleted_at timestamp with time zone,
     trip_uuid uuid DEFAULT gen_random_uuid() NOT NULL,
     version bigint DEFAULT 1 NOT NULL,
-    CONSTRAINT ck_dispatches_status CHECK (((dispatch_status)::text = ANY ((ARRAY['PENDING'::character varying, 'ACCEPTED'::character varying, 'DISPATCHED'::character varying, 'IN_TRANSIT'::character varying, 'DELIVERED'::character varying, 'CANCELLED'::character varying])::text[])))
+    CONSTRAINT ck_dispatches_status CHECK (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'ACCEPTED'::character varying, 'DISPATCHED'::character varying, 'IN_TRANSIT'::character varying, 'DELIVERED'::character varying, 'CANCELLED'::character varying])::text[])))
 );
 
 
@@ -333,7 +333,7 @@ CREATE TABLE public.driver_locations (
     longitude numeric(10,7) NOT NULL,
     location public.geography(Point,4326),
     recorded_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    created_by bigint
+    created_by_user_id bigint
 );
 
 
@@ -418,7 +418,7 @@ CREATE TABLE public.email_messages (
     delivered_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT chk_email_messages_status CHECK (((status)::text = ANY (ARRAY['SENT'::text, 'DELIVERED'::text, 'BOUNCED'::text, 'FAILED'::text, 'BLOCKED'::text, 'MOCKED'::text])))
+    CONSTRAINT ck_email_messages_status CHECK (((status)::text = ANY (ARRAY['SENT'::text, 'DELIVERED'::text, 'BOUNCED'::text, 'FAILED'::text, 'BLOCKED'::text, 'MOCKED'::text])))
 );
 
 
@@ -442,15 +442,15 @@ ALTER SEQUENCE public.email_messages_email_message_id_seq OWNED BY public.email_
 
 
 --
--- Name: email_sender; Type: TABLE; Schema: public; Owner: -
+-- Name: email_senders; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.email_sender (
+CREATE TABLE public.email_senders (
     sender_id bigint NOT NULL,
     from_name character varying(100) DEFAULT 'GreenRoot'::character varying NOT NULL,
     from_address character varying(254),
     reply_to character varying(254),
-    domain_verified boolean DEFAULT false NOT NULL,
+    is_domain_verified boolean DEFAULT false NOT NULL,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
@@ -472,7 +472,7 @@ CREATE SEQUENCE public.email_sender_sender_id_seq
 -- Name: email_sender_sender_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
-ALTER SEQUENCE public.email_sender_sender_id_seq OWNED BY public.email_sender.sender_id;
+ALTER SEQUENCE public.email_sender_sender_id_seq OWNED BY public.email_senders.sender_id;
 
 
 --
@@ -516,7 +516,7 @@ ALTER SEQUENCE public.email_templates_email_template_id_seq OWNED BY public.emai
 --
 
 CREATE TABLE public.invites (
-    id bigint NOT NULL,
+    invite_id bigint NOT NULL,
     invite_uuid uuid DEFAULT gen_random_uuid() NOT NULL,
     invite_type character varying(50) NOT NULL,
     invited_by_user_id bigint,
@@ -552,7 +552,7 @@ CREATE SEQUENCE public.invites_id_seq
 -- Name: invites_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
-ALTER SEQUENCE public.invites_id_seq OWNED BY public.invites.id;
+ALTER SEQUENCE public.invites_id_seq OWNED BY public.invites.invite_id;
 
 
 --
@@ -604,8 +604,8 @@ CREATE TABLE public.market_ad_reports (
     reviewed_by_user_id bigint,
     reviewed_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT chk_market_report_reason CHECK (((reason)::text = ANY (ARRAY[('SPAM'::character varying)::text, ('WRONG_PLANT'::character varying)::text, ('DUPLICATE'::character varying)::text, ('FRAUD'::character varying)::text, ('OTHER'::character varying)::text]))),
-    CONSTRAINT chk_market_report_status CHECK (((status)::text = ANY (ARRAY[('PENDING'::character varying)::text, ('REVIEWED'::character varying)::text, ('DISMISSED'::character varying)::text])))
+    CONSTRAINT ck_market_ad_reports_reason CHECK (((reason)::text = ANY (ARRAY[('SPAM'::character varying)::text, ('WRONG_PLANT'::character varying)::text, ('DUPLICATE'::character varying)::text, ('FRAUD'::character varying)::text, ('OTHER'::character varying)::text]))),
+    CONSTRAINT ck_market_ad_reports_status CHECK (((status)::text = ANY (ARRAY[('PENDING'::character varying)::text, ('REVIEWED'::character varying)::text, ('DISMISSED'::character varying)::text])))
 );
 
 
@@ -660,7 +660,7 @@ CREATE TABLE public.market_ads (
     pickup_longitude numeric(10,7),
     pickup_gps_accuracy_meters numeric(8,2),
     pickup_location_source character varying(50),
-    pickup_confirmed_by bigint,
+    pickup_confirmed_by_user_id bigint,
     pickup_confirmed_at timestamp with time zone,
     pickup_location public.geography(Point,4326),
     status character varying(20) DEFAULT 'DRAFT'::character varying NOT NULL,
@@ -674,8 +674,8 @@ CREATE TABLE public.market_ads (
     expires_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT chk_market_listing_status CHECK (((status)::text = ANY (ARRAY[('DRAFT'::character varying)::text, ('PUBLISHED'::character varying)::text, ('PAUSED'::character varying)::text, ('EXPIRED'::character varying)::text, ('ARCHIVED'::character varying)::text]))),
-    CONSTRAINT ck_market_ads_price CHECK (((price_per_unit IS NULL) OR (price_per_unit >= (0)::numeric)))
+    CONSTRAINT ck_market_ads_price CHECK (((price_per_unit IS NULL) OR (price_per_unit >= (0)::numeric))),
+    CONSTRAINT ck_market_ads_status CHECK (((status)::text = ANY (ARRAY[('DRAFT'::character varying)::text, ('PUBLISHED'::character varying)::text, ('PAUSED'::character varying)::text, ('EXPIRED'::character varying)::text, ('ARCHIVED'::character varying)::text])))
 );
 
 
@@ -700,7 +700,7 @@ CREATE TABLE public.market_enquiries (
     cancelled_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT chk_market_enquiry_status CHECK (((status)::text = ANY (ARRAY[('NEW'::character varying)::text, ('IN_PROGRESS'::character varying)::text, ('QUOTATION_CREATED'::character varying)::text, ('CLOSED'::character varying)::text, ('CANCELLED'::character varying)::text])))
+    CONSTRAINT ck_market_enquiries_status CHECK (((status)::text = ANY (ARRAY[('NEW'::character varying)::text, ('IN_PROGRESS'::character varying)::text, ('QUOTATION_CREATED'::character varying)::text, ('CLOSED'::character varying)::text, ('CANCELLED'::character varying)::text])))
 );
 
 
@@ -882,7 +882,7 @@ CREATE TABLE public.notifications (
     message text,
     channel character varying(30),
     data jsonb,
-    notification_status character varying(30) DEFAULT 'PENDING'::character varying,
+    status character varying(30) DEFAULT 'PENDING'::character varying,
     sent_at timestamp with time zone,
     read_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
@@ -929,18 +929,18 @@ CREATE TABLE public.nurseries (
     status character varying(20) DEFAULT 'PENDING_APPROVAL'::character varying,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    created_by bigint,
-    updated_by bigint,
-    approved_by bigint,
+    created_by_user_id bigint,
+    updated_by_user_id bigint,
+    approved_by_user_id bigint,
     approved_at timestamp with time zone,
-    rejected_by bigint,
+    rejected_by_user_id bigint,
     rejected_at timestamp with time zone,
     rejection_reason text,
     deleted_at timestamp with time zone,
     suspension_reason text,
-    suspended_by bigint,
+    suspended_by_user_id bigint,
     suspended_at timestamp with time zone,
-    unsuspended_by bigint,
+    unsuspended_by_user_id bigint,
     unsuspended_at timestamp with time zone,
     CONSTRAINT ck_nurseries_status CHECK (((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'INACTIVE'::character varying, 'SUSPENDED'::character varying, 'DELETED'::character varying, 'PENDING'::character varying, 'APPROVED'::character varying, 'REJECTED'::character varying])::text[])))
 );
@@ -984,7 +984,7 @@ CREATE TABLE public.nursery_addresses (
     longitude numeric(10,7),
     gps_accuracy_meters numeric(8,2),
     location_source character varying(50),
-    location_confirmed_by bigint,
+    location_confirmed_by_user_id bigint,
     location_confirmed_at timestamp with time zone,
     location public.geography(Point,4326),
     is_primary boolean DEFAULT false,
@@ -1031,7 +1031,7 @@ CREATE TABLE public.nursery_applications (
     postal_code character varying(20),
     description text,
     status character varying(30) DEFAULT 'PENDING'::character varying NOT NULL,
-    reviewed_by bigint,
+    reviewed_by_user_id bigint,
     reviewed_at timestamp with time zone,
     rejection_reason text,
     nursery_id bigint,
@@ -1064,15 +1064,15 @@ ALTER SEQUENCE public.nursery_applications_application_id_seq OWNED BY public.nu
 --
 
 CREATE TABLE public.nursery_drivers (
-    id bigint NOT NULL,
+    nursery_driver_id bigint NOT NULL,
     nursery_id bigint NOT NULL,
     driver_user_id bigint NOT NULL,
     invited_by_user_id bigint,
     approved_by_user_id bigint,
-    connection_status character varying(20) DEFAULT 'REQUESTED'::character varying NOT NULL,
+    status character varying(20) DEFAULT 'REQUESTED'::character varying NOT NULL,
     connected_at timestamp with time zone,
     disconnected_at timestamp with time zone,
-    disconnected_by bigint,
+    disconnected_by_user_id bigint,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
@@ -1094,7 +1094,7 @@ CREATE SEQUENCE public.nursery_drivers_id_seq
 -- Name: nursery_drivers_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
-ALTER SEQUENCE public.nursery_drivers_id_seq OWNED BY public.nursery_drivers.id;
+ALTER SEQUENCE public.nursery_drivers_id_seq OWNED BY public.nursery_drivers.nursery_driver_id;
 
 
 --
@@ -1114,7 +1114,7 @@ CREATE TABLE public.nursery_featured_plants (
     added_by_user_id bigint,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT chk_featured_display_order CHECK (((display_order >= 1) AND (display_order <= 20)))
+    CONSTRAINT ck_nursery_featured_plants_display_order CHECK (((display_order >= 1) AND (display_order <= 20)))
 );
 
 
@@ -1148,13 +1148,13 @@ CREATE TABLE public.nursery_inventory (
     plant_id bigint NOT NULL,
     size_id smallint NOT NULL,
     available_quantity integer DEFAULT 0 NOT NULL,
-    inventory_status character varying(20) DEFAULT 'AVAILABLE'::character varying NOT NULL,
-    last_updated_by bigint,
+    status character varying(20) DEFAULT 'AVAILABLE'::character varying NOT NULL,
+    last_updated_by_user_id bigint,
     last_updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     version bigint DEFAULT 1 NOT NULL,
     CONSTRAINT ck_nursery_inventory_quantity CHECK ((available_quantity >= 0)),
-    CONSTRAINT ck_nursery_inventory_status CHECK (((inventory_status)::text = ANY ((ARRAY['AVAILABLE'::character varying, 'LOW_STOCK'::character varying, 'OUT_OF_STOCK'::character varying, 'RESERVED'::character varying, 'DISCONTINUED'::character varying])::text[])))
+    CONSTRAINT ck_nursery_inventory_status CHECK (((status)::text = ANY ((ARRAY['AVAILABLE'::character varying, 'LOW_STOCK'::character varying, 'OUT_OF_STOCK'::character varying, 'RESERVED'::character varying, 'DISCONTINUED'::character varying])::text[])))
 );
 
 
@@ -1272,17 +1272,17 @@ CREATE TABLE public.order_delivery_snapshots (
     location public.geography(Point,4326),
     gps_accuracy_meters numeric(8,2),
     location_source character varying(40),
-    confirmed_by bigint,
+    confirmed_by_user_id bigint,
     confirmed_at timestamp with time zone,
-    emergency_updated boolean DEFAULT false NOT NULL,
+    is_emergency_update boolean DEFAULT false NOT NULL,
     requires_driver_ack boolean DEFAULT false NOT NULL,
-    driver_acknowledged_by bigint,
+    driver_acknowledged_by_user_id bigint,
     driver_acknowledged_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT chk_order_delivery_snapshot_latitude CHECK (((latitude IS NULL) OR ((latitude >= ('-90'::integer)::numeric) AND (latitude <= (90)::numeric)))),
-    CONSTRAINT chk_order_delivery_snapshot_location_source CHECK (((location_source IS NULL) OR ((location_source)::text = ANY (ARRAY[('gps_confirmed'::character varying)::text, ('nursery_default'::character varying)::text, ('map_selected'::character varying)::text, ('address_search'::character varying)::text, ('admin_updated'::character varying)::text])))),
-    CONSTRAINT chk_order_delivery_snapshot_longitude CHECK (((longitude IS NULL) OR ((longitude >= ('-180'::integer)::numeric) AND (longitude <= (180)::numeric))))
+    CONSTRAINT ck_order_delivery_snapshots_latitude CHECK (((latitude IS NULL) OR ((latitude >= ('-90'::integer)::numeric) AND (latitude <= (90)::numeric)))),
+    CONSTRAINT ck_order_delivery_snapshots_location_source CHECK (((location_source IS NULL) OR ((location_source)::text = ANY (ARRAY[('gps_confirmed'::character varying)::text, ('nursery_default'::character varying)::text, ('map_selected'::character varying)::text, ('address_search'::character varying)::text, ('admin_updated'::character varying)::text])))),
+    CONSTRAINT ck_order_delivery_snapshots_longitude CHECK (((longitude IS NULL) OR ((longitude >= ('-180'::integer)::numeric) AND (longitude <= (180)::numeric))))
 );
 
 
@@ -1317,12 +1317,12 @@ CREATE TABLE public.order_documents (
     sha256_hash character varying(64) NOT NULL,
     mime_type character varying(100) DEFAULT 'application/pdf'::character varying NOT NULL,
     file_size bigint DEFAULT 0 NOT NULL,
-    generated_by bigint,
+    generated_by_user_id bigint,
     generated_by_name character varying(255),
     is_current boolean DEFAULT true NOT NULL,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT order_documents_file_size_nonnegative CHECK ((file_size >= 0)),
-    CONSTRAINT order_documents_version_positive CHECK ((version > 0))
+    CONSTRAINT ck_order_documents_file_size CHECK ((file_size >= 0)),
+    CONSTRAINT ck_order_documents_version CHECK ((version > 0))
 );
 
 
@@ -1397,8 +1397,8 @@ CREATE TABLE public.order_verifications (
     status character varying(20) DEFAULT 'ACTIVE'::character varying NOT NULL,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     revoked_at timestamp with time zone,
-    revoked_by bigint,
-    CONSTRAINT order_verifications_status_check CHECK (((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'REVOKED'::character varying])::text[])))
+    revoked_by_user_id bigint,
+    CONSTRAINT ck_order_verifications_status CHECK (((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'REVOKED'::character varying])::text[])))
 );
 
 
@@ -1437,11 +1437,10 @@ CREATE TABLE public.orders (
     customer_name character varying(255),
     customer_mobile character varying(20),
     assigned_manager_user_id bigint,
-    created_by_user_id bigint,
-    order_status character varying(30) DEFAULT 'PENDING'::character varying NOT NULL,
+    status character varying(30) DEFAULT 'PENDING'::character varying NOT NULL,
     total_amount numeric(15,2) DEFAULT 0,
     notes text,
-    order_date timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    ordered_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     loading_started_at timestamp with time zone,
     loading_completed_at timestamp with time zone,
     loading_completed_by_user_id bigint,
@@ -1450,13 +1449,13 @@ CREATE TABLE public.orders (
     cancel_reason text,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    created_by bigint,
-    updated_by bigint,
+    created_by_user_id bigint,
+    updated_by_user_id bigint,
     deleted_at timestamp with time zone,
     version bigint DEFAULT 1 NOT NULL,
     currency character(3) DEFAULT 'INR'::bpchar NOT NULL,
     CONSTRAINT ck_orders_currency CHECK ((currency = 'INR'::bpchar)),
-    CONSTRAINT ck_orders_status CHECK (((order_status)::text = ANY ((ARRAY['PENDING'::character varying, 'CONFIRMED'::character varying, 'LOADING'::character varying, 'LOADED'::character varying, 'PARTIALLY_FULFILLED'::character varying, 'COMPLETED'::character varying, 'CANCELLED'::character varying])::text[]))),
+    CONSTRAINT ck_orders_status CHECK (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'CONFIRMED'::character varying, 'LOADING'::character varying, 'LOADED'::character varying, 'PARTIALLY_FULFILLED'::character varying, 'COMPLETED'::character varying, 'CANCELLED'::character varying])::text[]))),
     CONSTRAINT ck_orders_total_non_negative CHECK ((total_amount >= (0)::numeric))
 );
 
@@ -1530,8 +1529,8 @@ CREATE TABLE public.payments (
     payer_user_id bigint,
     amount numeric(15,2) NOT NULL,
     payment_method character varying(50),
-    payment_status character varying(30) DEFAULT 'PENDING'::character varying NOT NULL,
-    payment_date timestamp with time zone,
+    status character varying(30) DEFAULT 'PENDING'::character varying NOT NULL,
+    paid_at timestamp with time zone,
     provider character varying(50),
     provider_payment_id character varying(255),
     provider_order_id character varying(255),
@@ -1546,7 +1545,7 @@ CREATE TABLE public.payments (
     CONSTRAINT ck_payments_amount_positive CHECK ((amount > (0)::numeric)),
     CONSTRAINT ck_payments_currency CHECK ((currency = 'INR'::bpchar)),
     CONSTRAINT ck_payments_method CHECK (((payment_method IS NULL) OR ((payment_method)::text = ANY ((ARRAY['UPI'::character varying, 'CARD'::character varying, 'CASH'::character varying, 'BANK_TRANSFER'::character varying, 'NET_BANKING'::character varying, 'WALLET'::character varying, 'COD'::character varying, 'CHEQUE'::character varying, 'OTHER'::character varying])::text[])))),
-    CONSTRAINT ck_payments_status CHECK (((payment_status)::text = ANY ((ARRAY['PENDING'::character varying, 'SUCCESS'::character varying, 'FAILED'::character varying, 'REFUNDED'::character varying, 'CANCELLED'::character varying])::text[]))),
+    CONSTRAINT ck_payments_status CHECK (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'SUCCESS'::character varying, 'FAILED'::character varying, 'REFUNDED'::character varying, 'CANCELLED'::character varying])::text[]))),
     CONSTRAINT ck_payments_target CHECK (((((payment_for)::text = 'ORDER'::text) AND (order_id IS NOT NULL) AND (user_subscription_id IS NULL)) OR (((payment_for)::text = 'SUBSCRIPTION'::text) AND (user_subscription_id IS NOT NULL) AND (order_id IS NULL))))
 );
 
@@ -1642,10 +1641,10 @@ ALTER SEQUENCE public.plant_categories_category_id_seq OWNED BY public.plant_cat
 
 
 --
--- Name: plant_category_mapping; Type: TABLE; Schema: public; Owner: -
+-- Name: plant_category_mappings; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.plant_category_mapping (
+CREATE TABLE public.plant_category_mappings (
     plant_id bigint NOT NULL,
     category_id integer NOT NULL,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
@@ -1885,7 +1884,7 @@ CREATE TABLE public.platform_config (
     data_type character varying(20) DEFAULT 'string'::character varying NOT NULL,
     description text,
     is_active boolean DEFAULT true NOT NULL,
-    updated_by bigint,
+    updated_by_user_id bigint,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
@@ -1934,12 +1933,12 @@ CREATE TABLE public.quotation_documents (
     sha256_hash character varying(64) NOT NULL,
     mime_type character varying(100) DEFAULT 'application/pdf'::character varying NOT NULL,
     file_size bigint DEFAULT 0 NOT NULL,
-    generated_by bigint,
+    generated_by_user_id bigint,
     generated_by_name character varying(255),
     is_current boolean DEFAULT true NOT NULL,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT quotation_documents_file_size_nonnegative CHECK ((file_size >= 0)),
-    CONSTRAINT quotation_documents_version_positive CHECK ((version > 0))
+    CONSTRAINT ck_quotation_documents_file_size CHECK ((file_size >= 0)),
+    CONSTRAINT ck_quotation_documents_version CHECK ((version > 0))
 );
 
 
@@ -2011,8 +2010,8 @@ CREATE TABLE public.quotation_verifications (
     status character varying(20) DEFAULT 'ACTIVE'::character varying NOT NULL,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     revoked_at timestamp with time zone,
-    revoked_by bigint,
-    CONSTRAINT quotation_verifications_status_check CHECK (((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'REVOKED'::character varying])::text[])))
+    revoked_by_user_id bigint,
+    CONSTRAINT ck_quotation_verifications_status CHECK (((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'REVOKED'::character varying])::text[])))
 );
 
 
@@ -2068,9 +2067,9 @@ CREATE TABLE public.quotations (
     valid_until timestamp with time zone,
     version bigint DEFAULT 1 NOT NULL,
     currency character(3) DEFAULT 'INR'::bpchar NOT NULL,
-    CONSTRAINT chk_quotation_status CHECK (((status)::text = ANY (ARRAY[('INTERNAL_DRAFT'::character varying)::text, ('CUSTOMER_DRAFT'::character varying)::text, ('CUSTOMER_SENT'::character varying)::text, ('CUSTOMER_ACCEPTED'::character varying)::text, ('CUSTOMER_REJECTED'::character varying)::text, ('CONVERTED'::character varying)::text, ('EXPIRED'::character varying)::text]))),
-    CONSTRAINT chk_quotation_type CHECK (((quotation_type)::text = ANY (ARRAY[('INTERNAL'::character varying)::text, ('CUSTOMER'::character varying)::text]))),
     CONSTRAINT ck_quotations_currency CHECK ((currency = 'INR'::bpchar)),
+    CONSTRAINT ck_quotations_quotation_type CHECK (((quotation_type)::text = ANY (ARRAY[('INTERNAL'::character varying)::text, ('CUSTOMER'::character varying)::text]))),
+    CONSTRAINT ck_quotations_status CHECK (((status)::text = ANY (ARRAY[('INTERNAL_DRAFT'::character varying)::text, ('CUSTOMER_DRAFT'::character varying)::text, ('CUSTOMER_SENT'::character varying)::text, ('CUSTOMER_ACCEPTED'::character varying)::text, ('CUSTOMER_REJECTED'::character varying)::text, ('CONVERTED'::character varying)::text, ('EXPIRED'::character varying)::text]))),
     CONSTRAINT ck_quotations_total_non_negative CHECK (((total_amount IS NULL) OR (total_amount >= (0)::numeric)))
 );
 
@@ -2092,6 +2091,52 @@ CREATE SEQUENCE public.quotations_quotation_id_seq
 --
 
 ALTER SEQUENCE public.quotations_quotation_id_seq OWNED BY public.quotations.quotation_id;
+
+
+--
+-- Name: ratings; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.ratings (
+    rating_id bigint NOT NULL,
+    rating_type text NOT NULL,
+    rated_by_user_id bigint NOT NULL,
+    order_id bigint,
+    dispatch_id bigint,
+    overall_rating smallint,
+    would_recommend boolean,
+    driver_behaviour_rating smallint,
+    on_time_delivery_rating smallint,
+    plant_condition_rating smallint,
+    plant_quality_rating smallint,
+    communication_rating smallint,
+    overall_experience_rating smallint,
+    would_buy_again boolean,
+    comment text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT ck_ratings_scores CHECK ((((overall_rating IS NULL) OR ((overall_rating >= 1) AND (overall_rating <= 5))) AND ((driver_behaviour_rating IS NULL) OR ((driver_behaviour_rating >= 1) AND (driver_behaviour_rating <= 5))) AND ((on_time_delivery_rating IS NULL) OR ((on_time_delivery_rating >= 1) AND (on_time_delivery_rating <= 5))) AND ((plant_condition_rating IS NULL) OR ((plant_condition_rating >= 1) AND (plant_condition_rating <= 5))) AND ((plant_quality_rating IS NULL) OR ((plant_quality_rating >= 1) AND (plant_quality_rating <= 5))) AND ((communication_rating IS NULL) OR ((communication_rating >= 1) AND (communication_rating <= 5))) AND ((overall_experience_rating IS NULL) OR ((overall_experience_rating >= 1) AND (overall_experience_rating <= 5))))),
+    CONSTRAINT ck_ratings_type CHECK ((rating_type = ANY (ARRAY['APP'::text, 'TRIP'::text, 'ORDER'::text])))
+);
+
+
+--
+-- Name: ratings_rating_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.ratings_rating_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: ratings_rating_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.ratings_rating_id_seq OWNED BY public.ratings.rating_id;
 
 
 --
@@ -2145,7 +2190,7 @@ CREATE TABLE public.schema_migrations (
 --
 
 CREATE TABLE public.security_audit_logs (
-    id bigint NOT NULL,
+    security_audit_log_id bigint NOT NULL,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     request_id character varying(100),
     user_id bigint,
@@ -2174,7 +2219,7 @@ CREATE SEQUENCE public.security_audit_logs_id_seq
 -- Name: security_audit_logs_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
-ALTER SEQUENCE public.security_audit_logs_id_seq OWNED BY public.security_audit_logs.id;
+ALTER SEQUENCE public.security_audit_logs_id_seq OWNED BY public.security_audit_logs.security_audit_log_id;
 
 
 --
@@ -2188,13 +2233,13 @@ CREATE TABLE public.sms_dlt_entities (
     dlt_operator character varying(30) DEFAULT 'JIO'::character varying NOT NULL,
     telemarketer_name character varying(255),
     telemarketer_id character varying(50),
-    registration_status character varying(30) DEFAULT 'NOT_REGISTERED'::character varying NOT NULL,
+    status character varying(30) DEFAULT 'NOT_REGISTERED'::character varying NOT NULL,
     notes text,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT chk_sms_dlt_entities_operator CHECK (((dlt_operator)::text = ANY (ARRAY['JIO'::text, 'AIRTEL'::text, 'VI'::text, 'BSNL'::text, 'TATA'::text, 'SMARTPING'::text]))),
-    CONSTRAINT chk_sms_dlt_entities_pe_id CHECK (((pe_id IS NULL) OR ((pe_id)::text ~ '^[0-9]{10,30}$'::text))),
-    CONSTRAINT chk_sms_dlt_entities_status CHECK (((registration_status)::text = ANY (ARRAY['NOT_REGISTERED'::text, 'SUBMITTED'::text, 'APPROVED'::text, 'REJECTED'::text])))
+    CONSTRAINT ck_sms_dlt_entities_dlt_operator CHECK (((dlt_operator)::text = ANY (ARRAY['JIO'::text, 'AIRTEL'::text, 'VI'::text, 'BSNL'::text, 'TATA'::text, 'SMARTPING'::text]))),
+    CONSTRAINT ck_sms_dlt_entities_pe_id CHECK (((pe_id IS NULL) OR ((pe_id)::text ~ '^[0-9]{10,30}$'::text))),
+    CONSTRAINT ck_sms_dlt_entities_status CHECK (((status)::text = ANY (ARRAY['NOT_REGISTERED'::text, 'SUBMITTED'::text, 'APPROVED'::text, 'REJECTED'::text])))
 );
 
 
@@ -2226,12 +2271,12 @@ CREATE TABLE public.sms_headers (
     header character varying(11) NOT NULL,
     header_type character varying(20) NOT NULL,
     dlt_header_id character varying(30),
-    registration_status character varying(30) DEFAULT 'DRAFT'::character varying NOT NULL,
+    status character varying(30) DEFAULT 'DRAFT'::character varying NOT NULL,
     rejection_reason text,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT chk_sms_headers_status CHECK (((registration_status)::text = ANY (ARRAY['DRAFT'::text, 'SUBMITTED'::text, 'APPROVED'::text, 'REJECTED'::text, 'INACTIVE'::text]))),
-    CONSTRAINT chk_sms_headers_type CHECK (((header_type)::text = ANY (ARRAY['TRANSACTIONAL'::text, 'SERVICE'::text, 'PROMOTIONAL'::text, 'GOVERNMENT'::text])))
+    CONSTRAINT ck_sms_headers_header_type CHECK (((header_type)::text = ANY (ARRAY['TRANSACTIONAL'::text, 'SERVICE'::text, 'PROMOTIONAL'::text, 'GOVERNMENT'::text]))),
+    CONSTRAINT ck_sms_headers_status CHECK (((status)::text = ANY (ARRAY['DRAFT'::text, 'SUBMITTED'::text, 'APPROVED'::text, 'REJECTED'::text, 'INACTIVE'::text])))
 );
 
 
@@ -2281,7 +2326,7 @@ CREATE TABLE public.sms_messages (
     delivered_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT chk_sms_messages_status CHECK (((status)::text = ANY (ARRAY['QUEUED'::text, 'SENT'::text, 'DELIVERED'::text, 'FAILED'::text, 'BLOCKED'::text, 'MOCKED'::text])))
+    CONSTRAINT ck_sms_messages_status CHECK (((status)::text = ANY (ARRAY['QUEUED'::text, 'SENT'::text, 'DELIVERED'::text, 'FAILED'::text, 'BLOCKED'::text, 'MOCKED'::text])))
 );
 
 
@@ -2310,7 +2355,7 @@ ALTER SEQUENCE public.sms_messages_sms_message_id_seq OWNED BY public.sms_messag
 
 CREATE TABLE public.sms_preferences (
     user_id bigint NOT NULL,
-    promotional_opt_in boolean DEFAULT false NOT NULL,
+    is_promotional_opt_in boolean DEFAULT false NOT NULL,
     promotional_consent_at timestamp with time zone,
     promotional_revoked_at timestamp with time zone,
     consent_source character varying(30),
@@ -2332,7 +2377,7 @@ CREATE TABLE public.sms_templates (
     variables jsonb DEFAULT '[]'::jsonb NOT NULL,
     is_unicode boolean DEFAULT false NOT NULL,
     dlt_template_id character varying(30),
-    registration_status character varying(30) DEFAULT 'DRAFT'::character varying NOT NULL,
+    status character varying(30) DEFAULT 'DRAFT'::character varying NOT NULL,
     rejection_reason text,
     whitelisted_urls jsonb DEFAULT '[]'::jsonb NOT NULL,
     whitelisted_numbers jsonb DEFAULT '[]'::jsonb NOT NULL,
@@ -2340,9 +2385,9 @@ CREATE TABLE public.sms_templates (
     approved_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT chk_sms_templates_category CHECK (((category)::text = ANY (ARRAY['TRANSACTIONAL'::text, 'SERVICE_IMPLICIT'::text, 'SERVICE_EXPLICIT'::text, 'PROMOTIONAL'::text]))),
-    CONSTRAINT chk_sms_templates_dlt_id CHECK (((dlt_template_id IS NULL) OR ((dlt_template_id)::text ~ '^[0-9]{10,30}$'::text))),
-    CONSTRAINT chk_sms_templates_status CHECK (((registration_status)::text = ANY (ARRAY['DRAFT'::text, 'SUBMITTED'::text, 'APPROVED'::text, 'REJECTED'::text, 'INACTIVE'::text])))
+    CONSTRAINT ck_sms_templates_category CHECK (((category)::text = ANY (ARRAY['TRANSACTIONAL'::text, 'SERVICE_IMPLICIT'::text, 'SERVICE_EXPLICIT'::text, 'PROMOTIONAL'::text]))),
+    CONSTRAINT ck_sms_templates_dlt_template_id CHECK (((dlt_template_id IS NULL) OR ((dlt_template_id)::text ~ '^[0-9]{10,30}$'::text))),
+    CONSTRAINT ck_sms_templates_status CHECK (((status)::text = ANY (ARRAY['DRAFT'::text, 'SUBMITTED'::text, 'APPROVED'::text, 'REJECTED'::text, 'INACTIVE'::text])))
 );
 
 
@@ -2373,9 +2418,9 @@ CREATE TABLE public.sourcing_network_members (
     member_id bigint NOT NULL,
     nursery_id bigint NOT NULL,
     is_active boolean DEFAULT true NOT NULL,
-    road_accessible boolean DEFAULT true NOT NULL,
-    lorry_accessible boolean DEFAULT true NOT NULL,
-    contact_visible boolean DEFAULT false NOT NULL,
+    is_road_accessible boolean DEFAULT true NOT NULL,
+    is_lorry_accessible boolean DEFAULT true NOT NULL,
+    is_contact_visible boolean DEFAULT false NOT NULL,
     service_radius_km integer DEFAULT 50 NOT NULL,
     joined_by_user_id bigint,
     joined_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
@@ -2499,8 +2544,8 @@ CREATE TABLE public.sourcing_posts (
     deleted_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT chk_sourcing_post_type CHECK (((post_type)::text = ANY (ARRAY[('NEED'::character varying)::text, ('AVAILABLE'::character varying)::text]))),
-    CONSTRAINT chk_sourcing_urgency CHECK (((urgency)::text = ANY (ARRAY[('TODAY'::character varying)::text, ('URGENT'::character varying)::text, ('FLEXIBLE'::character varying)::text])))
+    CONSTRAINT ck_sourcing_posts_post_type CHECK (((post_type)::text = ANY (ARRAY[('NEED'::character varying)::text, ('AVAILABLE'::character varying)::text]))),
+    CONSTRAINT ck_sourcing_posts_urgency CHECK (((urgency)::text = ANY (ARRAY[('TODAY'::character varying)::text, ('URGENT'::character varying)::text, ('FLEXIBLE'::character varying)::text])))
 );
 
 
@@ -2585,11 +2630,11 @@ CREATE TABLE public.subscription_promos (
     is_active boolean DEFAULT true NOT NULL,
     max_uses integer,
     used_count integer DEFAULT 0 NOT NULL,
-    created_by bigint,
+    created_by_user_id bigint,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone,
     CONSTRAINT ck_subscription_promos_discount CHECK (((discount_value > (0)::numeric) AND (((discount_type)::text <> 'PERCENTAGE'::text) OR (discount_value <= (100)::numeric)) AND ((max_discount_cap IS NULL) OR (max_discount_cap >= (0)::numeric)))),
-    CONSTRAINT subscription_promos_discount_type_check CHECK (((discount_type)::text = ANY (ARRAY[('PERCENTAGE'::character varying)::text, ('FLAT'::character varying)::text])))
+    CONSTRAINT ck_subscription_promos_discount_type CHECK (((discount_type)::text = ANY (ARRAY[('PERCENTAGE'::character varying)::text, ('FLAT'::character varying)::text])))
 );
 
 
@@ -2617,7 +2662,7 @@ ALTER SEQUENCE public.subscription_promos_promo_id_seq OWNED BY public.subscript
 --
 
 CREATE TABLE public.trip_events (
-    id bigint NOT NULL,
+    trip_event_id bigint NOT NULL,
     dispatch_id bigint NOT NULL,
     event_type character varying(50) NOT NULL,
     latitude numeric(10,7),
@@ -2645,7 +2690,7 @@ CREATE SEQUENCE public.trip_events_id_seq
 -- Name: trip_events_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
-ALTER SEQUENCE public.trip_events_id_seq OWNED BY public.trip_events.id;
+ALTER SEQUENCE public.trip_events_id_seq OWNED BY public.trip_events.trip_event_id;
 
 
 --
@@ -2653,7 +2698,7 @@ ALTER SEQUENCE public.trip_events_id_seq OWNED BY public.trip_events.id;
 --
 
 CREATE TABLE public.trip_tracking_links (
-    id bigint NOT NULL,
+    trip_tracking_link_id bigint NOT NULL,
     tracking_uuid uuid DEFAULT gen_random_uuid() NOT NULL,
     dispatch_id bigint NOT NULL,
     customer_user_id bigint,
@@ -2680,7 +2725,7 @@ CREATE SEQUENCE public.trip_tracking_links_id_seq
 -- Name: trip_tracking_links_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
-ALTER SEQUENCE public.trip_tracking_links_id_seq OWNED BY public.trip_tracking_links.id;
+ALTER SEQUENCE public.trip_tracking_links_id_seq OWNED BY public.trip_tracking_links.trip_tracking_link_id;
 
 
 --
@@ -2695,7 +2740,7 @@ CREATE TABLE public.user_activities (
     entity_type character varying(100),
     entity_id bigint,
     activity_data jsonb,
-    activity_timestamp timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    occurred_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 
@@ -2739,7 +2784,7 @@ CREATE TABLE public.user_addresses (
     longitude numeric(10,7),
     gps_accuracy_meters numeric(8,2),
     location_source character varying(50),
-    location_confirmed_by bigint,
+    location_confirmed_by_user_id bigint,
     location_confirmed_at timestamp with time zone,
     location public.geography(Point,4326),
     is_default boolean DEFAULT false,
@@ -2808,7 +2853,7 @@ CREATE TABLE public.user_roles (
     user_id bigint NOT NULL,
     role_id smallint NOT NULL,
     assigned_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    assigned_by bigint
+    assigned_by_user_id bigint
 );
 
 
@@ -2820,16 +2865,16 @@ CREATE TABLE public.user_sessions (
     session_id bigint NOT NULL,
     user_id bigint NOT NULL,
     session_token character varying(255),
-    login_time timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    logged_in_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     last_activity_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    session_status character varying(20) DEFAULT 'ACTIVE'::character varying,
+    status character varying(20) DEFAULT 'ACTIVE'::character varying,
     device_type character varying(50),
     os_name character varying(50),
     app_version character varying(50),
     ip_address character varying(100),
     user_agent text,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT ck_user_sessions_status CHECK (((session_status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'LOGGED_OUT'::character varying])::text[])))
+    CONSTRAINT ck_user_sessions_status CHECK (((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'LOGGED_OUT'::character varying])::text[])))
 );
 
 
@@ -2863,11 +2908,11 @@ CREATE TABLE public.user_subscriptions (
     plan_id bigint NOT NULL,
     start_date date NOT NULL,
     end_date date,
-    subscription_status character varying(30) DEFAULT 'ACTIVE'::character varying,
-    auto_renew boolean DEFAULT false,
+    status character varying(30) DEFAULT 'ACTIVE'::character varying,
+    is_auto_renew boolean DEFAULT false,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT ck_user_subscriptions_status CHECK (((subscription_status)::text = ANY ((ARRAY['TRIAL'::character varying, 'ACTIVE'::character varying, 'PAUSED'::character varying, 'CANCELLED'::character varying, 'EXPIRED'::character varying])::text[])))
+    CONSTRAINT ck_user_subscriptions_status CHECK (((status)::text = ANY ((ARRAY['TRIAL'::character varying, 'ACTIVE'::character varying, 'PAUSED'::character varying, 'CANCELLED'::character varying, 'EXPIRED'::character varying])::text[])))
 );
 
 
@@ -2903,9 +2948,9 @@ CREATE TABLE public.users (
     email character varying(255),
     password_hash text,
     profile_image_url text,
-    mobile_verified boolean DEFAULT false,
-    email_verified boolean DEFAULT false,
-    onboarding_completed boolean DEFAULT false NOT NULL,
+    is_mobile_verified boolean DEFAULT false,
+    is_email_verified boolean DEFAULT false,
+    is_onboarding_completed boolean DEFAULT false NOT NULL,
     initial_activity character varying(30),
     onboarding_completed_at timestamp with time zone,
     gender public.gender_type,
@@ -2914,14 +2959,14 @@ CREATE TABLE public.users (
     deleted_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    created_by bigint,
-    updated_by bigint,
+    created_by_user_id bigint,
+    updated_by_user_id bigint,
     suspension_reason text,
-    suspended_by bigint,
+    suspended_by_user_id bigint,
     suspended_at timestamp with time zone,
-    unsuspended_by bigint,
+    unsuspended_by_user_id bigint,
     unsuspended_at timestamp with time zone,
-    CONSTRAINT chk_users_initial_activity CHECK (((initial_activity IS NULL) OR ((initial_activity)::text = ANY (ARRAY[('CUSTOMER'::character varying)::text, ('OWNER'::character varying)::text, ('DRIVER'::character varying)::text, ('MANAGER'::character varying)::text])))),
+    CONSTRAINT ck_users_initial_activity CHECK (((initial_activity IS NULL) OR ((initial_activity)::text = ANY (ARRAY[('CUSTOMER'::character varying)::text, ('OWNER'::character varying)::text, ('DRIVER'::character varying)::text, ('MANAGER'::character varying)::text])))),
     CONSTRAINT ck_users_status CHECK (((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'SUSPENDED'::character varying, 'DELETED'::character varying])::text[])))
 );
 
@@ -3090,10 +3135,10 @@ ALTER TABLE ONLY public.email_messages ALTER COLUMN email_message_id SET DEFAULT
 
 
 --
--- Name: email_sender sender_id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: email_senders sender_id; Type: DEFAULT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.email_sender ALTER COLUMN sender_id SET DEFAULT nextval('public.email_sender_sender_id_seq'::regclass);
+ALTER TABLE ONLY public.email_senders ALTER COLUMN sender_id SET DEFAULT nextval('public.email_sender_sender_id_seq'::regclass);
 
 
 --
@@ -3104,10 +3149,10 @@ ALTER TABLE ONLY public.email_templates ALTER COLUMN email_template_id SET DEFAU
 
 
 --
--- Name: invites id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: invites invite_id; Type: DEFAULT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.invites ALTER COLUMN id SET DEFAULT nextval('public.invites_id_seq'::regclass);
+ALTER TABLE ONLY public.invites ALTER COLUMN invite_id SET DEFAULT nextval('public.invites_id_seq'::regclass);
 
 
 --
@@ -3195,10 +3240,10 @@ ALTER TABLE ONLY public.nursery_applications ALTER COLUMN application_id SET DEF
 
 
 --
--- Name: nursery_drivers id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: nursery_drivers nursery_driver_id; Type: DEFAULT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.nursery_drivers ALTER COLUMN id SET DEFAULT nextval('public.nursery_drivers_id_seq'::regclass);
+ALTER TABLE ONLY public.nursery_drivers ALTER COLUMN nursery_driver_id SET DEFAULT nextval('public.nursery_drivers_id_seq'::regclass);
 
 
 --
@@ -3370,6 +3415,13 @@ ALTER TABLE ONLY public.quotations ALTER COLUMN quotation_id SET DEFAULT nextval
 
 
 --
+-- Name: ratings rating_id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ratings ALTER COLUMN rating_id SET DEFAULT nextval('public.ratings_rating_id_seq'::regclass);
+
+
+--
 -- Name: roles role_id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -3377,10 +3429,10 @@ ALTER TABLE ONLY public.roles ALTER COLUMN role_id SET DEFAULT nextval('public.r
 
 
 --
--- Name: security_audit_logs id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: security_audit_logs security_audit_log_id; Type: DEFAULT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.security_audit_logs ALTER COLUMN id SET DEFAULT nextval('public.security_audit_logs_id_seq'::regclass);
+ALTER TABLE ONLY public.security_audit_logs ALTER COLUMN security_audit_log_id SET DEFAULT nextval('public.security_audit_logs_id_seq'::regclass);
 
 
 --
@@ -3454,17 +3506,17 @@ ALTER TABLE ONLY public.subscription_promos ALTER COLUMN promo_id SET DEFAULT ne
 
 
 --
--- Name: trip_events id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: trip_events trip_event_id; Type: DEFAULT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.trip_events ALTER COLUMN id SET DEFAULT nextval('public.trip_events_id_seq'::regclass);
+ALTER TABLE ONLY public.trip_events ALTER COLUMN trip_event_id SET DEFAULT nextval('public.trip_events_id_seq'::regclass);
 
 
 --
--- Name: trip_tracking_links id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: trip_tracking_links trip_tracking_link_id; Type: DEFAULT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.trip_tracking_links ALTER COLUMN id SET DEFAULT nextval('public.trip_tracking_links_id_seq'::regclass);
+ALTER TABLE ONLY public.trip_tracking_links ALTER COLUMN trip_tracking_link_id SET DEFAULT nextval('public.trip_tracking_links_id_seq'::regclass);
 
 
 --
@@ -3621,11 +3673,11 @@ ALTER TABLE ONLY public.email_messages
 
 
 --
--- Name: email_sender email_sender_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: email_senders email_senders_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.email_sender
-    ADD CONSTRAINT email_sender_pkey PRIMARY KEY (sender_id);
+ALTER TABLE ONLY public.email_senders
+    ADD CONSTRAINT email_senders_pkey PRIMARY KEY (sender_id);
 
 
 --
@@ -3634,6 +3686,14 @@ ALTER TABLE ONLY public.email_sender
 
 ALTER TABLE ONLY public.email_templates
     ADD CONSTRAINT email_templates_pkey PRIMARY KEY (email_template_id);
+
+
+--
+-- Name: email_templates email_templates_template_code_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.email_templates
+    ADD CONSTRAINT email_templates_template_code_key UNIQUE (template_code);
 
 
 --
@@ -3649,7 +3709,7 @@ ALTER TABLE ONLY public.invites
 --
 
 ALTER TABLE ONLY public.invites
-    ADD CONSTRAINT invites_pkey PRIMARY KEY (id);
+    ADD CONSTRAINT invites_pkey PRIMARY KEY (invite_id);
 
 
 --
@@ -3666,6 +3726,78 @@ ALTER TABLE ONLY public.languages
 
 ALTER TABLE ONLY public.languages
     ADD CONSTRAINT languages_pkey PRIMARY KEY (language_id);
+
+
+--
+-- Name: market_ad_reports market_ad_reports_ad_id_reported_by_user_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.market_ad_reports
+    ADD CONSTRAINT market_ad_reports_ad_id_reported_by_user_id_key UNIQUE (ad_id, reported_by_user_id);
+
+
+--
+-- Name: market_ad_reports market_ad_reports_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.market_ad_reports
+    ADD CONSTRAINT market_ad_reports_pkey PRIMARY KEY (report_id);
+
+
+--
+-- Name: market_ad_saves market_ad_saves_ad_id_nursery_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.market_ad_saves
+    ADD CONSTRAINT market_ad_saves_ad_id_nursery_id_key UNIQUE (ad_id, nursery_id);
+
+
+--
+-- Name: market_ad_saves market_ad_saves_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.market_ad_saves
+    ADD CONSTRAINT market_ad_saves_pkey PRIMARY KEY (save_id);
+
+
+--
+-- Name: market_ad_views market_ad_views_ad_id_nursery_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.market_ad_views
+    ADD CONSTRAINT market_ad_views_ad_id_nursery_id_key UNIQUE (ad_id, nursery_id);
+
+
+--
+-- Name: market_ad_views market_ad_views_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.market_ad_views
+    ADD CONSTRAINT market_ad_views_pkey PRIMARY KEY (view_id);
+
+
+--
+-- Name: market_ads market_ads_ad_code_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.market_ads
+    ADD CONSTRAINT market_ads_ad_code_key UNIQUE (ad_code);
+
+
+--
+-- Name: market_ads market_ads_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.market_ads
+    ADD CONSTRAINT market_ads_pkey PRIMARY KEY (ad_id);
+
+
+--
+-- Name: market_enquiries market_enquiries_ad_id_enquiring_nursery_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.market_enquiries
+    ADD CONSTRAINT market_enquiries_ad_id_enquiring_nursery_id_key UNIQUE (ad_id, enquiring_nursery_id);
 
 
 --
@@ -3690,46 +3822,6 @@ ALTER TABLE ONLY public.market_enquiries
 
 ALTER TABLE ONLY public.market_enquiry_messages
     ADD CONSTRAINT market_enquiry_messages_pkey PRIMARY KEY (message_id);
-
-
---
--- Name: market_ad_reports market_listing_reports_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.market_ad_reports
-    ADD CONSTRAINT market_listing_reports_pkey PRIMARY KEY (report_id);
-
-
---
--- Name: market_ad_saves market_listing_saves_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.market_ad_saves
-    ADD CONSTRAINT market_listing_saves_pkey PRIMARY KEY (save_id);
-
-
---
--- Name: market_ad_views market_listing_views_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.market_ad_views
-    ADD CONSTRAINT market_listing_views_pkey PRIMARY KEY (view_id);
-
-
---
--- Name: market_ads market_listings_listing_code_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.market_ads
-    ADD CONSTRAINT market_listings_listing_code_key UNIQUE (ad_code);
-
-
---
--- Name: market_ads market_listings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.market_ads
-    ADD CONSTRAINT market_listings_pkey PRIMARY KEY (ad_id);
 
 
 --
@@ -3813,11 +3905,27 @@ ALTER TABLE ONLY public.nursery_applications
 
 
 --
+-- Name: nursery_drivers nursery_drivers_nursery_id_driver_user_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.nursery_drivers
+    ADD CONSTRAINT nursery_drivers_nursery_id_driver_user_id_key UNIQUE (nursery_id, driver_user_id);
+
+
+--
 -- Name: nursery_drivers nursery_drivers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.nursery_drivers
-    ADD CONSTRAINT nursery_drivers_pkey PRIMARY KEY (id);
+    ADD CONSTRAINT nursery_drivers_pkey PRIMARY KEY (nursery_driver_id);
+
+
+--
+-- Name: nursery_featured_plants nursery_featured_plants_nursery_id_plant_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.nursery_featured_plants
+    ADD CONSTRAINT nursery_featured_plants_nursery_id_plant_id_key UNIQUE (nursery_id, plant_id);
 
 
 --
@@ -3834,6 +3942,14 @@ ALTER TABLE ONLY public.nursery_featured_plants
 
 ALTER TABLE ONLY public.nursery_inventory
     ADD CONSTRAINT nursery_inventory_inventory_code_key UNIQUE (inventory_code);
+
+
+--
+-- Name: nursery_inventory nursery_inventory_nursery_id_plant_id_size_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.nursery_inventory
+    ADD CONSTRAINT nursery_inventory_nursery_id_plant_id_size_id_key UNIQUE (nursery_id, plant_id, size_id);
 
 
 --
@@ -3861,19 +3977,19 @@ ALTER TABLE ONLY public.nursery_roles
 
 
 --
+-- Name: nursery_users nursery_users_nursery_id_user_id_nursery_role_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.nursery_users
+    ADD CONSTRAINT nursery_users_nursery_id_user_id_nursery_role_id_key UNIQUE (nursery_id, user_id, nursery_role_id);
+
+
+--
 -- Name: nursery_users nursery_users_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.nursery_users
     ADD CONSTRAINT nursery_users_pkey PRIMARY KEY (nursery_user_id);
-
-
---
--- Name: nursery_users nursery_users_uq; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.nursery_users
-    ADD CONSTRAINT nursery_users_uq UNIQUE (nursery_id, user_id, nursery_role_id);
 
 
 --
@@ -3893,19 +4009,19 @@ ALTER TABLE ONLY public.order_delivery_snapshots
 
 
 --
+-- Name: order_documents order_documents_order_id_version_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.order_documents
+    ADD CONSTRAINT order_documents_order_id_version_key UNIQUE (order_id, version);
+
+
+--
 -- Name: order_documents order_documents_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.order_documents
     ADD CONSTRAINT order_documents_pkey PRIMARY KEY (doc_id);
-
-
---
--- Name: order_documents order_documents_unique_version; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.order_documents
-    ADD CONSTRAINT order_documents_unique_version UNIQUE (order_id, version);
 
 
 --
@@ -4013,11 +4129,11 @@ ALTER TABLE ONLY public.plant_categories
 
 
 --
--- Name: plant_category_mapping plant_category_mapping_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: plant_category_mappings plant_category_mappings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.plant_category_mapping
-    ADD CONSTRAINT plant_category_mapping_pkey PRIMARY KEY (plant_id, category_id);
+ALTER TABLE ONLY public.plant_category_mappings
+    ADD CONSTRAINT plant_category_mappings_pkey PRIMARY KEY (plant_id, category_id);
 
 
 --
@@ -4037,11 +4153,27 @@ ALTER TABLE ONLY public.plant_names
 
 
 --
+-- Name: plant_names plant_names_plant_id_language_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.plant_names
+    ADD CONSTRAINT plant_names_plant_id_language_id_key UNIQUE (plant_id, language_id);
+
+
+--
 -- Name: plant_request_responses plant_request_responses_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.plant_request_responses
     ADD CONSTRAINT plant_request_responses_pkey PRIMARY KEY (response_id);
+
+
+--
+-- Name: plant_request_responses plant_request_responses_request_id_supplier_nursery_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.plant_request_responses
+    ADD CONSTRAINT plant_request_responses_request_id_supplier_nursery_id_key UNIQUE (request_id, supplier_nursery_id);
 
 
 --
@@ -4133,11 +4265,11 @@ ALTER TABLE ONLY public.quotation_documents
 
 
 --
--- Name: quotation_documents quotation_documents_unique_version; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: quotation_documents quotation_documents_quotation_id_version_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.quotation_documents
-    ADD CONSTRAINT quotation_documents_unique_version UNIQUE (quotation_id, version);
+    ADD CONSTRAINT quotation_documents_quotation_id_version_key UNIQUE (quotation_id, version);
 
 
 --
@@ -4181,6 +4313,14 @@ ALTER TABLE ONLY public.quotations
 
 
 --
+-- Name: ratings ratings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ratings
+    ADD CONSTRAINT ratings_pkey PRIMARY KEY (rating_id);
+
+
+--
 -- Name: roles roles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4209,7 +4349,7 @@ ALTER TABLE ONLY public.schema_migrations
 --
 
 ALTER TABLE ONLY public.security_audit_logs
-    ADD CONSTRAINT security_audit_logs_pkey PRIMARY KEY (id);
+    ADD CONSTRAINT security_audit_logs_pkey PRIMARY KEY (security_audit_log_id);
 
 
 --
@@ -4218,6 +4358,14 @@ ALTER TABLE ONLY public.security_audit_logs
 
 ALTER TABLE ONLY public.sms_dlt_entities
     ADD CONSTRAINT sms_dlt_entities_pkey PRIMARY KEY (entity_id);
+
+
+--
+-- Name: sms_headers sms_headers_header_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sms_headers
+    ADD CONSTRAINT sms_headers_header_key UNIQUE (header);
 
 
 --
@@ -4253,6 +4401,14 @@ ALTER TABLE ONLY public.sms_templates
 
 
 --
+-- Name: sms_templates sms_templates_template_code_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sms_templates
+    ADD CONSTRAINT sms_templates_template_code_key UNIQUE (template_code);
+
+
+--
 -- Name: sourcing_network_members sourcing_network_members_nursery_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4282,6 +4438,14 @@ ALTER TABLE ONLY public.sourcing_post_photos
 
 ALTER TABLE ONLY public.sourcing_post_responses
     ADD CONSTRAINT sourcing_post_responses_pkey PRIMARY KEY (response_id);
+
+
+--
+-- Name: sourcing_post_responses sourcing_post_responses_post_id_responder_nursery_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sourcing_post_responses
+    ADD CONSTRAINT sourcing_post_responses_post_id_responder_nursery_id_key UNIQUE (post_id, responder_nursery_id);
 
 
 --
@@ -4337,7 +4501,7 @@ ALTER TABLE ONLY public.subscription_promos
 --
 
 ALTER TABLE ONLY public.trip_events
-    ADD CONSTRAINT trip_events_pkey PRIMARY KEY (id);
+    ADD CONSTRAINT trip_events_pkey PRIMARY KEY (trip_event_id);
 
 
 --
@@ -4345,7 +4509,7 @@ ALTER TABLE ONLY public.trip_events
 --
 
 ALTER TABLE ONLY public.trip_tracking_links
-    ADD CONSTRAINT trip_tracking_links_pkey PRIMARY KEY (id);
+    ADD CONSTRAINT trip_tracking_links_pkey PRIMARY KEY (trip_tracking_link_id);
 
 
 --
@@ -4354,110 +4518,6 @@ ALTER TABLE ONLY public.trip_tracking_links
 
 ALTER TABLE ONLY public.trip_tracking_links
     ADD CONSTRAINT trip_tracking_links_tracking_uuid_key UNIQUE (tracking_uuid);
-
-
---
--- Name: email_templates uq_email_templates_code; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.email_templates
-    ADD CONSTRAINT uq_email_templates_code UNIQUE (template_code);
-
-
---
--- Name: nursery_inventory uq_inventory; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.nursery_inventory
-    ADD CONSTRAINT uq_inventory UNIQUE (nursery_id, plant_id, size_id);
-
-
---
--- Name: market_enquiries uq_market_enquiry; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.market_enquiries
-    ADD CONSTRAINT uq_market_enquiry UNIQUE (ad_id, enquiring_nursery_id);
-
-
---
--- Name: market_ad_reports uq_market_listing_report; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.market_ad_reports
-    ADD CONSTRAINT uq_market_listing_report UNIQUE (ad_id, reported_by_user_id);
-
-
---
--- Name: market_ad_saves uq_market_listing_save; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.market_ad_saves
-    ADD CONSTRAINT uq_market_listing_save UNIQUE (ad_id, nursery_id);
-
-
---
--- Name: market_ad_views uq_market_listing_view; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.market_ad_views
-    ADD CONSTRAINT uq_market_listing_view UNIQUE (ad_id, nursery_id);
-
-
---
--- Name: nursery_drivers uq_nursery_driver; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.nursery_drivers
-    ADD CONSTRAINT uq_nursery_driver UNIQUE (nursery_id, driver_user_id);
-
-
---
--- Name: nursery_featured_plants uq_nursery_featured_plant; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.nursery_featured_plants
-    ADD CONSTRAINT uq_nursery_featured_plant UNIQUE (nursery_id, plant_id);
-
-
---
--- Name: plant_names uq_plant_language; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.plant_names
-    ADD CONSTRAINT uq_plant_language UNIQUE (plant_id, language_id);
-
-
---
--- Name: sourcing_post_responses uq_post_response; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.sourcing_post_responses
-    ADD CONSTRAINT uq_post_response UNIQUE (post_id, responder_nursery_id);
-
-
---
--- Name: plant_request_responses uq_request_supplier; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.plant_request_responses
-    ADD CONSTRAINT uq_request_supplier UNIQUE (request_id, supplier_nursery_id);
-
-
---
--- Name: sms_headers uq_sms_headers_header; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.sms_headers
-    ADD CONSTRAINT uq_sms_headers_header UNIQUE (header);
-
-
---
--- Name: sms_templates uq_sms_templates_code; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.sms_templates
-    ADD CONSTRAINT uq_sms_templates_code UNIQUE (template_code);
 
 
 --
@@ -4597,13 +4657,6 @@ ALTER TABLE ONLY public.vehicles
 
 
 --
--- Name: dispatches_trip_uuid_idx; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX dispatches_trip_uuid_idx ON public.dispatches USING btree (trip_uuid);
-
-
---
 -- Name: idx_audit_logs_changed_at; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4705,7 +4758,7 @@ CREATE INDEX idx_dispatches_order ON public.dispatches USING btree (order_id);
 -- Name: idx_dispatches_status; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_dispatches_status ON public.dispatches USING btree (dispatch_status);
+CREATE INDEX idx_dispatches_status ON public.dispatches USING btree (status);
 
 
 --
@@ -4758,27 +4811,6 @@ CREATE INDEX idx_email_messages_to_created ON public.email_messages USING btree 
 
 
 --
--- Name: idx_inventory_nursery; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_inventory_nursery ON public.nursery_inventory USING btree (nursery_id);
-
-
---
--- Name: idx_inventory_plant; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_inventory_plant ON public.nursery_inventory USING btree (plant_id);
-
-
---
--- Name: idx_inventory_status; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_inventory_status ON public.nursery_inventory USING btree (inventory_status);
-
-
---
 -- Name: idx_invites_nursery; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4797,6 +4829,41 @@ CREATE INDEX idx_invites_status ON public.invites USING btree (status);
 --
 
 CREATE INDEX idx_invites_uuid ON public.invites USING btree (invite_uuid);
+
+
+--
+-- Name: idx_market_ad_saves_nursery_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_market_ad_saves_nursery_id ON public.market_ad_saves USING btree (nursery_id);
+
+
+--
+-- Name: idx_market_ads_expires_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_market_ads_expires_at ON public.market_ads USING btree (expires_at) WHERE ((status)::text = 'PUBLISHED'::text);
+
+
+--
+-- Name: idx_market_ads_nursery_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_market_ads_nursery_id ON public.market_ads USING btree (nursery_id);
+
+
+--
+-- Name: idx_market_ads_plant_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_market_ads_plant_name ON public.market_ads USING btree (plant_name);
+
+
+--
+-- Name: idx_market_ads_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_market_ads_status ON public.market_ads USING btree (status);
 
 
 --
@@ -4828,41 +4895,6 @@ CREATE INDEX idx_market_enquiry_messages_enquiry ON public.market_enquiry_messag
 
 
 --
--- Name: idx_market_listings_expires_at; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_market_listings_expires_at ON public.market_ads USING btree (expires_at) WHERE ((status)::text = 'PUBLISHED'::text);
-
-
---
--- Name: idx_market_listings_nursery; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_market_listings_nursery ON public.market_ads USING btree (nursery_id);
-
-
---
--- Name: idx_market_listings_plant; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_market_listings_plant ON public.market_ads USING btree (plant_name);
-
-
---
--- Name: idx_market_listings_status; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_market_listings_status ON public.market_ads USING btree (status);
-
-
---
--- Name: idx_market_saves_nursery; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_market_saves_nursery ON public.market_ad_saves USING btree (nursery_id);
-
-
---
 -- Name: idx_notification_templates_code_channel; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4873,14 +4905,14 @@ CREATE INDEX idx_notification_templates_code_channel ON public.notification_temp
 -- Name: idx_notifications_user_type_status_created; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_notifications_user_type_status_created ON public.notifications USING btree (user_id, notification_type, notification_status, created_at DESC);
+CREATE INDEX idx_notifications_user_type_status_created ON public.notifications USING btree (user_id, notification_type, status, created_at DESC);
 
 
 --
 -- Name: idx_nurseries_approved_by; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_nurseries_approved_by ON public.nurseries USING btree (approved_by);
+CREATE INDEX idx_nurseries_approved_by ON public.nurseries USING btree (approved_by_user_id);
 
 
 --
@@ -4912,24 +4944,24 @@ CREATE INDEX idx_nursery_addresses_nursery ON public.nursery_addresses USING btr
 
 
 --
--- Name: idx_nursery_apps_applicant; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_nursery_applications_applicant_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_nursery_apps_applicant ON public.nursery_applications USING btree (applicant_user_id);
-
-
---
--- Name: idx_nursery_apps_nursery; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_nursery_apps_nursery ON public.nursery_applications USING btree (nursery_id);
+CREATE INDEX idx_nursery_applications_applicant_user_id ON public.nursery_applications USING btree (applicant_user_id);
 
 
 --
--- Name: idx_nursery_apps_status; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_nursery_applications_nursery_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_nursery_apps_status ON public.nursery_applications USING btree (status);
+CREATE INDEX idx_nursery_applications_nursery_id ON public.nursery_applications USING btree (nursery_id);
+
+
+--
+-- Name: idx_nursery_applications_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_nursery_applications_status ON public.nursery_applications USING btree (status);
 
 
 --
@@ -4947,17 +4979,38 @@ CREATE INDEX idx_nursery_drivers_nursery ON public.nursery_drivers USING btree (
 
 
 --
--- Name: idx_nursery_featured_nursery; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_nursery_featured_plants_nursery_id_display_order; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_nursery_featured_nursery ON public.nursery_featured_plants USING btree (nursery_id, display_order);
+CREATE INDEX idx_nursery_featured_plants_nursery_id_display_order ON public.nursery_featured_plants USING btree (nursery_id, display_order);
 
 
 --
--- Name: idx_nursery_featured_plant; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_nursery_featured_plants_plant_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_nursery_featured_plant ON public.nursery_featured_plants USING btree (plant_id);
+CREATE INDEX idx_nursery_featured_plants_plant_id ON public.nursery_featured_plants USING btree (plant_id);
+
+
+--
+-- Name: idx_nursery_inventory_nursery_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_nursery_inventory_nursery_id ON public.nursery_inventory USING btree (nursery_id);
+
+
+--
+-- Name: idx_nursery_inventory_plant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_nursery_inventory_plant_id ON public.nursery_inventory USING btree (plant_id);
+
+
+--
+-- Name: idx_nursery_inventory_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_nursery_inventory_status ON public.nursery_inventory USING btree (status);
 
 
 --
@@ -4989,13 +5042,6 @@ CREATE INDEX idx_order_delivery_snapshots_location ON public.order_delivery_snap
 
 
 --
--- Name: idx_order_documents_current; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX idx_order_documents_current ON public.order_documents USING btree (order_id) WHERE (is_current = true);
-
-
---
 -- Name: idx_order_items_order; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5007,13 +5053,6 @@ CREATE INDEX idx_order_items_order ON public.order_items USING btree (order_id);
 --
 
 CREATE INDEX idx_order_items_plant ON public.order_items USING btree (plant_id);
-
-
---
--- Name: idx_order_verifications_active; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX idx_order_verifications_active ON public.order_verifications USING btree (order_id) WHERE ((status)::text = 'ACTIVE'::text);
 
 
 --
@@ -5076,14 +5115,14 @@ CREATE INDEX idx_orders_seller ON public.orders USING btree (seller_nursery_id);
 -- Name: idx_orders_status; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_orders_status ON public.orders USING btree (order_status);
+CREATE INDEX idx_orders_status ON public.orders USING btree (status);
 
 
 --
--- Name: idx_otp_mobile_active; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_otp_requests_mobile_purpose_expires_at; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_otp_mobile_active ON public.otp_requests USING btree (mobile, purpose, expires_at) WHERE (is_used = false);
+CREATE INDEX idx_otp_requests_mobile_purpose_expires_at ON public.otp_requests USING btree (mobile, purpose, expires_at) WHERE (is_used = false);
 
 
 --
@@ -5115,17 +5154,17 @@ CREATE INDEX idx_payments_subscription ON public.payments USING btree (user_subs
 
 
 --
--- Name: idx_pcm_category; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_plant_category_mappings_category_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_pcm_category ON public.plant_category_mapping USING btree (category_id);
+CREATE INDEX idx_plant_category_mappings_category_id ON public.plant_category_mappings USING btree (category_id);
 
 
 --
--- Name: idx_pcm_plant; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_plant_category_mappings_plant_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_pcm_plant ON public.plant_category_mapping USING btree (plant_id);
+CREATE INDEX idx_plant_category_mappings_plant_id ON public.plant_category_mappings USING btree (plant_id);
 
 
 --
@@ -5150,24 +5189,38 @@ CREATE INDEX idx_plant_names_name ON public.plant_names USING btree (plant_name)
 
 
 --
--- Name: idx_plant_request_nursery; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_plant_request_responses_request_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_plant_request_nursery ON public.plant_requests USING btree (requesting_nursery_id);
-
-
---
--- Name: idx_plant_request_plant; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_plant_request_plant ON public.plant_requests USING btree (plant_id);
+CREATE INDEX idx_plant_request_responses_request_id ON public.plant_request_responses USING btree (request_id);
 
 
 --
--- Name: idx_plant_request_status; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_plant_request_responses_supplier_nursery_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_plant_request_status ON public.plant_requests USING btree (status);
+CREATE INDEX idx_plant_request_responses_supplier_nursery_id ON public.plant_request_responses USING btree (supplier_nursery_id);
+
+
+--
+-- Name: idx_plant_requests_plant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_plant_requests_plant_id ON public.plant_requests USING btree (plant_id);
+
+
+--
+-- Name: idx_plant_requests_requesting_nursery_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_plant_requests_requesting_nursery_id ON public.plant_requests USING btree (requesting_nursery_id);
+
+
+--
+-- Name: idx_plant_requests_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_plant_requests_status ON public.plant_requests USING btree (status);
 
 
 --
@@ -5192,24 +5245,10 @@ CREATE INDEX idx_platform_config_active ON public.platform_config USING btree (c
 
 
 --
--- Name: idx_quotation_documents_current; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX idx_quotation_documents_current ON public.quotation_documents USING btree (quotation_id) WHERE (is_current = true);
-
-
---
 -- Name: idx_quotation_items_quotation_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_quotation_items_quotation_id ON public.quotation_items USING btree (quotation_id);
-
-
---
--- Name: idx_quotation_verifications_active; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX idx_quotation_verifications_active ON public.quotation_verifications USING btree (quotation_id) WHERE ((status)::text = 'ACTIVE'::text);
 
 
 --
@@ -5255,52 +5294,59 @@ CREATE INDEX idx_quotations_recipient_mobile ON public.quotations USING btree (r
 
 
 --
--- Name: idx_request_response_request; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_ratings_dispatch; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_request_response_request ON public.plant_request_responses USING btree (request_id);
-
-
---
--- Name: idx_request_response_supplier; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_request_response_supplier ON public.plant_request_responses USING btree (supplier_nursery_id);
+CREATE INDEX idx_ratings_dispatch ON public.ratings USING btree (dispatch_id) WHERE (dispatch_id IS NOT NULL);
 
 
 --
--- Name: idx_sec_audit_created_at; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_ratings_order; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_sec_audit_created_at ON public.security_audit_logs USING btree (created_at DESC);
-
-
---
--- Name: idx_sec_audit_event_type; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_sec_audit_event_type ON public.security_audit_logs USING btree (event_type);
+CREATE INDEX idx_ratings_order ON public.ratings USING btree (order_id) WHERE (order_id IS NOT NULL);
 
 
 --
--- Name: idx_sec_audit_nursery_id; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_ratings_user; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_sec_audit_nursery_id ON public.security_audit_logs USING btree (nursery_id) WHERE (nursery_id IS NOT NULL);
-
-
---
--- Name: idx_sec_audit_request_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_sec_audit_request_id ON public.security_audit_logs USING btree (request_id) WHERE (request_id IS NOT NULL);
+CREATE INDEX idx_ratings_user ON public.ratings USING btree (rated_by_user_id);
 
 
 --
--- Name: idx_sec_audit_user_id; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_security_audit_logs_created_at; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_sec_audit_user_id ON public.security_audit_logs USING btree (user_id) WHERE (user_id IS NOT NULL);
+CREATE INDEX idx_security_audit_logs_created_at ON public.security_audit_logs USING btree (created_at DESC);
+
+
+--
+-- Name: idx_security_audit_logs_event_type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_security_audit_logs_event_type ON public.security_audit_logs USING btree (event_type);
+
+
+--
+-- Name: idx_security_audit_logs_nursery_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_security_audit_logs_nursery_id ON public.security_audit_logs USING btree (nursery_id) WHERE (nursery_id IS NOT NULL);
+
+
+--
+-- Name: idx_security_audit_logs_request_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_security_audit_logs_request_id ON public.security_audit_logs USING btree (request_id) WHERE (request_id IS NOT NULL);
+
+
+--
+-- Name: idx_security_audit_logs_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_security_audit_logs_user_id ON public.security_audit_logs USING btree (user_id) WHERE (user_id IS NOT NULL);
 
 
 --
@@ -5325,24 +5371,38 @@ CREATE INDEX idx_sms_messages_template_created ON public.sms_messages USING btre
 
 
 --
--- Name: idx_sourcing_members_active; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_sourcing_network_members_nursery_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_sourcing_members_active ON public.sourcing_network_members USING btree (nursery_id) WHERE (is_active = true);
-
-
---
--- Name: idx_sourcing_members_nursery; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_sourcing_members_nursery ON public.sourcing_network_members USING btree (nursery_id);
+CREATE INDEX idx_sourcing_network_members_nursery_id ON public.sourcing_network_members USING btree (nursery_id) WHERE (is_active = true);
 
 
 --
--- Name: idx_sourcing_photos_post; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_sourcing_network_members_nursery_id_2; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_sourcing_photos_post ON public.sourcing_post_photos USING btree (post_id);
+CREATE INDEX idx_sourcing_network_members_nursery_id_2 ON public.sourcing_network_members USING btree (nursery_id);
+
+
+--
+-- Name: idx_sourcing_post_photos_post_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_sourcing_post_photos_post_id ON public.sourcing_post_photos USING btree (post_id);
+
+
+--
+-- Name: idx_sourcing_post_responses_post_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_sourcing_post_responses_post_id ON public.sourcing_post_responses USING btree (post_id);
+
+
+--
+-- Name: idx_sourcing_post_responses_responder_nursery_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_sourcing_post_responses_responder_nursery_id ON public.sourcing_post_responses USING btree (responder_nursery_id);
 
 
 --
@@ -5364,20 +5424,6 @@ CREATE INDEX idx_sourcing_posts_open ON public.sourcing_posts USING btree (post_
 --
 
 CREATE INDEX idx_sourcing_posts_plant ON public.sourcing_posts USING btree (plant_id) WHERE (plant_id IS NOT NULL);
-
-
---
--- Name: idx_sourcing_responses_nursery; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_sourcing_responses_nursery ON public.sourcing_post_responses USING btree (responder_nursery_id);
-
-
---
--- Name: idx_sourcing_responses_post; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_sourcing_responses_post ON public.sourcing_post_responses USING btree (post_id);
 
 
 --
@@ -5409,24 +5455,24 @@ CREATE INDEX idx_subscription_promos_code ON public.subscription_promos USING bt
 
 
 --
--- Name: idx_tracking_links_dispatch; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_tracking_links_dispatch ON public.trip_tracking_links USING btree (dispatch_id);
-
-
---
--- Name: idx_tracking_links_uuid; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_tracking_links_uuid ON public.trip_tracking_links USING btree (tracking_uuid);
-
-
---
 -- Name: idx_trip_events_dispatch; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_trip_events_dispatch ON public.trip_events USING btree (dispatch_id);
+
+
+--
+-- Name: idx_trip_tracking_links_dispatch_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_trip_tracking_links_dispatch_id ON public.trip_tracking_links USING btree (dispatch_id);
+
+
+--
+-- Name: idx_trip_tracking_links_tracking_uuid; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_trip_tracking_links_tracking_uuid ON public.trip_tracking_links USING btree (tracking_uuid);
 
 
 --
@@ -5440,7 +5486,7 @@ CREATE INDEX idx_user_activities_entity ON public.user_activities USING btree (e
 -- Name: idx_user_activities_timestamp; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_activities_timestamp ON public.user_activities USING btree (activity_timestamp);
+CREATE INDEX idx_user_activities_timestamp ON public.user_activities USING btree (occurred_at);
 
 
 --
@@ -5496,7 +5542,7 @@ CREATE INDEX idx_user_subscriptions_plan ON public.user_subscriptions USING btre
 -- Name: idx_user_subscriptions_user_status; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_subscriptions_user_status ON public.user_subscriptions USING btree (user_id, subscription_status);
+CREATE INDEX idx_user_subscriptions_user_status ON public.user_subscriptions USING btree (user_id, status);
 
 
 --
@@ -5535,24 +5581,45 @@ CREATE INDEX idx_vehicle_tracking_dispatch_time ON public.vehicle_tracking USING
 
 
 --
--- Name: uq_driver_one_active_trip; Type: INDEX; Schema: public; Owner: -
+-- Name: uq_dispatches_driver_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX uq_driver_one_active_trip ON public.dispatches USING btree (driver_user_id) WHERE ((dispatch_status)::text = ANY (ARRAY[('ACCEPTED'::character varying)::text, ('DISPATCHED'::character varying)::text, ('IN_TRANSIT'::character varying)::text]));
-
-
---
--- Name: uq_email_sender_singleton; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX uq_email_sender_singleton ON public.email_sender USING btree ((true));
+CREATE UNIQUE INDEX uq_dispatches_driver_user_id ON public.dispatches USING btree (driver_user_id) WHERE ((status)::text = ANY (ARRAY[('ACCEPTED'::character varying)::text, ('DISPATCHED'::character varying)::text, ('IN_TRANSIT'::character varying)::text]));
 
 
 --
--- Name: uq_manager_one_active_nursery; Type: INDEX; Schema: public; Owner: -
+-- Name: uq_dispatches_trip_uuid; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX uq_manager_one_active_nursery ON public.nursery_users USING btree (user_id) WHERE ((status)::text = 'ACTIVE'::text);
+CREATE UNIQUE INDEX uq_dispatches_trip_uuid ON public.dispatches USING btree (trip_uuid);
+
+
+--
+-- Name: uq_email_senders_expr; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_email_senders_expr ON public.email_senders USING btree ((true));
+
+
+--
+-- Name: uq_nursery_users_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_nursery_users_user_id ON public.nursery_users USING btree (user_id) WHERE ((status)::text = 'ACTIVE'::text);
+
+
+--
+-- Name: uq_order_documents_order_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_order_documents_order_id ON public.order_documents USING btree (order_id) WHERE (is_current = true);
+
+
+--
+-- Name: uq_order_verifications_order_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_order_verifications_order_id ON public.order_verifications USING btree (order_id) WHERE ((status)::text = 'ACTIVE'::text);
 
 
 --
@@ -5560,6 +5627,41 @@ CREATE UNIQUE INDEX uq_manager_one_active_nursery ON public.nursery_users USING 
 --
 
 CREATE UNIQUE INDEX uq_payments_provider_payment ON public.payments USING btree (provider, provider_payment_id) WHERE (provider_payment_id IS NOT NULL);
+
+
+--
+-- Name: uq_quotation_documents_quotation_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_quotation_documents_quotation_id ON public.quotation_documents USING btree (quotation_id) WHERE (is_current = true);
+
+
+--
+-- Name: uq_quotation_verifications_quotation_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_quotation_verifications_quotation_id ON public.quotation_verifications USING btree (quotation_id) WHERE ((status)::text = 'ACTIVE'::text);
+
+
+--
+-- Name: uq_ratings_app; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_ratings_app ON public.ratings USING btree (rated_by_user_id) WHERE (rating_type = 'APP'::text);
+
+
+--
+-- Name: uq_ratings_order; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_ratings_order ON public.ratings USING btree (rated_by_user_id, order_id) WHERE ((rating_type = 'ORDER'::text) AND (order_id IS NOT NULL));
+
+
+--
+-- Name: uq_ratings_trip; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_ratings_trip ON public.ratings USING btree (rated_by_user_id, dispatch_id) WHERE ((rating_type = 'TRIP'::text) AND (dispatch_id IS NOT NULL));
 
 
 --
@@ -5609,39 +5711,39 @@ CREATE TRIGGER trg_quotations_version BEFORE UPDATE ON public.quotations FOR EAC
 --
 
 ALTER TABLE ONLY public.attachments
-    ADD CONSTRAINT attachments_uploaded_by_fkey FOREIGN KEY (uploaded_by) REFERENCES public.users(user_id);
+    ADD CONSTRAINT attachments_uploaded_by_fkey FOREIGN KEY (uploaded_by_user_id) REFERENCES public.users(user_id);
 
 
 --
--- Name: dispatch_assignments da_assigned_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.dispatch_assignments
-    ADD CONSTRAINT da_assigned_by_fkey FOREIGN KEY (assigned_by) REFERENCES public.users(user_id);
-
-
---
--- Name: dispatch_assignments da_dispatch_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: dispatch_assignments dispatch_assignments_assigned_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.dispatch_assignments
-    ADD CONSTRAINT da_dispatch_id_fkey FOREIGN KEY (dispatch_id) REFERENCES public.dispatches(dispatch_id) ON DELETE CASCADE;
+    ADD CONSTRAINT dispatch_assignments_assigned_by_user_id_fkey FOREIGN KEY (assigned_by_user_id) REFERENCES public.users(user_id);
 
 
 --
--- Name: dispatch_assignments da_driver_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.dispatch_assignments
-    ADD CONSTRAINT da_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.drivers(driver_id);
-
-
---
--- Name: dispatch_assignments da_vehicle_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: dispatch_assignments dispatch_assignments_dispatch_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.dispatch_assignments
-    ADD CONSTRAINT da_vehicle_id_fkey FOREIGN KEY (vehicle_id) REFERENCES public.vehicles(vehicle_id);
+    ADD CONSTRAINT dispatch_assignments_dispatch_id_fkey FOREIGN KEY (dispatch_id) REFERENCES public.dispatches(dispatch_id) ON DELETE CASCADE;
+
+
+--
+-- Name: dispatch_assignments dispatch_assignments_driver_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.dispatch_assignments
+    ADD CONSTRAINT dispatch_assignments_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.drivers(driver_id);
+
+
+--
+-- Name: dispatch_assignments dispatch_assignments_vehicle_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.dispatch_assignments
+    ADD CONSTRAINT dispatch_assignments_vehicle_id_fkey FOREIGN KEY (vehicle_id) REFERENCES public.vehicles(vehicle_id);
 
 
 --
@@ -5673,7 +5775,7 @@ ALTER TABLE ONLY public.dispatches
 --
 
 ALTER TABLE ONLY public.dispatches
-    ADD CONSTRAINT dispatches_dispatched_by_fkey FOREIGN KEY (dispatched_by) REFERENCES public.users(user_id);
+    ADD CONSTRAINT dispatches_dispatched_by_fkey FOREIGN KEY (dispatched_by_user_id) REFERENCES public.users(user_id);
 
 
 --
@@ -5721,7 +5823,7 @@ ALTER TABLE ONLY public.dispatches
 --
 
 ALTER TABLE ONLY public.dispatches
-    ADD CONSTRAINT dispatches_owner_snapshot_fkey FOREIGN KEY (owner_user_id_snapshot) REFERENCES public.users(user_id);
+    ADD CONSTRAINT dispatches_owner_snapshot_fkey FOREIGN KEY (snapshot_owner_user_id) REFERENCES public.users(user_id);
 
 
 --
@@ -5765,67 +5867,19 @@ ALTER TABLE ONLY public.drivers
 
 
 --
--- Name: email_messages fk_email_messages_template; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: email_messages email_messages_email_template_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.email_messages
-    ADD CONSTRAINT fk_email_messages_template FOREIGN KEY (email_template_id) REFERENCES public.email_templates(email_template_id);
+    ADD CONSTRAINT email_messages_email_template_id_fkey FOREIGN KEY (email_template_id) REFERENCES public.email_templates(email_template_id);
 
 
 --
--- Name: email_messages fk_email_messages_user; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: email_messages email_messages_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.email_messages
-    ADD CONSTRAINT fk_email_messages_user FOREIGN KEY (user_id) REFERENCES public.users(user_id) ON DELETE SET NULL;
-
-
---
--- Name: quotation_items fk_quot_items_quotation; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.quotation_items
-    ADD CONSTRAINT fk_quot_items_quotation FOREIGN KEY (quotation_id) REFERENCES public.quotations(quotation_id) ON DELETE CASCADE;
-
-
---
--- Name: quotations fk_quotations_converted_order; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.quotations
-    ADD CONSTRAINT fk_quotations_converted_order FOREIGN KEY (converted_order_id) REFERENCES public.orders(order_id);
-
-
---
--- Name: sms_messages fk_sms_messages_template; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.sms_messages
-    ADD CONSTRAINT fk_sms_messages_template FOREIGN KEY (sms_template_id) REFERENCES public.sms_templates(sms_template_id);
-
-
---
--- Name: sms_messages fk_sms_messages_user; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.sms_messages
-    ADD CONSTRAINT fk_sms_messages_user FOREIGN KEY (user_id) REFERENCES public.users(user_id) ON DELETE SET NULL;
-
-
---
--- Name: sms_preferences fk_sms_preferences_user; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.sms_preferences
-    ADD CONSTRAINT fk_sms_preferences_user FOREIGN KEY (user_id) REFERENCES public.users(user_id) ON DELETE CASCADE;
-
-
---
--- Name: sms_templates fk_sms_templates_header; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.sms_templates
-    ADD CONSTRAINT fk_sms_templates_header FOREIGN KEY (header_id) REFERENCES public.sms_headers(header_id);
+    ADD CONSTRAINT email_messages_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(user_id) ON DELETE SET NULL;
 
 
 --
@@ -5850,6 +5904,102 @@ ALTER TABLE ONLY public.invites
 
 ALTER TABLE ONLY public.invites
     ADD CONSTRAINT invites_nursery_id_fkey FOREIGN KEY (nursery_id) REFERENCES public.nurseries(nursery_id);
+
+
+--
+-- Name: market_ad_reports market_ad_reports_ad_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.market_ad_reports
+    ADD CONSTRAINT market_ad_reports_ad_id_fkey FOREIGN KEY (ad_id) REFERENCES public.market_ads(ad_id);
+
+
+--
+-- Name: market_ad_reports market_ad_reports_reported_by_nursery_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.market_ad_reports
+    ADD CONSTRAINT market_ad_reports_reported_by_nursery_id_fkey FOREIGN KEY (reported_by_nursery_id) REFERENCES public.nurseries(nursery_id);
+
+
+--
+-- Name: market_ad_reports market_ad_reports_reported_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.market_ad_reports
+    ADD CONSTRAINT market_ad_reports_reported_by_user_id_fkey FOREIGN KEY (reported_by_user_id) REFERENCES public.users(user_id);
+
+
+--
+-- Name: market_ad_saves market_ad_saves_ad_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.market_ad_saves
+    ADD CONSTRAINT market_ad_saves_ad_id_fkey FOREIGN KEY (ad_id) REFERENCES public.market_ads(ad_id);
+
+
+--
+-- Name: market_ad_saves market_ad_saves_nursery_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.market_ad_saves
+    ADD CONSTRAINT market_ad_saves_nursery_id_fkey FOREIGN KEY (nursery_id) REFERENCES public.nurseries(nursery_id);
+
+
+--
+-- Name: market_ad_saves market_ad_saves_saved_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.market_ad_saves
+    ADD CONSTRAINT market_ad_saves_saved_by_user_id_fkey FOREIGN KEY (saved_by_user_id) REFERENCES public.users(user_id);
+
+
+--
+-- Name: market_ad_views market_ad_views_ad_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.market_ad_views
+    ADD CONSTRAINT market_ad_views_ad_id_fkey FOREIGN KEY (ad_id) REFERENCES public.market_ads(ad_id);
+
+
+--
+-- Name: market_ad_views market_ad_views_nursery_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.market_ad_views
+    ADD CONSTRAINT market_ad_views_nursery_id_fkey FOREIGN KEY (nursery_id) REFERENCES public.nurseries(nursery_id);
+
+
+--
+-- Name: market_ads market_ads_created_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.market_ads
+    ADD CONSTRAINT market_ads_created_by_user_id_fkey FOREIGN KEY (created_by_user_id) REFERENCES public.users(user_id);
+
+
+--
+-- Name: market_ads market_ads_nursery_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.market_ads
+    ADD CONSTRAINT market_ads_nursery_id_fkey FOREIGN KEY (nursery_id) REFERENCES public.nurseries(nursery_id);
+
+
+--
+-- Name: market_ads market_ads_plant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.market_ads
+    ADD CONSTRAINT market_ads_plant_id_fkey FOREIGN KEY (plant_id) REFERENCES public.plants(plant_id);
+
+
+--
+-- Name: market_ads market_ads_updated_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.market_ads
+    ADD CONSTRAINT market_ads_updated_by_user_id_fkey FOREIGN KEY (updated_by_user_id) REFERENCES public.users(user_id);
 
 
 --
@@ -5893,123 +6043,27 @@ ALTER TABLE ONLY public.market_enquiries
 
 
 --
--- Name: market_ads market_listings_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.market_ads
-    ADD CONSTRAINT market_listings_created_by_fkey FOREIGN KEY (created_by_user_id) REFERENCES public.users(user_id);
-
-
---
--- Name: market_ads market_listings_nursery_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.market_ads
-    ADD CONSTRAINT market_listings_nursery_fkey FOREIGN KEY (nursery_id) REFERENCES public.nurseries(nursery_id);
-
-
---
--- Name: market_ads market_listings_plant_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.market_ads
-    ADD CONSTRAINT market_listings_plant_fkey FOREIGN KEY (plant_id) REFERENCES public.plants(plant_id);
-
-
---
--- Name: market_ads market_listings_updated_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.market_ads
-    ADD CONSTRAINT market_listings_updated_by_fkey FOREIGN KEY (updated_by_user_id) REFERENCES public.users(user_id);
-
-
---
--- Name: market_enquiry_messages market_msg_enquiry_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: market_enquiry_messages market_enquiry_messages_enquiry_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.market_enquiry_messages
-    ADD CONSTRAINT market_msg_enquiry_fkey FOREIGN KEY (enquiry_id) REFERENCES public.market_enquiries(enquiry_id);
+    ADD CONSTRAINT market_enquiry_messages_enquiry_id_fkey FOREIGN KEY (enquiry_id) REFERENCES public.market_enquiries(enquiry_id);
 
 
 --
--- Name: market_enquiry_messages market_msg_nursery_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.market_enquiry_messages
-    ADD CONSTRAINT market_msg_nursery_fkey FOREIGN KEY (sent_by_nursery_id) REFERENCES public.nurseries(nursery_id);
-
-
---
--- Name: market_enquiry_messages market_msg_user_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: market_enquiry_messages market_enquiry_messages_sent_by_nursery_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.market_enquiry_messages
-    ADD CONSTRAINT market_msg_user_fkey FOREIGN KEY (sent_by_user_id) REFERENCES public.users(user_id);
+    ADD CONSTRAINT market_enquiry_messages_sent_by_nursery_id_fkey FOREIGN KEY (sent_by_nursery_id) REFERENCES public.nurseries(nursery_id);
 
 
 --
--- Name: market_ad_reports market_reports_listing_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: market_enquiry_messages market_enquiry_messages_sent_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.market_ad_reports
-    ADD CONSTRAINT market_reports_listing_fkey FOREIGN KEY (ad_id) REFERENCES public.market_ads(ad_id);
-
-
---
--- Name: market_ad_reports market_reports_nursery_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.market_ad_reports
-    ADD CONSTRAINT market_reports_nursery_fkey FOREIGN KEY (reported_by_nursery_id) REFERENCES public.nurseries(nursery_id);
-
-
---
--- Name: market_ad_reports market_reports_user_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.market_ad_reports
-    ADD CONSTRAINT market_reports_user_fkey FOREIGN KEY (reported_by_user_id) REFERENCES public.users(user_id);
-
-
---
--- Name: market_ad_saves market_saves_listing_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.market_ad_saves
-    ADD CONSTRAINT market_saves_listing_fkey FOREIGN KEY (ad_id) REFERENCES public.market_ads(ad_id);
-
-
---
--- Name: market_ad_saves market_saves_nursery_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.market_ad_saves
-    ADD CONSTRAINT market_saves_nursery_fkey FOREIGN KEY (nursery_id) REFERENCES public.nurseries(nursery_id);
-
-
---
--- Name: market_ad_saves market_saves_user_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.market_ad_saves
-    ADD CONSTRAINT market_saves_user_fkey FOREIGN KEY (saved_by_user_id) REFERENCES public.users(user_id);
-
-
---
--- Name: market_ad_views market_views_listing_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.market_ad_views
-    ADD CONSTRAINT market_views_listing_fkey FOREIGN KEY (ad_id) REFERENCES public.market_ads(ad_id);
-
-
---
--- Name: market_ad_views market_views_nursery_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.market_ad_views
-    ADD CONSTRAINT market_views_nursery_fkey FOREIGN KEY (nursery_id) REFERENCES public.nurseries(nursery_id);
+ALTER TABLE ONLY public.market_enquiry_messages
+    ADD CONSTRAINT market_enquiry_messages_sent_by_user_id_fkey FOREIGN KEY (sent_by_user_id) REFERENCES public.users(user_id);
 
 
 --
@@ -6033,7 +6087,7 @@ ALTER TABLE ONLY public.notifications
 --
 
 ALTER TABLE ONLY public.nurseries
-    ADD CONSTRAINT nurseries_approved_by_fkey FOREIGN KEY (approved_by) REFERENCES public.users(user_id);
+    ADD CONSTRAINT nurseries_approved_by_fkey FOREIGN KEY (approved_by_user_id) REFERENCES public.users(user_id);
 
 
 --
@@ -6041,7 +6095,7 @@ ALTER TABLE ONLY public.nurseries
 --
 
 ALTER TABLE ONLY public.nurseries
-    ADD CONSTRAINT nurseries_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(user_id);
+    ADD CONSTRAINT nurseries_created_by_fkey FOREIGN KEY (created_by_user_id) REFERENCES public.users(user_id);
 
 
 --
@@ -6057,7 +6111,7 @@ ALTER TABLE ONLY public.nurseries
 --
 
 ALTER TABLE ONLY public.nurseries
-    ADD CONSTRAINT nurseries_rejected_by_fkey FOREIGN KEY (rejected_by) REFERENCES public.users(user_id);
+    ADD CONSTRAINT nurseries_rejected_by_fkey FOREIGN KEY (rejected_by_user_id) REFERENCES public.users(user_id);
 
 
 --
@@ -6069,27 +6123,27 @@ ALTER TABLE ONLY public.nursery_addresses
 
 
 --
--- Name: nursery_applications nursery_apps_applicant_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: nursery_applications nursery_applications_applicant_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.nursery_applications
-    ADD CONSTRAINT nursery_apps_applicant_fkey FOREIGN KEY (applicant_user_id) REFERENCES public.users(user_id);
+    ADD CONSTRAINT nursery_applications_applicant_user_id_fkey FOREIGN KEY (applicant_user_id) REFERENCES public.users(user_id);
 
 
 --
--- Name: nursery_applications nursery_apps_nursery_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.nursery_applications
-    ADD CONSTRAINT nursery_apps_nursery_id_fkey FOREIGN KEY (nursery_id) REFERENCES public.nurseries(nursery_id);
-
-
---
--- Name: nursery_applications nursery_apps_reviewed_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: nursery_applications nursery_applications_nursery_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.nursery_applications
-    ADD CONSTRAINT nursery_apps_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES public.users(user_id);
+    ADD CONSTRAINT nursery_applications_nursery_id_fkey FOREIGN KEY (nursery_id) REFERENCES public.nurseries(nursery_id);
+
+
+--
+-- Name: nursery_applications nursery_applications_reviewed_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.nursery_applications
+    ADD CONSTRAINT nursery_applications_reviewed_by_user_id_fkey FOREIGN KEY (reviewed_by_user_id) REFERENCES public.users(user_id);
 
 
 --
@@ -6105,7 +6159,7 @@ ALTER TABLE ONLY public.nursery_drivers
 --
 
 ALTER TABLE ONLY public.nursery_drivers
-    ADD CONSTRAINT nursery_drivers_disconnected_by_fkey FOREIGN KEY (disconnected_by) REFERENCES public.users(user_id);
+    ADD CONSTRAINT nursery_drivers_disconnected_by_fkey FOREIGN KEY (disconnected_by_user_id) REFERENCES public.users(user_id);
 
 
 --
@@ -6161,7 +6215,7 @@ ALTER TABLE ONLY public.nursery_featured_plants
 --
 
 ALTER TABLE ONLY public.nursery_inventory
-    ADD CONSTRAINT nursery_inventory_last_updated_by_fkey FOREIGN KEY (last_updated_by) REFERENCES public.users(user_id);
+    ADD CONSTRAINT nursery_inventory_last_updated_by_fkey FOREIGN KEY (last_updated_by_user_id) REFERENCES public.users(user_id);
 
 
 --
@@ -6225,7 +6279,7 @@ ALTER TABLE ONLY public.nursery_users
 --
 
 ALTER TABLE ONLY public.order_delivery_snapshots
-    ADD CONSTRAINT order_delivery_snapshots_confirmed_by_fkey FOREIGN KEY (confirmed_by) REFERENCES public.users(user_id);
+    ADD CONSTRAINT order_delivery_snapshots_confirmed_by_fkey FOREIGN KEY (confirmed_by_user_id) REFERENCES public.users(user_id);
 
 
 --
@@ -6233,7 +6287,7 @@ ALTER TABLE ONLY public.order_delivery_snapshots
 --
 
 ALTER TABLE ONLY public.order_delivery_snapshots
-    ADD CONSTRAINT order_delivery_snapshots_driver_acknowledged_by_fkey FOREIGN KEY (driver_acknowledged_by) REFERENCES public.users(user_id);
+    ADD CONSTRAINT order_delivery_snapshots_driver_acknowledged_by_fkey FOREIGN KEY (driver_acknowledged_by_user_id) REFERENCES public.users(user_id);
 
 
 --
@@ -6249,7 +6303,7 @@ ALTER TABLE ONLY public.order_delivery_snapshots
 --
 
 ALTER TABLE ONLY public.order_documents
-    ADD CONSTRAINT order_documents_generated_by_fkey FOREIGN KEY (generated_by) REFERENCES public.users(user_id);
+    ADD CONSTRAINT order_documents_generated_by_fkey FOREIGN KEY (generated_by_user_id) REFERENCES public.users(user_id);
 
 
 --
@@ -6297,7 +6351,7 @@ ALTER TABLE ONLY public.order_verifications
 --
 
 ALTER TABLE ONLY public.order_verifications
-    ADD CONSTRAINT order_verifications_revoked_by_fkey FOREIGN KEY (revoked_by) REFERENCES public.users(user_id);
+    ADD CONSTRAINT order_verifications_revoked_by_fkey FOREIGN KEY (revoked_by_user_id) REFERENCES public.users(user_id);
 
 
 --
@@ -6373,6 +6427,14 @@ ALTER TABLE ONLY public.orders
 
 
 --
+-- Name: orders orders_updated_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.orders
+    ADD CONSTRAINT orders_updated_by_user_id_fkey FOREIGN KEY (updated_by_user_id) REFERENCES public.users(user_id);
+
+
+--
 -- Name: payments payments_order_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6397,27 +6459,27 @@ ALTER TABLE ONLY public.payments
 
 
 --
--- Name: plant_category_mapping pcm_category_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.plant_category_mapping
-    ADD CONSTRAINT pcm_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.plant_categories(category_id);
-
-
---
--- Name: plant_category_mapping pcm_plant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.plant_category_mapping
-    ADD CONSTRAINT pcm_plant_id_fkey FOREIGN KEY (plant_id) REFERENCES public.plants(plant_id) ON DELETE CASCADE;
-
-
---
 -- Name: plant_care_guides plant_care_guides_plant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.plant_care_guides
     ADD CONSTRAINT plant_care_guides_plant_id_fkey FOREIGN KEY (plant_id) REFERENCES public.plants(plant_id) ON DELETE CASCADE;
+
+
+--
+-- Name: plant_category_mappings plant_category_mappings_category_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.plant_category_mappings
+    ADD CONSTRAINT plant_category_mappings_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.plant_categories(category_id);
+
+
+--
+-- Name: plant_category_mappings plant_category_mappings_plant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.plant_category_mappings
+    ADD CONSTRAINT plant_category_mappings_plant_id_fkey FOREIGN KEY (plant_id) REFERENCES public.plants(plant_id) ON DELETE CASCADE;
 
 
 --
@@ -6442,6 +6504,30 @@ ALTER TABLE ONLY public.plant_names
 
 ALTER TABLE ONLY public.plant_names
     ADD CONSTRAINT plant_names_plant_id_fkey FOREIGN KEY (plant_id) REFERENCES public.plants(plant_id) ON DELETE CASCADE;
+
+
+--
+-- Name: plant_request_responses plant_request_responses_request_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.plant_request_responses
+    ADD CONSTRAINT plant_request_responses_request_id_fkey FOREIGN KEY (request_id) REFERENCES public.plant_requests(request_id) ON DELETE CASCADE;
+
+
+--
+-- Name: plant_request_responses plant_request_responses_responded_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.plant_request_responses
+    ADD CONSTRAINT plant_request_responses_responded_by_user_id_fkey FOREIGN KEY (responded_by_user_id) REFERENCES public.users(user_id);
+
+
+--
+-- Name: plant_request_responses plant_request_responses_supplier_nursery_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.plant_request_responses
+    ADD CONSTRAINT plant_request_responses_supplier_nursery_id_fkey FOREIGN KEY (supplier_nursery_id) REFERENCES public.nurseries(nursery_id);
 
 
 --
@@ -6481,31 +6567,7 @@ ALTER TABLE ONLY public.plant_requests
 --
 
 ALTER TABLE ONLY public.platform_config
-    ADD CONSTRAINT platform_config_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.users(user_id);
-
-
---
--- Name: plant_request_responses prr_request_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.plant_request_responses
-    ADD CONSTRAINT prr_request_id_fkey FOREIGN KEY (request_id) REFERENCES public.plant_requests(request_id) ON DELETE CASCADE;
-
-
---
--- Name: plant_request_responses prr_responded_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.plant_request_responses
-    ADD CONSTRAINT prr_responded_by_user_id_fkey FOREIGN KEY (responded_by_user_id) REFERENCES public.users(user_id);
-
-
---
--- Name: plant_request_responses prr_supplier_nursery_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.plant_request_responses
-    ADD CONSTRAINT prr_supplier_nursery_id_fkey FOREIGN KEY (supplier_nursery_id) REFERENCES public.nurseries(nursery_id);
+    ADD CONSTRAINT platform_config_updated_by_fkey FOREIGN KEY (updated_by_user_id) REFERENCES public.users(user_id);
 
 
 --
@@ -6513,7 +6575,7 @@ ALTER TABLE ONLY public.plant_request_responses
 --
 
 ALTER TABLE ONLY public.quotation_documents
-    ADD CONSTRAINT quotation_documents_generated_by_fkey FOREIGN KEY (generated_by) REFERENCES public.users(user_id);
+    ADD CONSTRAINT quotation_documents_generated_by_fkey FOREIGN KEY (generated_by_user_id) REFERENCES public.users(user_id);
 
 
 --
@@ -6553,7 +6615,7 @@ ALTER TABLE ONLY public.quotation_verifications
 --
 
 ALTER TABLE ONLY public.quotation_verifications
-    ADD CONSTRAINT quotation_verifications_revoked_by_fkey FOREIGN KEY (revoked_by) REFERENCES public.users(user_id);
+    ADD CONSTRAINT quotation_verifications_revoked_by_fkey FOREIGN KEY (revoked_by_user_id) REFERENCES public.users(user_id);
 
 
 --
@@ -6581,6 +6643,14 @@ ALTER TABLE ONLY public.quotations
 
 
 --
+-- Name: quotations quotations_converted_order_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.quotations
+    ADD CONSTRAINT quotations_converted_order_id_fkey FOREIGN KEY (converted_order_id) REFERENCES public.orders(order_id);
+
+
+--
 -- Name: quotations quotations_created_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6602,6 +6672,62 @@ ALTER TABLE ONLY public.quotations
 
 ALTER TABLE ONLY public.quotations
     ADD CONSTRAINT quotations_nursery_id_fkey FOREIGN KEY (nursery_id) REFERENCES public.nurseries(nursery_id);
+
+
+--
+-- Name: ratings ratings_dispatch_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ratings
+    ADD CONSTRAINT ratings_dispatch_id_fkey FOREIGN KEY (dispatch_id) REFERENCES public.dispatches(dispatch_id) ON DELETE SET NULL;
+
+
+--
+-- Name: ratings ratings_order_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ratings
+    ADD CONSTRAINT ratings_order_id_fkey FOREIGN KEY (order_id) REFERENCES public.orders(order_id) ON DELETE SET NULL;
+
+
+--
+-- Name: ratings ratings_rated_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ratings
+    ADD CONSTRAINT ratings_rated_by_user_id_fkey FOREIGN KEY (rated_by_user_id) REFERENCES public.users(user_id) ON DELETE CASCADE;
+
+
+--
+-- Name: sms_messages sms_messages_sms_template_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sms_messages
+    ADD CONSTRAINT sms_messages_sms_template_id_fkey FOREIGN KEY (sms_template_id) REFERENCES public.sms_templates(sms_template_id);
+
+
+--
+-- Name: sms_messages sms_messages_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sms_messages
+    ADD CONSTRAINT sms_messages_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(user_id) ON DELETE SET NULL;
+
+
+--
+-- Name: sms_preferences sms_preferences_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sms_preferences
+    ADD CONSTRAINT sms_preferences_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(user_id) ON DELETE CASCADE;
+
+
+--
+-- Name: sms_templates sms_templates_header_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sms_templates
+    ADD CONSTRAINT sms_templates_header_id_fkey FOREIGN KEY (header_id) REFERENCES public.sms_headers(header_id);
 
 
 --
@@ -6689,7 +6815,7 @@ ALTER TABLE ONLY public.sourcing_posts
 --
 
 ALTER TABLE ONLY public.subscription_promos
-    ADD CONSTRAINT subscription_promos_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(user_id);
+    ADD CONSTRAINT subscription_promos_created_by_fkey FOREIGN KEY (created_by_user_id) REFERENCES public.users(user_id);
 
 
 --
@@ -6709,19 +6835,19 @@ ALTER TABLE ONLY public.trip_events
 
 
 --
--- Name: trip_tracking_links ttl_customer_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: trip_tracking_links trip_tracking_links_customer_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.trip_tracking_links
-    ADD CONSTRAINT ttl_customer_user_id_fkey FOREIGN KEY (customer_user_id) REFERENCES public.users(user_id);
+    ADD CONSTRAINT trip_tracking_links_customer_user_id_fkey FOREIGN KEY (customer_user_id) REFERENCES public.users(user_id);
 
 
 --
--- Name: trip_tracking_links ttl_dispatch_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: trip_tracking_links trip_tracking_links_dispatch_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.trip_tracking_links
-    ADD CONSTRAINT ttl_dispatch_id_fkey FOREIGN KEY (dispatch_id) REFERENCES public.dispatches(dispatch_id) ON DELETE CASCADE;
+    ADD CONSTRAINT trip_tracking_links_dispatch_id_fkey FOREIGN KEY (dispatch_id) REFERENCES public.dispatches(dispatch_id) ON DELETE CASCADE;
 
 
 --
@@ -6761,7 +6887,7 @@ ALTER TABLE ONLY public.user_notification_devices
 --
 
 ALTER TABLE ONLY public.user_roles
-    ADD CONSTRAINT user_roles_assigned_by_fkey FOREIGN KEY (assigned_by) REFERENCES public.users(user_id) ON DELETE SET NULL;
+    ADD CONSTRAINT user_roles_assigned_by_fkey FOREIGN KEY (assigned_by_user_id) REFERENCES public.users(user_id) ON DELETE SET NULL;
 
 
 --
@@ -6809,7 +6935,7 @@ ALTER TABLE ONLY public.user_subscriptions
 --
 
 ALTER TABLE ONLY public.users
-    ADD CONSTRAINT users_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(user_id);
+    ADD CONSTRAINT users_created_by_fkey FOREIGN KEY (created_by_user_id) REFERENCES public.users(user_id);
 
 
 --
@@ -6817,7 +6943,7 @@ ALTER TABLE ONLY public.users
 --
 
 ALTER TABLE ONLY public.users
-    ADD CONSTRAINT users_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.users(user_id);
+    ADD CONSTRAINT users_updated_by_fkey FOREIGN KEY (updated_by_user_id) REFERENCES public.users(user_id);
 
 
 --
@@ -6856,7 +6982,7 @@ ALTER TABLE ONLY public.vehicle_tracking
 -- PostgreSQL database dump complete
 --
 
-\unrestrict DTUWq13ac9CvRQoOUXG3v0f3GmUg9cC7LQgjUhzM6bZfUsykrHYgfdDQwt2l2Io
+\unrestrict xgHoeEYtWzNYxlY0gDJUg1Z2JHc2jsfHvg9wdfXgVOzwLrsaQir0sLj37l06YHy
 
 
 --
@@ -6875,3 +7001,6 @@ INSERT INTO public.schema_migrations VALUES ('20261017_03_row_version', '2026-10
 INSERT INTO public.schema_migrations VALUES ('20261017_04_timestamptz', '2026-10-17 13:39:04.200278+05:30', '1c30e0fbefb72b1195029209a51c87414721d156c12763b692e59e85e705733b');
 INSERT INTO public.schema_migrations VALUES ('20261017_05_money_precision_currency', '2026-10-17 13:39:04.546609+05:30', '87db1495a875408c39aaed532d69a88a542ddbef9982c40c726a8e49662c5d94');
 INSERT INTO public.schema_migrations VALUES ('20261017_06_drop_orders_nursery_id', '2026-10-17 13:39:04.5498+05:30', 'ab2fd75f7613d5a5b483f3b185c0bbf48d9016b31a6e0c83bbcf984ae92e5cf1');
+INSERT INTO public.schema_migrations VALUES ('20261017_07_ratings_table', '2026-10-17 13:52:42.309052+05:30', '6d0d4d9250ae76f99870b051de377e4ea6823f0aa52e09a008b4df90790eb45c');
+INSERT INTO public.schema_migrations VALUES ('20261017_08_naming_convention', '2026-10-17 13:58:58.387301+05:30', '4123c46d860241ec2e5d5d5178b013a679aa063a0a43405390cdf1b4b7880eaa');
+INSERT INTO public.schema_migrations VALUES ('20261017_09_constraint_index_names', '2026-10-17 13:58:58.409355+05:30', 'f34d3da934a380ba43ce938d67974bc26c6ebe57ffdae55ddf3ca185046273c1');

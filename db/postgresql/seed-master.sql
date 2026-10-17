@@ -116,7 +116,7 @@ INSERT INTO public.plants (scientific_name, common_name, plant_type, light_requi
   ('Plumeria rubra',           'Frangipani',      'TREE',    'FULL_SUN',    'LOW',      'Tropical fragrant flowering tree.', true),
   ('Duranta erecta',           'Golden Dewdrop',  'SHRUB',   'FULL_SUN',    'MODERATE', 'Fast-growing ornamental shrub.', true);
 
-INSERT INTO public.plant_category_mapping (plant_id, category_id, created_at)
+INSERT INTO public.plant_category_mappings (plant_id, category_id, created_at)
 SELECT p.plant_id, c.category_id, CURRENT_TIMESTAMP
 FROM (VALUES
   ('Mangifera indica',        'Fruit Trees'),
@@ -155,10 +155,10 @@ SELECT setval('public.subscription_plans_plan_id_seq', (SELECT max(plan_id) FROM
 -- dlt_header_id and dlt_template_id from the DLT portal (Admin > SMS / DLT) and
 -- mark them APPROVED before switching SMS_PROVIDER off mock.
 -- Template bodies must match the DLT-registered text character for character.
-INSERT INTO public.sms_dlt_entities (entity_name, dlt_operator, registration_status) VALUES
+INSERT INTO public.sms_dlt_entities (entity_name, dlt_operator, status) VALUES
   ('GreenRoot', 'JIO', 'NOT_REGISTERED');
 
-INSERT INTO public.sms_headers (header_id, header, header_type, registration_status) VALUES
+INSERT INTO public.sms_headers (header_id, header, header_type, status) VALUES
   (1, 'GRROOT', 'SERVICE', 'DRAFT');
 
 SELECT setval('public.sms_headers_header_id_seq', (SELECT max(header_id) FROM public.sms_headers), true);
@@ -186,7 +186,7 @@ INSERT INTO public.sms_templates (template_code, template_name, category, header
 -- Email channel. Set the From address in Admin > Email and mark the domain
 -- verified (SPF/DKIM/DMARC) before switching EMAIL_PROVIDER off mock.
 -- body_html is content only; the API wraps it in the shared layout.
-INSERT INTO public.email_sender (from_name) VALUES ('GreenRoot');
+INSERT INTO public.email_senders (from_name) VALUES ('GreenRoot');
 
 INSERT INTO public.email_templates (template_code, template_name, subject, body_html, body_text) VALUES
   ('EMAIL_VERIFY_OTP', 'Email verification code', 'Verify your email for GreenRoot',

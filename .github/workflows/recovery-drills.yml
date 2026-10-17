@@ -1,0 +1,49 @@
+name: Recovery drills
+
+# Standard D11: a restore that has not been tested is not a backup.
+# Runs on every change to the schema or the scripts, and monthly.
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  schedule:
+    - cron: "17 3 1 * *" # 03:17 UTC on the 1st of every month
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  drills:
+    name: PITR + backup/restore drills
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install PostgreSQL 17 + PostGIS (PGDG)
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y -q postgresql-17 postgresql-17-postgis-3
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+
+      - name: Point-in-time recovery drill
+        run: scripts/pitr-drill.sh
+
+      - name: Backup + restore drill
+        run: |
+          export PGDATA="$RUNNER_TEMP/pg" SOCK="$RUNNER_TEMP/sock"
+          mkdir -p "$SOCK"
+          initdb -D "$PGDATA" -U postgres --auth=trust >/dev/null
+          pg_ctl -D "$PGDATA" -o "-p 5450 -k $SOCK -c listen_addresses=''" -l "$RUNNER_TEMP/pg.log" -w start
+          ADMIN="postgres://postgres@/postgres?host=$SOCK&port=5450"
+          SRC="postgres://postgres@/greenroot?host=$SOCK&port=5450"
+          psql "$ADMIN" -c "CREATE DATABASE greenroot"
+          for f in schema.sql seed-master.sql seed-dev-admin.sql seed-dev-data.sql; do
+            psql "$SRC" -q -v ON_ERROR_STOP=1 -f "db/postgresql/$f" >/dev/null
+          done
+          psql "$SRC" -q -v ON_ERROR_STOP=1 -f db/postgresql/roles.sql
+          DATABASE_URL="$SRC" BACKUP_DIR="$RUNNER_TEMP/backups" scripts/db-backup.sh
+          ADMIN_DATABASE_URL="$ADMIN" BACKUP_DIR="$RUNNER_TEMP/backups" scripts/db-restore-drill.sh

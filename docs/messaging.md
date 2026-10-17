@@ -96,18 +96,18 @@ An unknown `EMAIL_PROVIDER` value stops the API at startup.
 ### Email verification
 
 1. `POST /users/me/email/send-code {email}` sends a 6-digit code (valid 10 minutes).
-2. `POST /users/me/email/verify {email, code}` saves the address with `email_verified = true`.
+2. `POST /users/me/email/verify {email, code}` saves the address with `users.is_email_verified = true`.
 
 - **Binding:** the code works only for that user and that address.
 - **Code security:** same protections as the login OTP — stored hashed, single use, burned after 5 wrong guesses, and limited to one send per 30 s and 5 per hour per user+address.
 - **Address rules:** addresses are stored lower-case. An address already on another account returns `409 email_taken`.
-- **Profile updates:** in `PUT /users/me`, omitting `email` (or sending null) leaves it unchanged, and `""` clears it. Changing the address resets `email_verified` to false. Before this change, saving a profile without an email wiped a verified address.
+- **Profile updates:** in `PUT /users/me`, omitting `email` (or sending null) leaves it unchanged, and `""` clears it. Changing the address resets `users.is_email_verified` to false. Before this change, saving a profile without an email wiped a verified address.
 
 ### Tables
 
 | Table | Purpose |
 |---|---|
-| `email_sender` | Singleton: From name/address, Reply-To, "domain verified" flag (SPF/DKIM/DMARC) |
+| `email_senders` | Singleton: From name/address, Reply-To, "domain verified" flag (SPF/DKIM/DMARC) |
 | `email_templates` | Code, name, subject, HTML content, text body, active |
 | `email_messages` | Every attempt: to, subject/body with codes masked, status, error, reference |
 
