@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict Yf9rZGMkfYOzvXcgijrCFKXS9bhQKQhImVvjm3hyXyidQbD2a6bA57IPWqHRaeN
+\restrict DTUWq13ac9CvRQoOUXG3v0f3GmUg9cC7LQgjUhzM6bZfUsykrHYgfdDQwt2l2Io
 
 -- Dumped from database version 17.10 (Homebrew)
 -- Dumped by pg_dump version 17.10 (Homebrew)
@@ -131,8 +131,8 @@ CREATE TABLE public.attachments (
     file_type character varying(100),
     file_size bigint,
     uploaded_by bigint,
-    uploaded_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    deleted_at timestamp without time zone
+    uploaded_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    deleted_at timestamp with time zone
 );
 
 
@@ -169,7 +169,7 @@ CREATE TABLE public.audit_logs (
     changed_by bigint,
     source_ip character varying(100),
     user_agent text,
-    changed_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    changed_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     request_id character varying(100),
     user_id bigint,
     nursery_id bigint,
@@ -209,7 +209,7 @@ CREATE TABLE public.dispatch_assignments (
     dispatch_id bigint NOT NULL,
     vehicle_id bigint NOT NULL,
     driver_id bigint NOT NULL,
-    assigned_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    assigned_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     assigned_by bigint,
     status character varying(20) DEFAULT 'ASSIGNED'::character varying
 );
@@ -244,8 +244,8 @@ CREATE TABLE public.dispatch_items (
     order_item_id bigint,
     quantity numeric(12,2) DEFAULT 0 NOT NULL,
     notes text,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT ck_dispatch_items_quantity CHECK ((quantity > (0)::numeric))
 );
 
@@ -285,18 +285,18 @@ CREATE TABLE public.dispatches (
     customer_name_snapshot character varying(255),
     customer_mobile_snapshot character varying(20),
     destination_address text,
-    dispatch_date timestamp without time zone,
-    delivery_date timestamp without time zone,
-    trip_started_at timestamp without time zone,
+    dispatch_date timestamp with time zone,
+    delivery_date timestamp with time zone,
+    trip_started_at timestamp with time zone,
     trip_started_by_user_id bigint,
-    completed_at timestamp without time zone,
+    completed_at timestamp with time zone,
     notes text,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    driver_accepted_at timestamp without time zone,
-    driver_rejected_at timestamp without time zone,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    driver_accepted_at timestamp with time zone,
+    driver_rejected_at timestamp with time zone,
     driver_reject_reason text,
-    deleted_at timestamp without time zone,
+    deleted_at timestamp with time zone,
     trip_uuid uuid DEFAULT gen_random_uuid() NOT NULL,
     version bigint DEFAULT 1 NOT NULL,
     CONSTRAINT ck_dispatches_status CHECK (((dispatch_status)::text = ANY ((ARRAY['PENDING'::character varying, 'ACCEPTED'::character varying, 'DISPATCHED'::character varying, 'IN_TRANSIT'::character varying, 'DELIVERED'::character varying, 'CANCELLED'::character varying])::text[])))
@@ -332,7 +332,7 @@ CREATE TABLE public.driver_locations (
     latitude numeric(10,7) NOT NULL,
     longitude numeric(10,7) NOT NULL,
     location public.geography(Point,4326),
-    recorded_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    recorded_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     created_by bigint
 );
 
@@ -368,10 +368,10 @@ CREATE TABLE public.drivers (
     profile_status character varying(20) DEFAULT 'INCOMPLETE'::character varying NOT NULL,
     approval_status character varying(20) DEFAULT 'PENDING'::character varying NOT NULL,
     approved_by_user_id bigint,
-    approved_at timestamp without time zone,
+    approved_at timestamp with time zone,
     status character varying(20) DEFAULT 'ACTIVE'::character varying,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT ck_drivers_status CHECK (((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'INACTIVE'::character varying, 'SUSPENDED'::character varying, 'DELETED'::character varying])::text[])))
 );
 
@@ -414,10 +414,10 @@ CREATE TABLE public.email_messages (
     error_message text,
     reference_type character varying(30),
     reference_id bigint,
-    sent_at timestamp without time zone,
-    delivered_at timestamp without time zone,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    sent_at timestamp with time zone,
+    delivered_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT chk_email_messages_status CHECK (((status)::text = ANY (ARRAY['SENT'::text, 'DELIVERED'::text, 'BOUNCED'::text, 'FAILED'::text, 'BLOCKED'::text, 'MOCKED'::text])))
 );
 
@@ -451,8 +451,8 @@ CREATE TABLE public.email_sender (
     from_address character varying(254),
     reply_to character varying(254),
     domain_verified boolean DEFAULT false NOT NULL,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 
@@ -487,8 +487,8 @@ CREATE TABLE public.email_templates (
     body_html text DEFAULT ''::text NOT NULL,
     body_text text DEFAULT ''::text NOT NULL,
     is_active boolean DEFAULT true NOT NULL,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 
@@ -526,11 +526,11 @@ CREATE TABLE public.invites (
     target_email character varying(255),
     target_name character varying(255),
     status character varying(20) DEFAULT 'PENDING'::character varying NOT NULL,
-    expires_at timestamp without time zone,
+    expires_at timestamp with time zone,
     accepted_by_user_id bigint,
-    accepted_at timestamp without time zone,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    accepted_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT ck_invites_status CHECK (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'ACCEPTED'::character varying, 'CANCELLED'::character varying])::text[]))),
     CONSTRAINT ck_invites_type CHECK (((invite_type)::text = ANY ((ARRAY['MANAGER_INVITE'::character varying, 'DRIVER_INVITE'::character varying, 'CUSTOMER_INVITE'::character varying, 'NURSERY_ONBOARDING_INVITE'::character varying, 'TRIP_SHARE_INVITE'::character varying])::text[])))
 );
@@ -564,8 +564,8 @@ CREATE TABLE public.languages (
     language_code character varying(10) NOT NULL,
     language_name character varying(100) NOT NULL,
     is_active boolean DEFAULT true NOT NULL,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 
@@ -602,8 +602,8 @@ CREATE TABLE public.market_ad_reports (
     notes text,
     status character varying(20) DEFAULT 'PENDING'::character varying NOT NULL,
     reviewed_by_user_id bigint,
-    reviewed_at timestamp without time zone,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    reviewed_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT chk_market_report_reason CHECK (((reason)::text = ANY (ARRAY[('SPAM'::character varying)::text, ('WRONG_PLANT'::character varying)::text, ('DUPLICATE'::character varying)::text, ('FRAUD'::character varying)::text, ('OTHER'::character varying)::text]))),
     CONSTRAINT chk_market_report_status CHECK (((status)::text = ANY (ARRAY[('PENDING'::character varying)::text, ('REVIEWED'::character varying)::text, ('DISMISSED'::character varying)::text])))
 );
@@ -618,7 +618,7 @@ CREATE TABLE public.market_ad_saves (
     ad_id bigint NOT NULL,
     nursery_id bigint NOT NULL,
     saved_by_user_id bigint NOT NULL,
-    saved_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    saved_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 
@@ -630,7 +630,7 @@ CREATE TABLE public.market_ad_views (
     view_id bigint NOT NULL,
     ad_id bigint NOT NULL,
     nursery_id bigint,
-    viewed_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    viewed_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 
@@ -651,7 +651,7 @@ CREATE TABLE public.market_ads (
     description text,
     quantity integer,
     size_description character varying(100),
-    price_per_unit numeric(12,2),
+    price_per_unit numeric(15,2),
     price_unit character varying(50),
     photos jsonb DEFAULT '[]'::jsonb NOT NULL,
     pickup_address text,
@@ -661,19 +661,19 @@ CREATE TABLE public.market_ads (
     pickup_gps_accuracy_meters numeric(8,2),
     pickup_location_source character varying(50),
     pickup_confirmed_by bigint,
-    pickup_confirmed_at timestamp without time zone,
+    pickup_confirmed_at timestamp with time zone,
     pickup_location public.geography(Point,4326),
     status character varying(20) DEFAULT 'DRAFT'::character varying NOT NULL,
     view_count integer DEFAULT 0 NOT NULL,
     save_count integer DEFAULT 0 NOT NULL,
     enquiry_count integer DEFAULT 0 NOT NULL,
-    published_at timestamp without time zone,
-    paused_at timestamp without time zone,
-    expired_at timestamp without time zone,
-    archived_at timestamp without time zone,
-    expires_at timestamp without time zone,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    published_at timestamp with time zone,
+    paused_at timestamp with time zone,
+    expired_at timestamp with time zone,
+    archived_at timestamp with time zone,
+    expires_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT chk_market_listing_status CHECK (((status)::text = ANY (ARRAY[('DRAFT'::character varying)::text, ('PUBLISHED'::character varying)::text, ('PAUSED'::character varying)::text, ('EXPIRED'::character varying)::text, ('ARCHIVED'::character varying)::text]))),
     CONSTRAINT ck_market_ads_price CHECK (((price_per_unit IS NULL) OR (price_per_unit >= (0)::numeric)))
 );
@@ -694,12 +694,12 @@ CREATE TABLE public.market_enquiries (
     quantity_needed integer,
     status character varying(25) DEFAULT 'NEW'::character varying NOT NULL,
     quotation_id bigint,
-    viewed_at timestamp without time zone,
-    replied_at timestamp without time zone,
-    closed_at timestamp without time zone,
-    cancelled_at timestamp without time zone,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    viewed_at timestamp with time zone,
+    replied_at timestamp with time zone,
+    closed_at timestamp with time zone,
+    cancelled_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT chk_market_enquiry_status CHECK (((status)::text = ANY (ARRAY[('NEW'::character varying)::text, ('IN_PROGRESS'::character varying)::text, ('QUOTATION_CREATED'::character varying)::text, ('CLOSED'::character varying)::text, ('CANCELLED'::character varying)::text])))
 );
 
@@ -733,7 +733,7 @@ CREATE TABLE public.market_enquiry_messages (
     sent_by_user_id bigint NOT NULL,
     sent_by_nursery_id bigint NOT NULL,
     body text NOT NULL,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 
@@ -844,8 +844,8 @@ CREATE TABLE public.notification_templates (
     subject character varying(255),
     message_template text,
     is_active boolean DEFAULT true,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
 );
 
 
@@ -883,10 +883,10 @@ CREATE TABLE public.notifications (
     channel character varying(30),
     data jsonb,
     notification_status character varying(30) DEFAULT 'PENDING'::character varying,
-    sent_at timestamp without time zone,
-    read_at timestamp without time zone,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    sent_at timestamp with time zone,
+    read_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT ck_notifications_channel CHECK (((channel)::text = ANY ((ARRAY['PUSH'::character varying, 'SMS'::character varying, 'EMAIL'::character varying, 'IN_APP'::character varying])::text[])))
 );
 
@@ -927,16 +927,16 @@ CREATE TABLE public.nurseries (
     brand_icon_key character varying(50),
     brand_color character varying(20),
     status character varying(20) DEFAULT 'PENDING_APPROVAL'::character varying,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     created_by bigint,
     updated_by bigint,
     approved_by bigint,
-    approved_at timestamp without time zone,
+    approved_at timestamp with time zone,
     rejected_by bigint,
-    rejected_at timestamp without time zone,
+    rejected_at timestamp with time zone,
     rejection_reason text,
-    deleted_at timestamp without time zone,
+    deleted_at timestamp with time zone,
     suspension_reason text,
     suspended_by bigint,
     suspended_at timestamp with time zone,
@@ -985,11 +985,11 @@ CREATE TABLE public.nursery_addresses (
     gps_accuracy_meters numeric(8,2),
     location_source character varying(50),
     location_confirmed_by bigint,
-    location_confirmed_at timestamp without time zone,
+    location_confirmed_at timestamp with time zone,
     location public.geography(Point,4326),
     is_primary boolean DEFAULT false,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
 );
 
 
@@ -1032,11 +1032,11 @@ CREATE TABLE public.nursery_applications (
     description text,
     status character varying(30) DEFAULT 'PENDING'::character varying NOT NULL,
     reviewed_by bigint,
-    reviewed_at timestamp without time zone,
+    reviewed_at timestamp with time zone,
     rejection_reason text,
     nursery_id bigint,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 
@@ -1070,11 +1070,11 @@ CREATE TABLE public.nursery_drivers (
     invited_by_user_id bigint,
     approved_by_user_id bigint,
     connection_status character varying(20) DEFAULT 'REQUESTED'::character varying NOT NULL,
-    connected_at timestamp without time zone,
-    disconnected_at timestamp without time zone,
+    connected_at timestamp with time zone,
+    disconnected_at timestamp with time zone,
     disconnected_by bigint,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 
@@ -1112,8 +1112,8 @@ CREATE TABLE public.nursery_featured_plants (
     photos jsonb DEFAULT '[]'::jsonb NOT NULL,
     is_active boolean DEFAULT true NOT NULL,
     added_by_user_id bigint,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT chk_featured_display_order CHECK (((display_order >= 1) AND (display_order <= 20)))
 );
 
@@ -1150,8 +1150,8 @@ CREATE TABLE public.nursery_inventory (
     available_quantity integer DEFAULT 0 NOT NULL,
     inventory_status character varying(20) DEFAULT 'AVAILABLE'::character varying NOT NULL,
     last_updated_by bigint,
-    last_updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    last_updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     version bigint DEFAULT 1 NOT NULL,
     CONSTRAINT ck_nursery_inventory_quantity CHECK ((available_quantity >= 0)),
     CONSTRAINT ck_nursery_inventory_status CHECK (((inventory_status)::text = ANY ((ARRAY['AVAILABLE'::character varying, 'LOW_STOCK'::character varying, 'OUT_OF_STOCK'::character varying, 'RESERVED'::character varying, 'DISCONTINUED'::character varying])::text[])))
@@ -1187,8 +1187,8 @@ CREATE TABLE public.nursery_roles (
     role_name character varying(100) NOT NULL,
     description text,
     is_active boolean DEFAULT true NOT NULL,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 
@@ -1224,8 +1224,8 @@ CREATE TABLE public.nursery_users (
     status character varying(20) DEFAULT 'ACTIVE'::character varying NOT NULL,
     nursery_role_id smallint,
     invited_by_user_id bigint,
-    joined_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    joined_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     is_active boolean DEFAULT true
 );
 
@@ -1273,13 +1273,13 @@ CREATE TABLE public.order_delivery_snapshots (
     gps_accuracy_meters numeric(8,2),
     location_source character varying(40),
     confirmed_by bigint,
-    confirmed_at timestamp without time zone,
+    confirmed_at timestamp with time zone,
     emergency_updated boolean DEFAULT false NOT NULL,
     requires_driver_ack boolean DEFAULT false NOT NULL,
     driver_acknowledged_by bigint,
-    driver_acknowledged_at timestamp without time zone,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    driver_acknowledged_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT chk_order_delivery_snapshot_latitude CHECK (((latitude IS NULL) OR ((latitude >= ('-90'::integer)::numeric) AND (latitude <= (90)::numeric)))),
     CONSTRAINT chk_order_delivery_snapshot_location_source CHECK (((location_source IS NULL) OR ((location_source)::text = ANY (ARRAY[('gps_confirmed'::character varying)::text, ('nursery_default'::character varying)::text, ('map_selected'::character varying)::text, ('address_search'::character varying)::text, ('admin_updated'::character varying)::text])))),
     CONSTRAINT chk_order_delivery_snapshot_longitude CHECK (((longitude IS NULL) OR ((longitude >= ('-180'::integer)::numeric) AND (longitude <= (180)::numeric))))
@@ -1320,7 +1320,7 @@ CREATE TABLE public.order_documents (
     generated_by bigint,
     generated_by_name character varying(255),
     is_current boolean DEFAULT true NOT NULL,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT order_documents_file_size_nonnegative CHECK ((file_size >= 0)),
     CONSTRAINT order_documents_version_positive CHECK ((version > 0))
 );
@@ -1360,8 +1360,8 @@ CREATE TABLE public.order_items (
     unit_price numeric(15,2),
     total_price numeric(15,2),
     remarks text,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     loaded_quantity numeric(12,2),
     CONSTRAINT ck_order_items_amounts CHECK (((quantity > (0)::numeric) AND ((unit_price IS NULL) OR (unit_price >= (0)::numeric)) AND ((total_price IS NULL) OR (total_price >= (0)::numeric)) AND ((loaded_quantity IS NULL) OR ((loaded_quantity >= (0)::numeric) AND (loaded_quantity <= quantity)))))
 );
@@ -1395,8 +1395,8 @@ CREATE TABLE public.order_verifications (
     order_id bigint NOT NULL,
     token character varying(128) NOT NULL,
     status character varying(20) DEFAULT 'ACTIVE'::character varying NOT NULL,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    revoked_at timestamp without time zone,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    revoked_at timestamp with time zone,
     revoked_by bigint,
     CONSTRAINT order_verifications_status_check CHECK (((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'REVOKED'::character varying])::text[])))
 );
@@ -1429,7 +1429,6 @@ CREATE TABLE public.orders (
     order_id bigint NOT NULL,
     order_code character varying(30) DEFAULT public.next_public_code('orders'::text, 'ORD'::text, 4, true) NOT NULL,
     order_number character varying(50) NOT NULL,
-    nursery_id bigint,
     seller_nursery_id bigint,
     buyer_nursery_id bigint,
     quotation_id bigint,
@@ -1442,19 +1441,21 @@ CREATE TABLE public.orders (
     order_status character varying(30) DEFAULT 'PENDING'::character varying NOT NULL,
     total_amount numeric(15,2) DEFAULT 0,
     notes text,
-    order_date timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    loading_started_at timestamp without time zone,
-    loading_completed_at timestamp without time zone,
+    order_date timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    loading_started_at timestamp with time zone,
+    loading_completed_at timestamp with time zone,
     loading_completed_by_user_id bigint,
     cancelled_by_user_id bigint,
-    cancelled_at timestamp without time zone,
+    cancelled_at timestamp with time zone,
     cancel_reason text,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     created_by bigint,
     updated_by bigint,
-    deleted_at timestamp without time zone,
+    deleted_at timestamp with time zone,
     version bigint DEFAULT 1 NOT NULL,
+    currency character(3) DEFAULT 'INR'::bpchar NOT NULL,
+    CONSTRAINT ck_orders_currency CHECK ((currency = 'INR'::bpchar)),
     CONSTRAINT ck_orders_status CHECK (((order_status)::text = ANY ((ARRAY['PENDING'::character varying, 'CONFIRMED'::character varying, 'LOADING'::character varying, 'LOADED'::character varying, 'PARTIALLY_FULFILLED'::character varying, 'COMPLETED'::character varying, 'CANCELLED'::character varying])::text[]))),
     CONSTRAINT ck_orders_total_non_negative CHECK ((total_amount >= (0)::numeric))
 );
@@ -1488,12 +1489,12 @@ CREATE TABLE public.otp_requests (
     mobile character varying(20) NOT NULL,
     otp_code character varying(10) NOT NULL,
     purpose character varying(50) DEFAULT 'LOGIN'::character varying NOT NULL,
-    expires_at timestamp without time zone NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
     is_used boolean DEFAULT false NOT NULL,
-    used_at timestamp without time zone,
+    used_at timestamp with time zone,
     attempt_count integer DEFAULT 0 NOT NULL,
     ip_address character varying(100),
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 
@@ -1530,7 +1531,7 @@ CREATE TABLE public.payments (
     amount numeric(15,2) NOT NULL,
     payment_method character varying(50),
     payment_status character varying(30) DEFAULT 'PENDING'::character varying NOT NULL,
-    payment_date timestamp without time zone,
+    payment_date timestamp with time zone,
     provider character varying(50),
     provider_payment_id character varying(255),
     provider_order_id character varying(255),
@@ -1538,10 +1539,12 @@ CREATE TABLE public.payments (
     transaction_reference character varying(255),
     raw_response jsonb,
     notes text,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     version bigint DEFAULT 1 NOT NULL,
+    currency character(3) DEFAULT 'INR'::bpchar NOT NULL,
     CONSTRAINT ck_payments_amount_positive CHECK ((amount > (0)::numeric)),
+    CONSTRAINT ck_payments_currency CHECK ((currency = 'INR'::bpchar)),
     CONSTRAINT ck_payments_method CHECK (((payment_method IS NULL) OR ((payment_method)::text = ANY ((ARRAY['UPI'::character varying, 'CARD'::character varying, 'CASH'::character varying, 'BANK_TRANSFER'::character varying, 'NET_BANKING'::character varying, 'WALLET'::character varying, 'COD'::character varying, 'CHEQUE'::character varying, 'OTHER'::character varying])::text[])))),
     CONSTRAINT ck_payments_status CHECK (((payment_status)::text = ANY ((ARRAY['PENDING'::character varying, 'SUCCESS'::character varying, 'FAILED'::character varying, 'REFUNDED'::character varying, 'CANCELLED'::character varying])::text[]))),
     CONSTRAINT ck_payments_target CHECK (((((payment_for)::text = 'ORDER'::text) AND (order_id IS NOT NULL) AND (user_subscription_id IS NULL)) OR (((payment_for)::text = 'SUBSCRIPTION'::text) AND (user_subscription_id IS NOT NULL) AND (order_id IS NULL))))
@@ -1581,8 +1584,8 @@ CREATE TABLE public.plant_care_guides (
     fertilizer text,
     pruning text,
     notes text,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 
@@ -1613,8 +1616,8 @@ CREATE TABLE public.plant_categories (
     category_id integer NOT NULL,
     category_name character varying(100) NOT NULL,
     is_active boolean DEFAULT true NOT NULL,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 
@@ -1645,7 +1648,7 @@ ALTER SEQUENCE public.plant_categories_category_id_seq OWNED BY public.plant_cat
 CREATE TABLE public.plant_category_mapping (
     plant_id bigint NOT NULL,
     category_id integer NOT NULL,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 
@@ -1660,8 +1663,8 @@ CREATE TABLE public.plant_images (
     alt_text character varying(255),
     display_order integer DEFAULT 0 NOT NULL,
     is_primary boolean DEFAULT false NOT NULL,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 
@@ -1695,8 +1698,8 @@ CREATE TABLE public.plant_names (
     plant_name character varying(255) NOT NULL,
     description text,
     is_active boolean DEFAULT true NOT NULL,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 
@@ -1731,7 +1734,7 @@ CREATE TABLE public.plant_request_responses (
     available_quantity integer NOT NULL,
     remarks text,
     status character varying(30) DEFAULT 'RESPONDED'::character varying NOT NULL,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT ck_plant_request_responses_status CHECK (((status)::text = ANY ((ARRAY['AVAILABLE'::character varying, 'PARTIAL'::character varying, 'NOT_AVAILABLE'::character varying, 'ACCEPTED'::character varying, 'REJECTED'::character varying])::text[])))
 );
 
@@ -1771,10 +1774,10 @@ CREATE TABLE public.plant_requests (
     radius_km integer DEFAULT 50 NOT NULL,
     notes text,
     status character varying(30) DEFAULT 'OPEN'::character varying NOT NULL,
-    expires_at timestamp without time zone,
-    fulfilled_at timestamp without time zone,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    expires_at timestamp with time zone,
+    fulfilled_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT ck_plant_requests_status CHECK (((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'OPEN'::character varying, 'PARTIALLY_ACCEPTED'::character varying, 'ACCEPTED'::character varying, 'REJECTED'::character varying, 'CLOSED'::character varying])::text[])))
 );
 
@@ -1808,8 +1811,8 @@ CREATE TABLE public.plant_sizes (
     display_name character varying(100) NOT NULL,
     display_order smallint NOT NULL,
     is_active boolean DEFAULT true NOT NULL,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 
@@ -1847,8 +1850,8 @@ CREATE TABLE public.plants (
     water_requirement character varying(50),
     english_description text,
     is_active boolean DEFAULT true NOT NULL,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 
@@ -1883,8 +1886,8 @@ CREATE TABLE public.platform_config (
     description text,
     is_active boolean DEFAULT true NOT NULL,
     updated_by bigint,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 
@@ -1915,7 +1918,7 @@ CREATE TABLE public.public_code_sequences (
     code_key character varying(40) NOT NULL,
     date_key character varying(8) DEFAULT ''::character varying NOT NULL,
     last_value bigint DEFAULT 0 NOT NULL,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 
@@ -1934,7 +1937,7 @@ CREATE TABLE public.quotation_documents (
     generated_by bigint,
     generated_by_name character varying(255),
     is_current boolean DEFAULT true NOT NULL,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT quotation_documents_file_size_nonnegative CHECK ((file_size >= 0)),
     CONSTRAINT quotation_documents_version_positive CHECK ((version > 0))
 );
@@ -1971,9 +1974,9 @@ CREATE TABLE public.quotation_items (
     common_name character varying(255),
     description text,
     quantity numeric(12,2) NOT NULL,
-    unit_price numeric(12,2),
-    total_price numeric(12,2),
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    unit_price numeric(15,2),
+    total_price numeric(15,2),
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT ck_quotation_items_amounts CHECK (((quantity > (0)::numeric) AND ((unit_price IS NULL) OR (unit_price >= (0)::numeric)) AND ((total_price IS NULL) OR (total_price >= (0)::numeric))))
 );
 
@@ -2006,8 +2009,8 @@ CREATE TABLE public.quotation_verifications (
     quotation_id bigint NOT NULL,
     token character varying(128) NOT NULL,
     status character varying(20) DEFAULT 'ACTIVE'::character varying NOT NULL,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    revoked_at timestamp without time zone,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    revoked_at timestamp with time zone,
     revoked_by bigint,
     CONSTRAINT quotation_verifications_status_check CHECK (((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'REVOKED'::character varying])::text[])))
 );
@@ -2051,21 +2054,23 @@ CREATE TABLE public.quotations (
     buyer_nursery_id bigint,
     notes text,
     rejection_reason text,
-    total_amount numeric(12,2) DEFAULT 0 NOT NULL,
+    total_amount numeric(15,2) DEFAULT 0 NOT NULL,
     status character varying(20) DEFAULT 'CUSTOMER_DRAFT'::character varying NOT NULL,
-    sent_at timestamp without time zone,
-    customer_responded_at timestamp without time zone,
+    sent_at timestamp with time zone,
+    customer_responded_at timestamp with time zone,
     converted_order_id bigint,
     converted_by_user_id bigint,
-    converted_at timestamp without time zone,
-    deleted_at timestamp without time zone,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    converted_at timestamp with time zone,
+    deleted_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     quotation_type character varying(20) DEFAULT 'CUSTOMER'::character varying NOT NULL,
-    valid_until timestamp without time zone,
+    valid_until timestamp with time zone,
     version bigint DEFAULT 1 NOT NULL,
+    currency character(3) DEFAULT 'INR'::bpchar NOT NULL,
     CONSTRAINT chk_quotation_status CHECK (((status)::text = ANY (ARRAY[('INTERNAL_DRAFT'::character varying)::text, ('CUSTOMER_DRAFT'::character varying)::text, ('CUSTOMER_SENT'::character varying)::text, ('CUSTOMER_ACCEPTED'::character varying)::text, ('CUSTOMER_REJECTED'::character varying)::text, ('CONVERTED'::character varying)::text, ('EXPIRED'::character varying)::text]))),
     CONSTRAINT chk_quotation_type CHECK (((quotation_type)::text = ANY (ARRAY[('INTERNAL'::character varying)::text, ('CUSTOMER'::character varying)::text]))),
+    CONSTRAINT ck_quotations_currency CHECK ((currency = 'INR'::bpchar)),
     CONSTRAINT ck_quotations_total_non_negative CHECK (((total_amount IS NULL) OR (total_amount >= (0)::numeric)))
 );
 
@@ -2099,8 +2104,8 @@ CREATE TABLE public.roles (
     role_name character varying(100) NOT NULL,
     description text,
     is_active boolean DEFAULT true,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
 );
 
 
@@ -2130,7 +2135,7 @@ ALTER SEQUENCE public.roles_role_id_seq OWNED BY public.roles.role_id;
 
 CREATE TABLE public.schema_migrations (
     version text NOT NULL,
-    applied_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    applied_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     checksum character varying(64) DEFAULT 'baseline'::character varying NOT NULL
 );
 
@@ -2185,8 +2190,8 @@ CREATE TABLE public.sms_dlt_entities (
     telemarketer_id character varying(50),
     registration_status character varying(30) DEFAULT 'NOT_REGISTERED'::character varying NOT NULL,
     notes text,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT chk_sms_dlt_entities_operator CHECK (((dlt_operator)::text = ANY (ARRAY['JIO'::text, 'AIRTEL'::text, 'VI'::text, 'BSNL'::text, 'TATA'::text, 'SMARTPING'::text]))),
     CONSTRAINT chk_sms_dlt_entities_pe_id CHECK (((pe_id IS NULL) OR ((pe_id)::text ~ '^[0-9]{10,30}$'::text))),
     CONSTRAINT chk_sms_dlt_entities_status CHECK (((registration_status)::text = ANY (ARRAY['NOT_REGISTERED'::text, 'SUBMITTED'::text, 'APPROVED'::text, 'REJECTED'::text])))
@@ -2223,8 +2228,8 @@ CREATE TABLE public.sms_headers (
     dlt_header_id character varying(30),
     registration_status character varying(30) DEFAULT 'DRAFT'::character varying NOT NULL,
     rejection_reason text,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT chk_sms_headers_status CHECK (((registration_status)::text = ANY (ARRAY['DRAFT'::text, 'SUBMITTED'::text, 'APPROVED'::text, 'REJECTED'::text, 'INACTIVE'::text]))),
     CONSTRAINT chk_sms_headers_type CHECK (((header_type)::text = ANY (ARRAY['TRANSACTIONAL'::text, 'SERVICE'::text, 'PROMOTIONAL'::text, 'GOVERNMENT'::text])))
 );
@@ -2272,10 +2277,10 @@ CREATE TABLE public.sms_messages (
     error_message text,
     reference_type character varying(30),
     reference_id bigint,
-    sent_at timestamp without time zone,
-    delivered_at timestamp without time zone,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    sent_at timestamp with time zone,
+    delivered_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT chk_sms_messages_status CHECK (((status)::text = ANY (ARRAY['QUEUED'::text, 'SENT'::text, 'DELIVERED'::text, 'FAILED'::text, 'BLOCKED'::text, 'MOCKED'::text])))
 );
 
@@ -2306,10 +2311,10 @@ ALTER SEQUENCE public.sms_messages_sms_message_id_seq OWNED BY public.sms_messag
 CREATE TABLE public.sms_preferences (
     user_id bigint NOT NULL,
     promotional_opt_in boolean DEFAULT false NOT NULL,
-    promotional_consent_at timestamp without time zone,
-    promotional_revoked_at timestamp without time zone,
+    promotional_consent_at timestamp with time zone,
+    promotional_revoked_at timestamp with time zone,
     consent_source character varying(30),
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 
@@ -2332,9 +2337,9 @@ CREATE TABLE public.sms_templates (
     whitelisted_urls jsonb DEFAULT '[]'::jsonb NOT NULL,
     whitelisted_numbers jsonb DEFAULT '[]'::jsonb NOT NULL,
     is_active boolean DEFAULT true NOT NULL,
-    approved_at timestamp without time zone,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    approved_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT chk_sms_templates_category CHECK (((category)::text = ANY (ARRAY['TRANSACTIONAL'::text, 'SERVICE_IMPLICIT'::text, 'SERVICE_EXPLICIT'::text, 'PROMOTIONAL'::text]))),
     CONSTRAINT chk_sms_templates_dlt_id CHECK (((dlt_template_id IS NULL) OR ((dlt_template_id)::text ~ '^[0-9]{10,30}$'::text))),
     CONSTRAINT chk_sms_templates_status CHECK (((registration_status)::text = ANY (ARRAY['DRAFT'::text, 'SUBMITTED'::text, 'APPROVED'::text, 'REJECTED'::text, 'INACTIVE'::text])))
@@ -2373,10 +2378,10 @@ CREATE TABLE public.sourcing_network_members (
     contact_visible boolean DEFAULT false NOT NULL,
     service_radius_km integer DEFAULT 50 NOT NULL,
     joined_by_user_id bigint,
-    joined_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    deactivated_at timestamp without time zone,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    joined_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    deactivated_at timestamp with time zone,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 
@@ -2409,7 +2414,7 @@ CREATE TABLE public.sourcing_post_photos (
     photo_url character varying(500) NOT NULL,
     display_order smallint DEFAULT 0 NOT NULL,
     uploaded_by_user_id bigint,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 
@@ -2445,8 +2450,8 @@ CREATE TABLE public.sourcing_post_responses (
     notes text,
     contact_info character varying(255),
     status character varying(20) DEFAULT 'PENDING'::character varying NOT NULL,
-    responded_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    responded_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 
@@ -2489,11 +2494,11 @@ CREATE TABLE public.sourcing_posts (
     radius_km integer DEFAULT 50 NOT NULL,
     response_count integer DEFAULT 0 NOT NULL,
     status character varying(20) DEFAULT 'OPEN'::character varying NOT NULL,
-    expires_at timestamp without time zone,
-    closed_at timestamp without time zone,
-    deleted_at timestamp without time zone,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    expires_at timestamp with time zone,
+    closed_at timestamp with time zone,
+    deleted_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT chk_sourcing_post_type CHECK (((post_type)::text = ANY (ARRAY[('NEED'::character varying)::text, ('AVAILABLE'::character varying)::text]))),
     CONSTRAINT chk_sourcing_urgency CHECK (((urgency)::text = ANY (ARRAY[('TODAY'::character varying)::text, ('URGENT'::character varying)::text, ('FLEXIBLE'::character varying)::text])))
 );
@@ -2527,15 +2532,17 @@ CREATE TABLE public.subscription_plans (
     plan_code character varying(50) NOT NULL,
     plan_name character varying(100) NOT NULL,
     description text,
-    monthly_price numeric(12,2),
-    yearly_price numeric(12,2),
+    monthly_price numeric(15,2),
+    yearly_price numeric(15,2),
     max_users integer,
     max_nurseries integer,
     is_active boolean DEFAULT true,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     max_managers integer,
     features jsonb DEFAULT '{}'::jsonb,
+    currency character(3) DEFAULT 'INR'::bpchar NOT NULL,
+    CONSTRAINT ck_subscription_plans_currency CHECK ((currency = 'INR'::bpchar)),
     CONSTRAINT ck_subscription_plans_prices CHECK ((((monthly_price IS NULL) OR (monthly_price >= (0)::numeric)) AND ((yearly_price IS NULL) OR (yearly_price >= (0)::numeric))))
 );
 
@@ -2569,8 +2576,8 @@ CREATE TABLE public.subscription_promos (
     name character varying(255) NOT NULL,
     description text,
     discount_type character varying(20) DEFAULT 'PERCENTAGE'::character varying NOT NULL,
-    discount_value numeric(10,2) DEFAULT 0 NOT NULL,
-    max_discount_cap numeric(10,2),
+    discount_value numeric(15,2) DEFAULT 0 NOT NULL,
+    max_discount_cap numeric(15,2),
     applicable_plans jsonb DEFAULT '[]'::jsonb NOT NULL,
     applicable_cycles jsonb DEFAULT '[]'::jsonb NOT NULL,
     valid_from date NOT NULL,
@@ -2579,8 +2586,8 @@ CREATE TABLE public.subscription_promos (
     max_uses integer,
     used_count integer DEFAULT 0 NOT NULL,
     created_by bigint,
-    created_at timestamp without time zone DEFAULT now() NOT NULL,
-    updated_at timestamp without time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone,
     CONSTRAINT ck_subscription_promos_discount CHECK (((discount_value > (0)::numeric) AND (((discount_type)::text <> 'PERCENTAGE'::text) OR (discount_value <= (100)::numeric)) AND ((max_discount_cap IS NULL) OR (max_discount_cap >= (0)::numeric)))),
     CONSTRAINT subscription_promos_discount_type_check CHECK (((discount_type)::text = ANY (ARRAY[('PERCENTAGE'::character varying)::text, ('FLAT'::character varying)::text])))
 );
@@ -2618,7 +2625,7 @@ CREATE TABLE public.trip_events (
     photo_url text,
     remarks text,
     created_by_user_id bigint,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 
@@ -2651,9 +2658,9 @@ CREATE TABLE public.trip_tracking_links (
     dispatch_id bigint NOT NULL,
     customer_user_id bigint,
     customer_mobile character varying(20),
-    expires_at timestamp without time zone,
+    expires_at timestamp with time zone,
     status character varying(20) DEFAULT 'ACTIVE'::character varying NOT NULL,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 
@@ -2688,7 +2695,7 @@ CREATE TABLE public.user_activities (
     entity_type character varying(100),
     entity_id bigint,
     activity_data jsonb,
-    activity_timestamp timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    activity_timestamp timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 
@@ -2733,11 +2740,11 @@ CREATE TABLE public.user_addresses (
     gps_accuracy_meters numeric(8,2),
     location_source character varying(50),
     location_confirmed_by bigint,
-    location_confirmed_at timestamp without time zone,
+    location_confirmed_at timestamp with time zone,
     location public.geography(Point,4326),
     is_default boolean DEFAULT false,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
 );
 
 
@@ -2773,9 +2780,9 @@ CREATE TABLE public.user_notification_devices (
     platform character varying(50),
     app_version character varying(50),
     is_active boolean DEFAULT true NOT NULL,
-    last_seen_at timestamp without time zone,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    last_seen_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 
@@ -2800,7 +2807,7 @@ ALTER TABLE public.user_notification_devices ALTER COLUMN device_id ADD GENERATE
 CREATE TABLE public.user_roles (
     user_id bigint NOT NULL,
     role_id smallint NOT NULL,
-    assigned_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    assigned_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     assigned_by bigint
 );
 
@@ -2813,15 +2820,15 @@ CREATE TABLE public.user_sessions (
     session_id bigint NOT NULL,
     user_id bigint NOT NULL,
     session_token character varying(255),
-    login_time timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    last_activity_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    login_time timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    last_activity_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     session_status character varying(20) DEFAULT 'ACTIVE'::character varying,
     device_type character varying(50),
     os_name character varying(50),
     app_version character varying(50),
     ip_address character varying(100),
     user_agent text,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT ck_user_sessions_status CHECK (((session_status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'LOGGED_OUT'::character varying])::text[])))
 );
 
@@ -2858,8 +2865,8 @@ CREATE TABLE public.user_subscriptions (
     end_date date,
     subscription_status character varying(30) DEFAULT 'ACTIVE'::character varying,
     auto_renew boolean DEFAULT false,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT ck_user_subscriptions_status CHECK (((subscription_status)::text = ANY ((ARRAY['TRIAL'::character varying, 'ACTIVE'::character varying, 'PAUSED'::character varying, 'CANCELLED'::character varying, 'EXPIRED'::character varying])::text[])))
 );
 
@@ -2900,13 +2907,13 @@ CREATE TABLE public.users (
     email_verified boolean DEFAULT false,
     onboarding_completed boolean DEFAULT false NOT NULL,
     initial_activity character varying(30),
-    onboarding_completed_at timestamp without time zone,
+    onboarding_completed_at timestamp with time zone,
     gender public.gender_type,
     status character varying(20) DEFAULT 'ACTIVE'::character varying,
-    last_login_at timestamp without time zone,
-    deleted_at timestamp without time zone,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    last_login_at timestamp with time zone,
+    deleted_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     created_by bigint,
     updated_by bigint,
     suspension_reason text,
@@ -2949,7 +2956,7 @@ CREATE TABLE public.vehicle_locations (
     longitude numeric(10,7) NOT NULL,
     speed_kmph numeric(8,2),
     heading_degrees numeric(8,2),
-    recorded_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    recorded_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 
@@ -2983,7 +2990,7 @@ CREATE TABLE public.vehicle_tracking (
     dispatch_id bigint,
     latitude numeric(10,7) NOT NULL,
     longitude numeric(10,7) NOT NULL,
-    tracked_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    tracked_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     notes text
 );
 
@@ -3015,8 +3022,8 @@ CREATE TABLE public.vehicles (
     owner_name character varying(255),
     mobile character varying(20),
     status character varying(20) DEFAULT 'ACTIVE'::character varying,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT ck_vehicles_status CHECK (((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'INACTIVE'::character varying, 'MAINTENANCE'::character varying, 'RETIRED'::character varying])::text[])))
 );
 
@@ -5052,13 +5059,6 @@ CREATE INDEX idx_orders_manager ON public.orders USING btree (assigned_manager_u
 
 
 --
--- Name: idx_orders_nursery; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_orders_nursery ON public.orders USING btree (nursery_id);
-
-
---
 -- Name: idx_orders_quotation; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -6357,14 +6357,6 @@ ALTER TABLE ONLY public.orders
 
 
 --
--- Name: orders orders_nursery_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.orders
-    ADD CONSTRAINT orders_nursery_id_fkey FOREIGN KEY (nursery_id) REFERENCES public.nurseries(nursery_id);
-
-
---
 -- Name: orders orders_quotation_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6864,19 +6856,22 @@ ALTER TABLE ONLY public.vehicle_tracking
 -- PostgreSQL database dump complete
 --
 
-\unrestrict Yf9rZGMkfYOzvXcgijrCFKXS9bhQKQhImVvjm3hyXyidQbD2a6bA57IPWqHRaeN
+\unrestrict DTUWq13ac9CvRQoOUXG3v0f3GmUg9cC7LQgjUhzM6bZfUsykrHYgfdDQwt2l2Io
 
 
 --
 -- Applied migrations (greenroot-api internal/database/migrations)
 --
 
-INSERT INTO public.schema_migrations VALUES ('20260714_dispatch_driver_active_trip_index', '2026-10-17 07:49:52.677661', 'baseline');
-INSERT INTO public.schema_migrations VALUES ('20260715_driver_vehicle_fleet_sync', '2026-10-17 07:49:52.679921', 'baseline');
-INSERT INTO public.schema_migrations VALUES ('20260719_user_onboarding_state', '2026-10-17 07:49:52.680092', 'baseline');
-INSERT INTO public.schema_migrations VALUES ('20260725_order_documents_verifications', '2026-10-17 07:49:52.680236', 'baseline');
-INSERT INTO public.schema_migrations VALUES ('20261016_01_messaging_sms_email', '2026-10-17 07:49:52.680372', 'baseline');
-INSERT INTO public.schema_migrations VALUES ('20261016_02_fk_lookup_indexes', '2026-10-17 07:49:52.680541', 'baseline');
-INSERT INTO public.schema_migrations VALUES ('20261017_01_domain_constraints', '2026-10-17 13:01:12.147803', '8aeeb7eec7e8de96caa06cd6e39da246f1ea7f48d91050a56a010e7c664cea37');
-INSERT INTO public.schema_migrations VALUES ('20261017_02_payment_provider_unique', '2026-10-17 13:01:12.179894', '6d159a0e970830c886d6d33a225d5c932c491224f0deafdbe66be451607f7c04');
-INSERT INTO public.schema_migrations VALUES ('20261017_03_row_version', '2026-10-17 13:01:12.180022', 'dd184b75b38ced4cdeb927dbfaf84ab28fa5b5fb7e369c735f2e57b051494175');
+INSERT INTO public.schema_migrations VALUES ('20260714_dispatch_driver_active_trip_index', '2026-10-17 13:19:52.677661+05:30', 'baseline');
+INSERT INTO public.schema_migrations VALUES ('20260715_driver_vehicle_fleet_sync', '2026-10-17 13:19:52.679921+05:30', 'baseline');
+INSERT INTO public.schema_migrations VALUES ('20260719_user_onboarding_state', '2026-10-17 13:19:52.680092+05:30', 'baseline');
+INSERT INTO public.schema_migrations VALUES ('20260725_order_documents_verifications', '2026-10-17 13:19:52.680236+05:30', 'baseline');
+INSERT INTO public.schema_migrations VALUES ('20261016_01_messaging_sms_email', '2026-10-17 13:19:52.680372+05:30', 'baseline');
+INSERT INTO public.schema_migrations VALUES ('20261016_02_fk_lookup_indexes', '2026-10-17 13:19:52.680541+05:30', 'baseline');
+INSERT INTO public.schema_migrations VALUES ('20261017_01_domain_constraints', '2026-10-17 18:31:12.147803+05:30', '8aeeb7eec7e8de96caa06cd6e39da246f1ea7f48d91050a56a010e7c664cea37');
+INSERT INTO public.schema_migrations VALUES ('20261017_02_payment_provider_unique', '2026-10-17 18:31:12.179894+05:30', '6d159a0e970830c886d6d33a225d5c932c491224f0deafdbe66be451607f7c04');
+INSERT INTO public.schema_migrations VALUES ('20261017_03_row_version', '2026-10-17 18:31:12.180022+05:30', 'dd184b75b38ced4cdeb927dbfaf84ab28fa5b5fb7e369c735f2e57b051494175');
+INSERT INTO public.schema_migrations VALUES ('20261017_04_timestamptz', '2026-10-17 13:39:04.200278+05:30', '1c30e0fbefb72b1195029209a51c87414721d156c12763b692e59e85e705733b');
+INSERT INTO public.schema_migrations VALUES ('20261017_05_money_precision_currency', '2026-10-17 13:39:04.546609+05:30', '87db1495a875408c39aaed532d69a88a542ddbef9982c40c726a8e49662c5d94');
+INSERT INTO public.schema_migrations VALUES ('20261017_06_drop_orders_nursery_id', '2026-10-17 13:39:04.5498+05:30', 'ab2fd75f7613d5a5b483f3b185c0bbf48d9016b31a6e0c83bbcf984ae92e5cf1');

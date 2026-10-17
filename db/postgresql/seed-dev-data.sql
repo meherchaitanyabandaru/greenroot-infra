@@ -226,19 +226,19 @@ VALUES
 -- order_code uses DEFAULT next_public_code()
 -- ─────────────────────────────────────────────────────────────────────────────
 INSERT INTO public.orders
-  (order_id, order_number, nursery_id, seller_nursery_id,
+  (order_id, order_number, seller_nursery_id,
    buyer_user_id, customer_user_id, customer_name, customer_mobile,
    assigned_manager_user_id, created_by_user_id,
    order_status, total_amount, quotation_id)
 VALUES
   -- GreenLeaf Nursery orders
-  (1, 'GRN-ORD-001', 1, 1,  4,  4,  'Ravi Buyer',  '9300000000', 3, 4,  'PENDING',   5625.00, NULL),
-  (2, 'GRN-ORD-002', 1, 1,  4,  4,  'Ravi Buyer',  '9300000000', 3, 3,  'CONFIRMED', 9000.00, NULL),
-  (3, 'GRN-ORD-003', 1, 1,  8,  8,  'Meena Buyer', '9700000000', 3, 3,  'LOADING',   3200.00, NULL),
+  (1, 'GRN-ORD-001', 1,  4,  4,  'Ravi Buyer',  '9300000000', 3, 4,  'PENDING',   5625.00, NULL),
+  (2, 'GRN-ORD-002', 1,  4,  4,  'Ravi Buyer',  '9300000000', 3, 3,  'CONFIRMED', 9000.00, NULL),
+  (3, 'GRN-ORD-003', 1,  8,  8,  'Meena Buyer', '9700000000', 3, 3,  'LOADING',   3200.00, NULL),
   -- Order 4 was converted from quotation 4
-  (4, 'GRN-ORD-004', 1, 1,  10, 10, 'Arjun Buyer', '9900000000', 3, 3,  'COMPLETED', 12000.00, 4),
+  (4, 'GRN-ORD-004', 1,  10, 10, 'Arjun Buyer', '9900000000', 3, 3,  'COMPLETED', 12000.00, 4),
   -- Bloom Gardens order
-  (5, 'BLM-ORD-001', 2, 2,  8,  8,  'Meena Buyer', '9700000000', 7, 7,  'PENDING',   4500.00, NULL);
+  (5, 'BLM-ORD-001', 2,  8,  8,  'Meena Buyer', '9700000000', 7, 7,  'PENDING',   4500.00, NULL);
 
 SELECT setval('public.orders_order_id_seq', 5, true);
 
