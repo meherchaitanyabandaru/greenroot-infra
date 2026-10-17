@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict fapyAk8B8duwsDHBbkk0Lo4YWW2yl2DSlwQgIROMlw9YcN3tZijMW9bS4fiUyUQ
+\restrict UgYJm1vg2VwXhgytybQwh4JPI8kDJtf7aUkYlnQrclCkIecD3oCYiQtbXA0hvge
 
 -- Dumped from database version 17.10 (Homebrew)
 -- Dumped by pg_dump version 17.10 (Homebrew)
@@ -2083,7 +2083,8 @@ ALTER SEQUENCE public.roles_role_id_seq OWNED BY public.roles.role_id;
 
 CREATE TABLE public.schema_migrations (
     version text NOT NULL,
-    applied_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    applied_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    checksum character varying(64) DEFAULT 'baseline'::character varying NOT NULL
 );
 
 
@@ -6768,5 +6769,16 @@ ALTER TABLE ONLY public.vehicle_tracking
 -- PostgreSQL database dump complete
 --
 
-\unrestrict fapyAk8B8duwsDHBbkk0Lo4YWW2yl2DSlwQgIROMlw9YcN3tZijMW9bS4fiUyUQ
+\unrestrict UgYJm1vg2VwXhgytybQwh4JPI8kDJtf7aUkYlnQrclCkIecD3oCYiQtbXA0hvge
 
+
+--
+-- Applied migrations (greenroot-api internal/database/migrations)
+--
+
+INSERT INTO public.schema_migrations VALUES ('20260714_dispatch_driver_active_trip_index', '2026-10-17 07:49:52.677661', 'baseline');
+INSERT INTO public.schema_migrations VALUES ('20260715_driver_vehicle_fleet_sync', '2026-10-17 07:49:52.679921', 'baseline');
+INSERT INTO public.schema_migrations VALUES ('20260719_user_onboarding_state', '2026-10-17 07:49:52.680092', 'baseline');
+INSERT INTO public.schema_migrations VALUES ('20260725_order_documents_verifications', '2026-10-17 07:49:52.680236', 'baseline');
+INSERT INTO public.schema_migrations VALUES ('20261016_01_messaging_sms_email', '2026-10-17 07:49:52.680372', 'baseline');
+INSERT INTO public.schema_migrations VALUES ('20261016_02_fk_lookup_indexes', '2026-10-17 07:49:52.680541', 'baseline');
