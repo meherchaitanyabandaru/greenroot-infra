@@ -24,7 +24,6 @@ WHERE role_code IN ('ADMIN', 'SUPER_ADMIN');
 SELECT setval('public.users_user_id_seq', 1, true);
 SELECT setval('public.plants_plant_id_seq', (SELECT max(plant_id) FROM public.plants), true);
 SELECT setval('public.plant_categories_category_id_seq', (SELECT max(category_id) FROM public.plant_categories), true);
-SELECT setval('public.languages_language_id_seq', (SELECT max(language_id) FROM public.languages), true);
 SELECT setval('public.subscription_plans_plan_id_seq', (SELECT max(plan_id) FROM public.subscription_plans), true);
 
 -- Public code sequence sync

@@ -692,40 +692,6 @@ ALTER SEQUENCE public.invites_id_seq OWNED BY public.invites.invite_id;
 
 
 --
--- Name: languages; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.languages (
-    language_id smallint NOT NULL,
-    language_code character varying(10) NOT NULL,
-    language_name character varying(100) NOT NULL,
-    is_active boolean DEFAULT true NOT NULL,
-    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
-);
-
-
---
--- Name: languages_language_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.languages_language_id_seq
-    AS smallint
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: languages_language_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.languages_language_id_seq OWNED BY public.languages.language_id;
-
-
---
 -- Name: market_ad_reports; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1756,41 +1722,6 @@ CREATE SEQUENCE public.plant_images_image_id_seq
 --
 
 ALTER SEQUENCE public.plant_images_image_id_seq OWNED BY public.plant_images.image_id;
-
-
---
--- Name: plant_names; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.plant_names (
-    plant_name_id bigint NOT NULL,
-    plant_id bigint NOT NULL,
-    language_id smallint NOT NULL,
-    plant_name character varying(255) NOT NULL,
-    description text,
-    is_active boolean DEFAULT true NOT NULL,
-    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
-);
-
-
---
--- Name: plant_names_plant_name_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.plant_names_plant_name_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: plant_names_plant_name_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.plant_names_plant_name_id_seq OWNED BY public.plant_names.plant_name_id;
 
 
 --
@@ -3251,12 +3182,6 @@ ALTER TABLE ONLY public.invites ALTER COLUMN invite_id SET DEFAULT nextval('publ
 
 
 --
--- Name: languages language_id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.languages ALTER COLUMN language_id SET DEFAULT nextval('public.languages_language_id_seq'::regclass);
-
-
 --
 -- Name: market_ad_reports report_id; Type: DEFAULT; Schema: public; Owner: -
 --
@@ -3426,12 +3351,6 @@ ALTER TABLE ONLY public.plant_images ALTER COLUMN image_id SET DEFAULT nextval('
 
 
 --
--- Name: plant_names plant_name_id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.plant_names ALTER COLUMN plant_name_id SET DEFAULT nextval('public.plant_names_plant_name_id_seq'::regclass);
-
-
 --
 -- Name: plant_request_responses response_id; Type: DEFAULT; Schema: public; Owner: -
 --
@@ -3834,22 +3753,6 @@ ALTER TABLE ONLY public.invites
 
 
 --
--- Name: languages languages_language_code_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.languages
-    ADD CONSTRAINT languages_language_code_key UNIQUE (language_code);
-
-
---
--- Name: languages languages_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.languages
-    ADD CONSTRAINT languages_pkey PRIMARY KEY (language_id);
-
-
---
 -- Name: market_ad_reports market_ad_reports_ad_id_reported_by_user_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4231,22 +4134,6 @@ ALTER TABLE ONLY public.plant_category_mappings
 
 ALTER TABLE ONLY public.plant_images
     ADD CONSTRAINT plant_images_pkey PRIMARY KEY (image_id);
-
-
---
--- Name: plant_names plant_names_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.plant_names
-    ADD CONSTRAINT plant_names_pkey PRIMARY KEY (plant_name_id);
-
-
---
--- Name: plant_names plant_names_plant_id_language_id_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.plant_names
-    ADD CONSTRAINT plant_names_plant_id_language_id_key UNIQUE (plant_id, language_id);
 
 
 --
@@ -5289,20 +5176,6 @@ CREATE INDEX idx_plant_category_mappings_plant_id ON public.plant_category_mappi
 --
 
 CREATE INDEX idx_plant_images_plant ON public.plant_images USING btree (plant_id);
-
-
---
--- Name: idx_plant_names_language; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_plant_names_language ON public.plant_names USING btree (language_id);
-
-
---
--- Name: idx_plant_names_name; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_plant_names_name ON public.plant_names USING btree (plant_name);
 
 
 --
@@ -6588,22 +6461,6 @@ ALTER TABLE ONLY public.plant_category_mappings
 
 ALTER TABLE ONLY public.plant_images
     ADD CONSTRAINT plant_images_plant_id_fkey FOREIGN KEY (plant_id) REFERENCES public.plants(plant_id) ON DELETE CASCADE;
-
-
---
--- Name: plant_names plant_names_language_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.plant_names
-    ADD CONSTRAINT plant_names_language_id_fkey FOREIGN KEY (language_id) REFERENCES public.languages(language_id);
-
-
---
--- Name: plant_names plant_names_plant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.plant_names
-    ADD CONSTRAINT plant_names_plant_id_fkey FOREIGN KEY (plant_id) REFERENCES public.plants(plant_id) ON DELETE CASCADE;
 
 
 --

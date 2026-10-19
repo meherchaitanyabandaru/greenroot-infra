@@ -34,15 +34,6 @@ SELECT setval('public.plant_sizes_size_id_seq', (SELECT max(size_id) FROM public
 -- Plant categories: none. Admin → Categories lists the World Flora Online
 -- families in public.botanical_names instead.
 
--- Languages
-INSERT INTO public.languages (language_code, language_name, is_active) VALUES
-  ('en', 'English', true),
-  ('hi', 'Hindi',   true),
-  ('te', 'Telugu',  true),
-  ('ta', 'Tamil',   true),
-  ('kn', 'Kannada', true),
-  ('mr', 'Marathi', true);
-
 -- Platform config
 INSERT INTO public.platform_config (config_key, config_value, data_type, description) VALUES
   ('otp_expiry_minutes',      '5',    'integer', 'OTP validity window in minutes'),
@@ -101,7 +92,6 @@ INSERT INTO public.plants (scientific_name, common_name, plant_type, light_requi
 
 SELECT setval('public.plants_plant_id_seq', (SELECT max(plant_id) FROM public.plants), true);
 SELECT setval('public.plant_categories_category_id_seq', (SELECT max(category_id) FROM public.plant_categories), true);
-SELECT setval('public.languages_language_id_seq', (SELECT max(language_id) FROM public.languages), true);
 SELECT setval('public.subscription_plans_plan_id_seq', (SELECT max(plan_id) FROM public.subscription_plans), true);
 
 -- SMS / TRAI DLT registry. Everything starts DRAFT with no DLT IDs: fill pe_id,
