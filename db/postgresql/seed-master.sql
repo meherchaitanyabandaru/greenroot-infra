@@ -99,22 +99,23 @@ VALUES
    '{"support":"priority","analytics":"advanced","max_managers":null,"billing_cycles":["SIX_MONTH","YEARLY"],"unlimited_orders":true,"unlimited_quotations":true,"market_posts_per_day":null,"mrp_six_month":14999,"mrp_yearly":59999}'::jsonb);
 
 -- Plant catalogue
-INSERT INTO public.plants (scientific_name, common_name, plant_type, light_requirement, water_requirement, english_description, is_active) VALUES
-  ('Mangifera indica',         'Mango',           'TREE',    'FULL_SUN',    'HIGH',     'Popular tropical fruit tree.', true),
-  ('Azadirachta indica',       'Neem',            'TREE',    'FULL_SUN',    'LOW',      'Hardy medicinal shade tree.', true),
-  ('Hibiscus rosa-sinensis',   'Hibiscus',        'SHRUB',   'FULL_SUN',    'MODERATE', 'Flowering ornamental shrub.', true),
-  ('Cocos nucifera',           'Coconut',         'TREE',    'FULL_SUN',    'HIGH',     'Coastal palm producing coconuts.', true),
-  ('Moringa oleifera',         'Drumstick',       'TREE',    'FULL_SUN',    'LOW',      'Fast-growing edible tree.', true),
-  ('Ocimum tenuiflorum',       'Tulsi',           'HERB',    'FULL_SUN',    'MODERATE', 'Sacred basil and medicinal herb.', true),
-  ('Aloe vera',                'Aloe Vera',       'SHRUB',   'FULL_SUN',    'LOW',      'Low-maintenance succulent.', true),
-  ('Psidium guajava',          'Guava',           'TREE',    'FULL_SUN',    'MODERATE', 'Fast-fruiting tropical tree.', true),
-  ('Rosa indica',              'Rose',            'SHRUB',   'FULL_SUN',    'MODERATE', 'Classic flowering shrub.', true),
-  ('Catharanthus roseus',      'Periwinkle',      'HERB',    'FULL_SUN',    'MODERATE', 'Hardy flowering ground-cover.', true),
-  ('Ficus benjamina',          'Weeping Fig',     'TREE',    'PARTIAL_SUN', 'MODERATE', 'Popular indoor ornamental tree.', true),
-  ('Epipremnum aureum',        'Money Plant',     'CLIMBER', 'LOW_LIGHT',   'LOW',      'Easy indoor climber.', true),
-  ('Sansevieria trifasciata',  'Snake Plant',     'SHRUB',   'LOW_LIGHT',   'LOW',      'Hardy indoor plant.', true),
-  ('Plumeria rubra',           'Frangipani',      'TREE',    'FULL_SUN',    'LOW',      'Tropical fragrant flowering tree.', true),
-  ('Duranta erecta',           'Golden Dewdrop',  'SHRUB',   'FULL_SUN',    'MODERATE', 'Fast-growing ornamental shrub.', true);
+-- wfo_id: World Flora Online record for the exact scientific_name (public.botanical_names)
+INSERT INTO public.plants (scientific_name, common_name, plant_type, light_requirement, water_requirement, english_description, is_active, wfo_id) VALUES
+  ('Mangifera indica',         'Mango',           'TREE',    'FULL_SUN',    'HIGH',     'Popular tropical fruit tree.', true, 'wfo-0000371248'),
+  ('Azadirachta indica',       'Neem',            'TREE',    'FULL_SUN',    'LOW',      'Hardy medicinal shade tree.', true, 'wfo-0000557668'),
+  ('Hibiscus rosa-sinensis',   'Hibiscus',        'SHRUB',   'FULL_SUN',    'MODERATE', 'Flowering ornamental shrub.', true, 'wfo-0000723007'),
+  ('Cocos nucifera',           'Coconut',         'TREE',    'FULL_SUN',    'HIGH',     'Coastal palm producing coconuts.', true, 'wfo-0000903570'),
+  ('Moringa oleifera',         'Drumstick',       'TREE',    'FULL_SUN',    'LOW',      'Fast-growing edible tree.', true, 'wfo-0001085051'),
+  ('Ocimum tenuiflorum',       'Tulsi',           'HERB',    'FULL_SUN',    'MODERATE', 'Sacred basil and medicinal herb.', true, 'wfo-0000253537'),
+  ('Aloe vera',                'Aloe Vera',       'SHRUB',   'FULL_SUN',    'LOW',      'Low-maintenance succulent.', true, 'wfo-0000758976'),
+  ('Psidium guajava',          'Guava',           'TREE',    'FULL_SUN',    'MODERATE', 'Fast-fruiting tropical tree.', true, 'wfo-0000284421'),
+  ('Rosa indica',              'Rose',            'SHRUB',   'FULL_SUN',    'MODERATE', 'Classic flowering shrub.', true, 'wfo-0001014404'),
+  ('Catharanthus roseus',      'Periwinkle',      'HERB',    'FULL_SUN',    'MODERATE', 'Hardy flowering ground-cover.', true, 'wfo-0000819442'),
+  ('Ficus benjamina',          'Weeping Fig',     'TREE',    'PARTIAL_SUN', 'MODERATE', 'Popular indoor ornamental tree.', true, 'wfo-0000687511'),
+  ('Epipremnum aureum',        'Money Plant',     'CLIMBER', 'LOW_LIGHT',   'LOW',      'Easy indoor climber.', true, 'wfo-0000952367'),
+  ('Sansevieria trifasciata',  'Snake Plant',     'SHRUB',   'LOW_LIGHT',   'LOW',      'Hardy indoor plant.', true, 'wfo-0000734376'),
+  ('Plumeria rubra',           'Frangipani',      'TREE',    'FULL_SUN',    'LOW',      'Tropical fragrant flowering tree.', true, 'wfo-0000279184'),
+  ('Duranta erecta',           'Golden Dewdrop',  'SHRUB',   'FULL_SUN',    'MODERATE', 'Fast-growing ornamental shrub.', true, 'wfo-0000946828');
 
 INSERT INTO public.plant_category_mappings (plant_id, category_id, created_at)
 SELECT p.plant_id, c.category_id, CURRENT_TIMESTAMP

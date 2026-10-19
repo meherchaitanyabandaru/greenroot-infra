@@ -116,3 +116,22 @@ FROM pg_stat_user_tables ORDER BY pg_total_relation_size(relid) DESC LIMIT 10;
 Append-only tables: `audit_logs`, `security_audit_logs`, `user_activities`, `user_sessions`, `sms_messages`, `email_messages`, `vehicle_locations`. They are indexed by time today. **Partition by month when a table passes ~10 million rows** (declarative partitioning; detach and archive old partitions instead of deleting rows).
 
 Retention periods are a legal decision (DPDP Act 2023, TRAI record-keeping, tax law). **Owner action:** confirm one period per table and record it here before go-live. Until then nothing is deleted.
+
+## 6. Botanical names (World Flora Online)
+
+`public.botanical_names` holds every scientific plant name from the [WFO taxonomic backbone](https://www.worldfloraonline.org/downloadData): ~1.66 M rows (453 k accepted, 1.02 M synonyms, 182 k unchecked). It is reference data for validating names and mapping synonyms; the catalog stays in `public.plants`, linked by `plants.wfo_id`. Neither the 910 MB download nor the cleaned file is in git (`.gitignore`).
+
+Run once per database, after `migrate up`, from `greenroot-api`:
+
+```bash
+# 1. Put the WFO download at greenroot-infra/classification.csv (tab separated), then clean it.
+#    Keeps 8 columns, validates every row, writes greenroot-infra/db/seed-data/botanical_names.csv (~160 MB).
+go run ./cmd/botanicalnames clean
+
+# 2. Load in batches of 5000 (as greenroot_app; ~40 s locally).
+DATABASE_URL=... go run ./cmd/botanicalnames load
+```
+
+- **Resume:** each batch commits together with its row count in `public.import_checkpoints`. If the load stops (Ctrl-C, lost connection, container stop), run the same command again; it continues after the last committed row. Running it after it finished does nothing.
+- **New WFO release:** download, `clean`, then `load -restart`. Rows are upserted by `wfo_id`, so names already linked from `plants` keep their IDs.
+- **Licence:** WFO data requires attribution; check the terms on the WFO site before showing it in the apps.

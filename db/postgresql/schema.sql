@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict OAeLnbfEfA5rWgEOS9jj4Q6dXcUBGqAVtFGWLFoVRHfRHcTeFk2HTlu5NhYoomZ
+\restrict fCCSFUQeigWv912mJ23qFhGcZEoxT1zXwBdcgfhNeb3MRvFhu7FRQkVw56JyNl1
 
 -- Dumped from database version 17.10 (Homebrew)
 -- Dumped by pg_dump version 17.10 (Homebrew)
@@ -198,6 +198,44 @@ CREATE SEQUENCE public.audit_logs_audit_id_seq
 --
 
 ALTER SEQUENCE public.audit_logs_audit_id_seq OWNED BY public.audit_logs.audit_id;
+
+
+--
+-- Name: botanical_names; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.botanical_names (
+    botanical_name_id bigint NOT NULL,
+    wfo_id text NOT NULL,
+    scientific_name text NOT NULL,
+    authorship text,
+    taxon_rank text NOT NULL,
+    family text,
+    genus text,
+    status text NOT NULL,
+    accepted_wfo_id text,
+    CONSTRAINT ck_botanical_names_accepted CHECK (((status = 'SYNONYM'::text) OR (accepted_wfo_id IS NULL))),
+    CONSTRAINT ck_botanical_names_status CHECK ((status = ANY (ARRAY['ACCEPTED'::text, 'SYNONYM'::text, 'UNCHECKED'::text])))
+);
+
+
+--
+-- Name: botanical_names_botanical_name_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.botanical_names_botanical_name_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: botanical_names_botanical_name_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.botanical_names_botanical_name_id_seq OWNED BY public.botanical_names.botanical_name_id;
 
 
 --
@@ -553,6 +591,38 @@ CREATE SEQUENCE public.email_templates_email_template_id_seq
 --
 
 ALTER SEQUENCE public.email_templates_email_template_id_seq OWNED BY public.email_templates.email_template_id;
+
+
+--
+-- Name: import_checkpoints; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.import_checkpoints (
+    import_checkpoint_id bigint NOT NULL,
+    source_name text NOT NULL,
+    rows_done bigint DEFAULT 0 NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT ck_import_checkpoints_rows_done CHECK ((rows_done >= 0))
+);
+
+
+--
+-- Name: import_checkpoints_import_checkpoint_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.import_checkpoints_import_checkpoint_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: import_checkpoints_import_checkpoint_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.import_checkpoints_import_checkpoint_id_seq OWNED BY public.import_checkpoints.import_checkpoint_id;
 
 
 --
@@ -1894,7 +1964,8 @@ CREATE TABLE public.plants (
     english_description text,
     is_active boolean DEFAULT true NOT NULL,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    wfo_id text
 );
 
 
@@ -3151,6 +3222,13 @@ ALTER TABLE ONLY public.audit_logs ALTER COLUMN audit_id SET DEFAULT nextval('pu
 
 
 --
+-- Name: botanical_names botanical_name_id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.botanical_names ALTER COLUMN botanical_name_id SET DEFAULT nextval('public.botanical_names_botanical_name_id_seq'::regclass);
+
+
+--
 -- Name: client_crash_reports client_crash_report_id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -3197,6 +3275,13 @@ ALTER TABLE ONLY public.email_senders ALTER COLUMN sender_id SET DEFAULT nextval
 --
 
 ALTER TABLE ONLY public.email_templates ALTER COLUMN email_template_id SET DEFAULT nextval('public.email_templates_email_template_id_seq'::regclass);
+
+
+--
+-- Name: import_checkpoints import_checkpoint_id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.import_checkpoints ALTER COLUMN import_checkpoint_id SET DEFAULT nextval('public.import_checkpoints_import_checkpoint_id_seq'::regclass);
 
 
 --
@@ -3644,6 +3729,22 @@ ALTER TABLE ONLY public.audit_logs
 
 
 --
+-- Name: botanical_names botanical_names_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.botanical_names
+    ADD CONSTRAINT botanical_names_pkey PRIMARY KEY (botanical_name_id);
+
+
+--
+-- Name: botanical_names botanical_names_wfo_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.botanical_names
+    ADD CONSTRAINT botanical_names_wfo_id_key UNIQUE (wfo_id);
+
+
+--
 -- Name: client_crash_reports client_crash_reports_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3753,6 +3854,22 @@ ALTER TABLE ONLY public.email_templates
 
 ALTER TABLE ONLY public.email_templates
     ADD CONSTRAINT email_templates_template_code_key UNIQUE (template_code);
+
+
+--
+-- Name: import_checkpoints import_checkpoints_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.import_checkpoints
+    ADD CONSTRAINT import_checkpoints_pkey PRIMARY KEY (import_checkpoint_id);
+
+
+--
+-- Name: import_checkpoints import_checkpoints_source_name_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.import_checkpoints
+    ADD CONSTRAINT import_checkpoints_source_name_key UNIQUE (source_name);
 
 
 --
@@ -4758,6 +4875,20 @@ CREATE INDEX idx_audit_logs_user_id ON public.audit_logs USING btree (user_id) W
 
 
 --
+-- Name: idx_botanical_names_accepted_wfo_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_botanical_names_accepted_wfo_id ON public.botanical_names USING btree (accepted_wfo_id) WHERE (accepted_wfo_id IS NOT NULL);
+
+
+--
+-- Name: idx_botanical_names_scientific_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_botanical_names_scientific_name ON public.botanical_names USING btree (lower(scientific_name));
+
+
+--
 -- Name: idx_client_crash_reports_app_version; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5707,6 +5838,13 @@ CREATE UNIQUE INDEX uq_order_verifications_order_id ON public.order_verification
 --
 
 CREATE UNIQUE INDEX uq_payments_provider_payment ON public.payments USING btree (provider, provider_payment_id) WHERE (provider_payment_id IS NOT NULL);
+
+
+--
+-- Name: uq_plants_wfo_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_plants_wfo_id ON public.plants USING btree (wfo_id) WHERE (wfo_id IS NOT NULL);
 
 
 --
@@ -7070,7 +7208,7 @@ ALTER TABLE ONLY public.vehicle_tracking
 -- PostgreSQL database dump complete
 --
 
-\unrestrict OAeLnbfEfA5rWgEOS9jj4Q6dXcUBGqAVtFGWLFoVRHfRHcTeFk2HTlu5NhYoomZ
+\unrestrict fCCSFUQeigWv912mJ23qFhGcZEoxT1zXwBdcgfhNeb3MRvFhu7FRQkVw56JyNl1
 
 
 --
@@ -7093,3 +7231,4 @@ INSERT INTO public.schema_migrations VALUES ('20261017_07_ratings_table', '2026-
 INSERT INTO public.schema_migrations VALUES ('20261017_08_naming_convention', '2026-10-17 13:58:58.387301+05:30', '4123c46d860241ec2e5d5d5178b013a679aa063a0a43405390cdf1b4b7880eaa');
 INSERT INTO public.schema_migrations VALUES ('20261017_09_constraint_index_names', '2026-10-17 13:58:58.409355+05:30', 'f34d3da934a380ba43ce938d67974bc26c6ebe57ffdae55ddf3ca185046273c1');
 INSERT INTO public.schema_migrations VALUES ('20261017_10_client_crash_reports', '2026-10-17 16:49:43.593747+05:30', 'd45bff4742e087c9d92db61979326e1658502365257645592d2967b3adf428f6');
+INSERT INTO public.schema_migrations VALUES ('20261019_01_botanical_names', '2026-10-19 12:02:35.355175+05:30', '08d4f83d04a293811c8808a4e5aeddb97a3e772889df71f207f9c3838aa788a1');

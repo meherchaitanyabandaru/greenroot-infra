@@ -31,3 +31,8 @@ temp/
 .vscode/
 *.swp
 *.swo
+
+# World Flora Online source download and the cleaned seed made from it
+# (large; regenerate with greenroot-api cmd/botanicalnames clean)
+classification.csv
+db/seed-data/
