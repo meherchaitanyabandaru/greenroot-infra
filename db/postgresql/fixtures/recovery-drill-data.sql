@@ -7,7 +7,7 @@
 -- Dev data is created through the API instead (business rules apply):
 --   scripts/dev-data/seed_dev_data.py
 -- =============================================================================
--- Adds: 9 users, 2 nurseries, 2 vehicles, 2 drivers, 12 inventory items,
+-- Adds: 9 users, 2 nurseries, 2 vehicles, 2 drivers, 12 top items,
 --       6 quotations, 5 orders, 2 dispatches, 8 market ads
 --
 -- Dev login: mobile + OTP 123456 (same for all users)
@@ -136,28 +136,28 @@ VALUES
   (2, 7, 'MANAGER', 'ACTIVE', true);   -- Suresh manages Bloom Gardens
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- NURSERY INVENTORY
+-- NURSERY TOP ITEMS
 -- plant_ids (from seed-master): 1=Mango 2=Neem 3=Hibiscus 5=Drumstick
 --   6=Tulsi 7=Aloe Vera 8=Guava 9=Rose 11=Weeping Fig 12=Money Plant 13=Snake Plant
 -- size_ids: 1=Seed 2=Sapling 3=Small 4=Medium 5=Large
 -- ─────────────────────────────────────────────────────────────────────────────
-INSERT INTO public.nursery_inventory
-  (nursery_id, plant_id, size_id, available_quantity, status, last_updated_by_user_id)
+INSERT INTO public.nursery_top_items
+  (nursery_id, plant_id, size_id, unit_price, display_order, updated_by_user_id)
 VALUES
   -- GreenLeaf Nursery (nursery 1)
-  (1, 1,  2,  50, 'AVAILABLE', 2),   -- Mango Sapling
-  (1, 1,  3,  30, 'AVAILABLE', 2),   -- Mango Small
-  (1, 2,  3, 100, 'AVAILABLE', 2),   -- Neem Small
-  (1, 3,  3, 200, 'AVAILABLE', 2),   -- Hibiscus Small
-  (1, 5,  2,  75, 'AVAILABLE', 2),   -- Drumstick Sapling
-  (1, 6,  1, 500, 'AVAILABLE', 2),   -- Tulsi Seed
-  (1, 7,  3, 150, 'AVAILABLE', 2),   -- Aloe Vera Small
-  (1, 8,  2,  40, 'AVAILABLE', 2),   -- Guava Sapling
+  (1, 1, 2, NULL, 0, 2),   -- Mango Sapling
+  (1, 1, 3, NULL, 1, 2),   -- Mango Small
+  (1, 2, 3, NULL, 2, 2),   -- Neem Small
+  (1, 3, 3, NULL, 3, 2),   -- Hibiscus Small
+  (1, 5, 2, NULL, 4, 2),   -- Drumstick Sapling
+  (1, 6, 1, NULL, 5, 2),   -- Tulsi Seed
+  (1, 7, 3, NULL, 6, 2),   -- Aloe Vera Small
+  (1, 8, 2, NULL, 7, 2),   -- Guava Sapling
   -- Bloom Gardens (nursery 2)
-  (2, 12, 3, 300, 'AVAILABLE', 6),   -- Money Plant Small
-  (2, 13, 3, 100, 'AVAILABLE', 6),   -- Snake Plant Small
-  (2, 11, 4,  50, 'AVAILABLE', 6),   -- Weeping Fig Medium
-  (2, 9,  3, 200, 'AVAILABLE', 6);   -- Rose Small
+  (2, 12, 3, NULL, 0, 6),   -- Money Plant Small
+  (2, 13, 3, NULL, 1, 6),   -- Snake Plant Small
+  (2, 11, 4, NULL, 2, 6),   -- Weeping Fig Medium
+  (2, 9, 3, NULL, 3, 6);   -- Rose Small
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- QUOTATIONS (IDs 1–6)
@@ -405,7 +405,7 @@ SELECT
   (SELECT count(*) FROM public.drivers)           AS drivers,
   (SELECT count(*) FROM public.vehicles)          AS vehicles,
   (SELECT count(*) FROM public.nursery_users)     AS nursery_users,
-  (SELECT count(*) FROM public.nursery_inventory) AS inventory_items,
+  (SELECT count(*) FROM public.nursery_top_items) AS top_items,
   (SELECT count(*) FROM public.quotations)        AS quotations,
   (SELECT count(*) FROM public.orders)            AS orders,
   (SELECT count(*) FROM public.dispatches)        AS dispatches,

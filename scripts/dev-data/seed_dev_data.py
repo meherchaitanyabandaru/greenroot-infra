@@ -3,7 +3,7 @@
 
 Every row goes through the same business rules as the apps: sign-up, nursery
 approval (which creates the trial subscription), manager and driver invites,
-plants picked from the World Flora Online names, stock, a quotation that
+plants picked from the World Flora Online names, top items, a quotation that
 becomes an order, loading, a driver's trip, payment, a cancelled order, the
 local market (ad, enquiry, reply, report). Each step is checked; the script
 stops at the first rule that does not hold.
@@ -89,7 +89,7 @@ _, n = call("POST", "/nurseries", owner, {
 }, expect=201)
 nursery_id = n["nursery"]["id"]
 step("new nursery waits for approval (PENDING)", n["nursery"]["status"] == "PENDING", n)
-call("POST", "/inventory", owner, {"nursery_id": nursery_id, "plant_id": 1, "size_id": 2, "available_quantity": 1}, expect=(402, 403))
+call("POST", "/top-items", owner, {"nursery_id": nursery_id, "plant_id": 1, "size_id": 2}, expect=(402, 403))
 call("PUT", f"/nurseries/{nursery_id}/status", admin, {"status": "APPROVED"}, expect=200)
 owner = refresh("9100000000")  # token now carries NURSERY_OWNER
 _, subs = call("GET", "/subscriptions/me", owner, expect=200)
@@ -114,12 +114,12 @@ driver = login("9400000000")
 profile(driver, "Raju", "Driver", "DRIVER")
 
 print("\n── Plants: pick from 16.6 lakh names; nothing typed by hand ──")
-stock = [("mango", "Mangifera indica", None), ("neem", "Azadirachta indica", None),
+picks = [("mango", "Mangifera indica", None), ("neem", "Azadirachta indica", None),
          ("cumini", "Syzygium cumini", "Jamun (Neredu)"), ("zapota", "Manilkara zapota", "Sapota (Chikoo)"),
          ("guajava", "Psidium guajava", None), ("granatum", "Punica granatum", "Pomegranate"),
          ("tamarindus indica", "Tamarindus indica", "Tamarind")]
 plant_ids = {}
-for query, sci, english in stock:
+for query, sci, english in picks:
     _, res = call("GET", "/plants/lookup?" + urllib.parse.urlencode({"q": query}), owner, expect=200)
     match = next((r for r in res["results"] if (r.get("plant") or r.get("name"))["scientific_name"] == sci), None)
     step(f"lookup '{query}' offers {sci}", match is not None, res["results"][:3])
@@ -137,17 +137,15 @@ step("old name Eugenia cumini → the same Jamun plant", body["plant"]["id"] == 
 _, body = call("GET", "/plants/lookup?" + urllib.parse.urlencode({"q": "jamun"}), buyer, expect=200)
 step("English name 'jamun' now finds Syzygium cumini", body["results"] and body["results"][0]["plant"]["id"] == plant_ids["Syzygium cumini"], body["results"][:1])
 
-print("\n── Inventory ──")
+print("\n── Top items (the nursery's showcase, not stock) ──")
 _, sizes = call("GET", "/plants/sizes", expect=200)
 size = {s["size_code"]: s["id"] for s in sizes["sizes"]}
 for i, (sci, pid) in enumerate(plant_ids.items()):
-    call("POST", "/inventory", owner, {"nursery_id": nursery_id, "plant_id": pid, "size_id": size["SAPLING"] if "SAPLING" in size else list(size.values())[1],
-                                       "available_quantity": 50 + 10 * i, "inventory_status": "AVAILABLE"}, expect=201)
-_, invlist = call("GET", f"/inventory?nursery_id={nursery_id}", manager, expect=200)
-step("manager sees the nursery's 7 stock lines", len(invlist["inventory"]) == 7, invlist)
-
-print("\n── Featured plants and local market ──")
-call("POST", f"/nurseries/{nursery_id}/featured-plants", owner, {"plant_id": plant_ids["Syzygium cumini"], "display_order": 1}, expect=201)
+    call("POST", "/top-items", owner if i % 2 == 0 else manager,
+         {"nursery_id": nursery_id, "plant_id": pid, "size_id": size["SAPLING"], "unit_price": 80 + 20 * i,
+          "quality_notes": "Grafted, healthy roots" if sci == "Mangifera indica" else None}, expect=201)
+_, top = call("GET", f"/nurseries/{nursery_id}/top-items", buyer, expect=200)
+step("the nursery shows its 7 top items in order", [t["display_order"] for t in top["top_items"]] == list(range(7)), top)
 
 print("\n── Trading ──")
 _, me = call("GET", "/users/me", manager, expect=200); manager_id = me["user"]["id"]

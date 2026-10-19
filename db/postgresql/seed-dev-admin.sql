@@ -33,7 +33,7 @@ DELETE FROM public.public_code_sequences;
 INSERT INTO public.public_code_sequences (code_key, date_key, last_value) VALUES
   ('users',                 '', 1),
   ('nurseries',             '', 0),
-  ('nursery_inventory',     '', 0),
+  ('nursery_top_items',     '', 0),
   ('nursery_applications',  '', 0),
   ('drivers',               '', 0),
   ('vehicles',              '', 0),

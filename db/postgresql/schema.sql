@@ -1234,71 +1234,41 @@ ALTER SEQUENCE public.nursery_drivers_id_seq OWNED BY public.nursery_drivers.nur
 
 
 --
--- Name: nursery_featured_plants; Type: TABLE; Schema: public; Owner: -
+-- Name: nursery_top_items; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.nursery_featured_plants (
-    featured_id bigint NOT NULL,
-    nursery_id bigint NOT NULL,
-    plant_id bigint NOT NULL,
-    display_order smallint DEFAULT 1 NOT NULL,
-    approximate_quantity integer,
-    approximate_size character varying(50),
-    quality_notes text,
-    photos jsonb DEFAULT '[]'::jsonb NOT NULL,
-    is_active boolean DEFAULT true NOT NULL,
-    added_by_user_id bigint,
-    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT ck_nursery_featured_plants_display_order CHECK (((display_order >= 1) AND (display_order <= 20)))
-);
-
-
---
--- Name: nursery_featured_plants_featured_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.nursery_featured_plants_featured_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: nursery_featured_plants_featured_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.nursery_featured_plants_featured_id_seq OWNED BY public.nursery_featured_plants.featured_id;
-
-
---
--- Name: nursery_inventory; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.nursery_inventory (
-    inventory_id bigint NOT NULL,
-    inventory_code character varying(20) DEFAULT public.next_public_code('nursery_inventory'::text, 'INV'::text, 6, false) NOT NULL,
+CREATE TABLE public.nursery_top_items (
+    top_item_id bigint NOT NULL,
+    top_item_code character varying(20) DEFAULT public.next_public_code('nursery_top_items'::text, 'TOP'::text, 6, false) NOT NULL,
     nursery_id bigint NOT NULL,
     plant_id bigint NOT NULL,
     size_id smallint NOT NULL,
-    available_quantity integer DEFAULT 0 NOT NULL,
-    status character varying(20) DEFAULT 'AVAILABLE'::character varying NOT NULL,
-    last_updated_by_user_id bigint,
-    last_updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    unit_price numeric(15,2),
+    display_order smallint DEFAULT 0 NOT NULL,
+    updated_by_user_id bigint,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     version bigint DEFAULT 1 NOT NULL,
-    CONSTRAINT ck_nursery_inventory_quantity CHECK ((available_quantity >= 0)),
-    CONSTRAINT ck_nursery_inventory_status CHECK (((status)::text = ANY (ARRAY[('AVAILABLE'::character varying)::text, ('LOW_STOCK'::character varying)::text, ('OUT_OF_STOCK'::character varying)::text, ('RESERVED'::character varying)::text, ('DISCONTINUED'::character varying)::text])))
+    quality_notes text,
+    photos jsonb DEFAULT '[]'::jsonb NOT NULL,
+    CONSTRAINT ck_nursery_top_items_display_order CHECK ((display_order >= 0)),
+    CONSTRAINT ck_nursery_top_items_photos CHECK (((jsonb_typeof(photos) = 'array'::text) AND (jsonb_array_length(photos) <= 5))),
+    CONSTRAINT ck_nursery_top_items_price CHECK (((unit_price IS NULL) OR (unit_price >= (0)::numeric)))
 );
 
 
 --
--- Name: nursery_inventory_inventory_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: TABLE nursery_top_items; Type: COMMENT; Schema: public; Owner: -
 --
 
-CREATE SEQUENCE public.nursery_inventory_inventory_id_seq
+COMMENT ON TABLE public.nursery_top_items IS 'A nursery''s showcase: up to 20 plants (with size and an optional indicative price) it is known for. Not stock — nothing reduces it.';
+
+
+--
+-- Name: nursery_top_items_top_item_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.nursery_top_items_top_item_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -1307,10 +1277,10 @@ CREATE SEQUENCE public.nursery_inventory_inventory_id_seq
 
 
 --
--- Name: nursery_inventory_inventory_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: nursery_top_items_top_item_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
-ALTER SEQUENCE public.nursery_inventory_inventory_id_seq OWNED BY public.nursery_inventory.inventory_id;
+ALTER SEQUENCE public.nursery_top_items_top_item_id_seq OWNED BY public.nursery_top_items.top_item_id;
 
 
 --
@@ -3372,17 +3342,10 @@ ALTER TABLE ONLY public.nursery_drivers ALTER COLUMN nursery_driver_id SET DEFAU
 
 
 --
--- Name: nursery_featured_plants featured_id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: nursery_top_items top_item_id; Type: DEFAULT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.nursery_featured_plants ALTER COLUMN featured_id SET DEFAULT nextval('public.nursery_featured_plants_featured_id_seq'::regclass);
-
-
---
--- Name: nursery_inventory inventory_id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.nursery_inventory ALTER COLUMN inventory_id SET DEFAULT nextval('public.nursery_inventory_inventory_id_seq'::regclass);
+ALTER TABLE ONLY public.nursery_top_items ALTER COLUMN top_item_id SET DEFAULT nextval('public.nursery_top_items_top_item_id_seq'::regclass);
 
 
 --
@@ -4079,43 +4042,27 @@ ALTER TABLE ONLY public.nursery_drivers
 
 
 --
--- Name: nursery_featured_plants nursery_featured_plants_nursery_id_plant_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: nursery_top_items nursery_top_items_nursery_id_plant_id_size_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.nursery_featured_plants
-    ADD CONSTRAINT nursery_featured_plants_nursery_id_plant_id_key UNIQUE (nursery_id, plant_id);
-
-
---
--- Name: nursery_featured_plants nursery_featured_plants_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.nursery_featured_plants
-    ADD CONSTRAINT nursery_featured_plants_pkey PRIMARY KEY (featured_id);
+ALTER TABLE ONLY public.nursery_top_items
+    ADD CONSTRAINT nursery_top_items_nursery_id_plant_id_size_id_key UNIQUE (nursery_id, plant_id, size_id);
 
 
 --
--- Name: nursery_inventory nursery_inventory_inventory_code_key; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: nursery_top_items nursery_top_items_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.nursery_inventory
-    ADD CONSTRAINT nursery_inventory_inventory_code_key UNIQUE (inventory_code);
-
-
---
--- Name: nursery_inventory nursery_inventory_nursery_id_plant_id_size_id_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.nursery_inventory
-    ADD CONSTRAINT nursery_inventory_nursery_id_plant_id_size_id_key UNIQUE (nursery_id, plant_id, size_id);
+ALTER TABLE ONLY public.nursery_top_items
+    ADD CONSTRAINT nursery_top_items_pkey PRIMARY KEY (top_item_id);
 
 
 --
--- Name: nursery_inventory nursery_inventory_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: nursery_top_items nursery_top_items_top_item_code_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.nursery_inventory
-    ADD CONSTRAINT nursery_inventory_pkey PRIMARY KEY (inventory_id);
+ALTER TABLE ONLY public.nursery_top_items
+    ADD CONSTRAINT nursery_top_items_top_item_code_key UNIQUE (top_item_code);
 
 
 --
@@ -5170,38 +5117,17 @@ CREATE INDEX idx_nursery_drivers_nursery ON public.nursery_drivers USING btree (
 
 
 --
--- Name: idx_nursery_featured_plants_nursery_id_display_order; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_nursery_top_items_nursery_order; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_nursery_featured_plants_nursery_id_display_order ON public.nursery_featured_plants USING btree (nursery_id, display_order);
-
-
---
--- Name: idx_nursery_featured_plants_plant_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_nursery_featured_plants_plant_id ON public.nursery_featured_plants USING btree (plant_id);
+CREATE INDEX idx_nursery_top_items_nursery_order ON public.nursery_top_items USING btree (nursery_id, display_order);
 
 
 --
--- Name: idx_nursery_inventory_nursery_id; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_nursery_top_items_plant_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_nursery_inventory_nursery_id ON public.nursery_inventory USING btree (nursery_id);
-
-
---
--- Name: idx_nursery_inventory_plant_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_nursery_inventory_plant_id ON public.nursery_inventory USING btree (plant_id);
-
-
---
--- Name: idx_nursery_inventory_status; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_nursery_inventory_status ON public.nursery_inventory USING btree (status);
+CREATE INDEX idx_nursery_top_items_plant_id ON public.nursery_top_items USING btree (plant_id);
 
 
 --
@@ -5877,10 +5803,10 @@ CREATE TRIGGER trg_dispatches_version BEFORE UPDATE ON public.dispatches FOR EAC
 
 
 --
--- Name: nursery_inventory trg_nursery_inventory_version; Type: TRIGGER; Schema: public; Owner: -
+-- Name: nursery_top_items trg_nursery_top_items_version; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER trg_nursery_inventory_version BEFORE UPDATE ON public.nursery_inventory FOR EACH ROW EXECUTE FUNCTION public.bump_row_version();
+CREATE TRIGGER trg_nursery_top_items_version BEFORE UPDATE ON public.nursery_top_items FOR EACH ROW EXECUTE FUNCTION public.bump_row_version();
 
 
 --
@@ -6393,59 +6319,35 @@ ALTER TABLE ONLY public.nursery_drivers
 
 
 --
--- Name: nursery_featured_plants nursery_featured_plants_added_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: nursery_top_items nursery_top_items_nursery_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.nursery_featured_plants
-    ADD CONSTRAINT nursery_featured_plants_added_by_fkey FOREIGN KEY (added_by_user_id) REFERENCES public.users(user_id) ON DELETE SET NULL;
-
-
---
--- Name: nursery_featured_plants nursery_featured_plants_nursery_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.nursery_featured_plants
-    ADD CONSTRAINT nursery_featured_plants_nursery_id_fkey FOREIGN KEY (nursery_id) REFERENCES public.nurseries(nursery_id);
+ALTER TABLE ONLY public.nursery_top_items
+    ADD CONSTRAINT nursery_top_items_nursery_id_fkey FOREIGN KEY (nursery_id) REFERENCES public.nurseries(nursery_id) ON DELETE CASCADE;
 
 
 --
--- Name: nursery_featured_plants nursery_featured_plants_plant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: nursery_top_items nursery_top_items_plant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.nursery_featured_plants
-    ADD CONSTRAINT nursery_featured_plants_plant_id_fkey FOREIGN KEY (plant_id) REFERENCES public.plants(plant_id);
-
-
---
--- Name: nursery_inventory nursery_inventory_last_updated_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.nursery_inventory
-    ADD CONSTRAINT nursery_inventory_last_updated_by_fkey FOREIGN KEY (last_updated_by_user_id) REFERENCES public.users(user_id);
+ALTER TABLE ONLY public.nursery_top_items
+    ADD CONSTRAINT nursery_top_items_plant_id_fkey FOREIGN KEY (plant_id) REFERENCES public.plants(plant_id);
 
 
 --
--- Name: nursery_inventory nursery_inventory_nursery_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: nursery_top_items nursery_top_items_size_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.nursery_inventory
-    ADD CONSTRAINT nursery_inventory_nursery_id_fkey FOREIGN KEY (nursery_id) REFERENCES public.nurseries(nursery_id) ON DELETE CASCADE;
-
-
---
--- Name: nursery_inventory nursery_inventory_plant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.nursery_inventory
-    ADD CONSTRAINT nursery_inventory_plant_id_fkey FOREIGN KEY (plant_id) REFERENCES public.plants(plant_id);
+ALTER TABLE ONLY public.nursery_top_items
+    ADD CONSTRAINT nursery_top_items_size_id_fkey FOREIGN KEY (size_id) REFERENCES public.plant_sizes(size_id);
 
 
 --
--- Name: nursery_inventory nursery_inventory_size_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: nursery_top_items nursery_top_items_updated_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.nursery_inventory
-    ADD CONSTRAINT nursery_inventory_size_id_fkey FOREIGN KEY (size_id) REFERENCES public.plant_sizes(size_id);
+ALTER TABLE ONLY public.nursery_top_items
+    ADD CONSTRAINT nursery_top_items_updated_by_user_id_fkey FOREIGN KEY (updated_by_user_id) REFERENCES public.users(user_id);
 
 
 --
