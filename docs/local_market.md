@@ -62,7 +62,9 @@ The domain is **`market`** across all layers:
 | `message` | TEXT | Initial enquiry message |
 | `quantity_needed` | INTEGER | Optional |
 | `status` | VARCHAR | See status machine below |
-| `quotation_id` | BIGINT FK | Set when enquiry leads to a quotation |
+| `agreed_price_per_unit`, `agreed_quantity`, `agreed_at` | NUMERIC / INTEGER / TIMESTAMPTZ | Set when an offer is accepted |
+
+`market_enquiry_messages` also carries `message_type` (`TEXT`/`OFFER`/`SYSTEM`), `offer_price_per_unit`, `offer_quantity`, `offer_status` (`PENDING`/`ACCEPTED`/`DECLINED`/`WITHDRAWN`).
 
 ---
 
@@ -83,15 +85,15 @@ DRAFT → PUBLISHED → PAUSED → EXPIRED → ARCHIVED
 
 **Enquiry status**
 ```
-NEW → IN_PROGRESS → QUOTATION_CREATED → CLOSED
-                                      ↘ CANCELLED
+NEW → IN_PROGRESS → DEAL_AGREED → CLOSED (seller)
+  ↘──────────↘─────────────↘──→ CANCELLED (buyer)
 ```
 
 | Status | Meaning |
 |---|---|
-| `NEW` | Sent, not yet viewed by ad nursery |
-| `IN_PROGRESS` | Ad nursery is engaging |
-| `QUOTATION_CREATED` | A quotation was generated from this enquiry |
+| `NEW` | Sent; the seller has not written yet |
+| `IN_PROGRESS` | The seller has replied or offered |
+| `DEAL_AGREED` | An offer was accepted; chat stays open for pickup |
 | `CLOSED` | Deal done or manually closed |
 | `CANCELLED` | Cancelled by enquiring nursery |
 
@@ -110,10 +112,13 @@ NEW → IN_PROGRESS → QUOTATION_CREATED → CLOSED
 - Ads are soft-deleted via ARCHIVED status — never hard-deleted.
 - A nursery cannot enquire on its own ad.
 
-**Enquiries**
-- One enquiry per (ad, enquiring nursery). Unique constraint enforced in DB.
-- Both parties can send messages in the `market_enquiry_messages` thread.
-- When an enquiry leads to a quotation, `quotation_id` is set and status → `QUOTATION_CREATED`.
+**Chat (enquiry)**
+- The enquiry *is* the chat: one per (ad, enquiring nursery), unique in the DB. The ad's `my_enquiry_id` tells the viewer to open their existing chat instead of starting a new one.
+- Both nurseries' owners and managers write in `market_enquiry_messages`. A message is `TEXT`, `OFFER` or `SYSTEM`.
+- **Bargaining:** either side posts an offer (`price_per_unit`, optional `quantity` ≤ the ad's quantity). A new offer marks the chat's pending one `WITHDRAWN` (at most one `PENDING` per chat, unique index). The other nursery accepts or declines; accepting sets `DEAL_AGREED` with `agreed_price_per_unit`, `agreed_quantity`, `agreed_at` and posts a SYSTEM "Deal agreed" note. No offers after a deal; text stays open to arrange pickup.
+- **Read-only:** nobody can write (409 `conflict`, `capabilities.read_only_reason` says why) once the chat is CLOSED or CANCELLED, or while its ad is not PUBLISHED (paused, expired, archived). Resuming the ad reopens it.
+- Only the seller closes; only the enquiring nursery cancels; both only while the chat is open.
+- No quotation link: deals happen in the chat (the old `link-quotation` route and `quotation_id` were removed 2026-10-19).
 
 **Moderation**
 - Any nursery can report an ad (`market_ad_reports`).
@@ -166,5 +171,7 @@ GET    /market/enquiries/:id                 Enquiry detail + messages
 POST   /market/enquiries/:id/reply           Send message in thread
 POST   /market/enquiries/:id/close           Close enquiry
 POST   /market/enquiries/:id/cancel          Cancel enquiry
-POST   /market/enquiries/:id/link-quotation  Link to quotation
+POST   /market/enquiries/:id/offers                          Make an offer (either side)
+POST   /market/enquiries/:id/offers/:messageId/accept        Accept the other side's pending offer
+POST   /market/enquiries/:id/offers/:messageId/decline       Decline it
 ```

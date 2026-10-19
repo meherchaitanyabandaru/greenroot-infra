@@ -795,15 +795,25 @@ CREATE TABLE public.market_enquiries (
     message text NOT NULL,
     quantity_needed integer,
     status character varying(25) DEFAULT 'NEW'::character varying NOT NULL,
-    quotation_id bigint,
     viewed_at timestamp with time zone,
     replied_at timestamp with time zone,
     closed_at timestamp with time zone,
     cancelled_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT ck_market_enquiries_status CHECK (((status)::text = ANY (ARRAY[('NEW'::character varying)::text, ('IN_PROGRESS'::character varying)::text, ('QUOTATION_CREATED'::character varying)::text, ('CLOSED'::character varying)::text, ('CANCELLED'::character varying)::text])))
+    agreed_price_per_unit numeric(12,2),
+    agreed_quantity integer,
+    agreed_at timestamp with time zone,
+    CONSTRAINT ck_market_enquiries_deal CHECK (((((status)::text = 'DEAL_AGREED'::text) = (agreed_at IS NOT NULL)) OR ((status)::text = ANY ((ARRAY['CLOSED'::character varying, 'CANCELLED'::character varying])::text[])))),
+    CONSTRAINT ck_market_enquiries_status CHECK (((status)::text = ANY ((ARRAY['NEW'::character varying, 'IN_PROGRESS'::character varying, 'DEAL_AGREED'::character varying, 'CLOSED'::character varying, 'CANCELLED'::character varying])::text[])))
 );
+
+
+--
+-- Name: COLUMN market_enquiries.agreed_price_per_unit; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.market_enquiries.agreed_price_per_unit IS 'Price both nurseries agreed through an accepted offer';
 
 
 --
@@ -835,8 +845,22 @@ CREATE TABLE public.market_enquiry_messages (
     sent_by_user_id bigint NOT NULL,
     sent_by_nursery_id bigint NOT NULL,
     body text NOT NULL,
-    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    message_type character varying(10) DEFAULT 'TEXT'::character varying NOT NULL,
+    offer_price_per_unit numeric(12,2),
+    offer_quantity integer,
+    offer_status character varying(10),
+    CONSTRAINT ck_market_enquiry_messages_offer CHECK (((((message_type)::text = 'OFFER'::text) = ((offer_price_per_unit IS NOT NULL) AND (offer_status IS NOT NULL))) AND ((offer_price_per_unit IS NULL) OR (offer_price_per_unit > (0)::numeric)) AND ((offer_quantity IS NULL) OR (offer_quantity > 0)))),
+    CONSTRAINT ck_market_enquiry_messages_offer_status CHECK (((offer_status)::text = ANY ((ARRAY['PENDING'::character varying, 'ACCEPTED'::character varying, 'DECLINED'::character varying, 'WITHDRAWN'::character varying])::text[]))),
+    CONSTRAINT ck_market_enquiry_messages_type CHECK (((message_type)::text = ANY ((ARRAY['TEXT'::character varying, 'OFFER'::character varying, 'SYSTEM'::character varying])::text[])))
 );
+
+
+--
+-- Name: COLUMN market_enquiry_messages.offer_status; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.market_enquiry_messages.offer_status IS 'PENDING until the other nursery accepts or declines; WITHDRAWN when a newer offer replaces it';
 
 
 --
@@ -3182,7 +3206,6 @@ ALTER TABLE ONLY public.invites ALTER COLUMN invite_id SET DEFAULT nextval('publ
 
 
 --
---
 -- Name: market_ad_reports report_id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -3350,7 +3373,6 @@ ALTER TABLE ONLY public.plant_categories ALTER COLUMN category_id SET DEFAULT ne
 ALTER TABLE ONLY public.plant_images ALTER COLUMN image_id SET DEFAULT nextval('public.plant_images_image_id_seq'::regclass);
 
 
---
 --
 -- Name: plant_request_responses response_id; Type: DEFAULT; Schema: public; Owner: -
 --
@@ -5592,6 +5614,13 @@ CREATE UNIQUE INDEX uq_email_senders_expr ON public.email_senders USING btree ((
 
 
 --
+-- Name: uq_market_enquiry_messages_pending_offer; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_market_enquiry_messages_pending_offer ON public.market_enquiry_messages USING btree (enquiry_id) WHERE ((offer_status)::text = 'PENDING'::text);
+
+
+--
 -- Name: uq_nursery_users_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -6029,14 +6058,6 @@ ALTER TABLE ONLY public.market_enquiries
 
 ALTER TABLE ONLY public.market_enquiries
     ADD CONSTRAINT market_enquiries_listing_nursery_fkey FOREIGN KEY (ad_nursery_id) REFERENCES public.nurseries(nursery_id);
-
-
---
--- Name: market_enquiries market_enquiries_quotation_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.market_enquiries
-    ADD CONSTRAINT market_enquiries_quotation_fkey FOREIGN KEY (quotation_id) REFERENCES public.quotations(quotation_id);
 
 
 --
