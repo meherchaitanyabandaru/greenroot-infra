@@ -42,17 +42,8 @@ INSERT INTO public.plant_sizes (size_id, size_code, display_name, display_order,
 
 SELECT setval('public.plant_sizes_size_id_seq', (SELECT max(size_id) FROM public.plant_sizes), true);
 
--- Plant categories
-INSERT INTO public.plant_categories (category_name, is_active) VALUES
-  ('Fruit Trees',      true),
-  ('Medicinal Plants', true),
-  ('Shade Trees',      true),
-  ('Herbs',            true),
-  ('Ornamental',       true),
-  ('Flowering Shrubs', true),
-  ('Indoor Plants',    true),
-  ('Succulents',       true),
-  ('Climbers',         true);
+-- Plant categories: none. Admin → Categories lists the World Flora Online
+-- families in public.botanical_names instead.
 
 -- Languages
 INSERT INTO public.languages (language_code, language_name, is_active) VALUES
@@ -117,34 +108,6 @@ INSERT INTO public.plants (scientific_name, common_name, plant_type, light_requi
   ('Plumeria rubra',           'Frangipani',      'TREE',    'FULL_SUN',    'LOW',      'Tropical fragrant flowering tree.', true, 'wfo-0000279184'),
   ('Duranta erecta',           'Golden Dewdrop',  'SHRUB',   'FULL_SUN',    'MODERATE', 'Fast-growing ornamental shrub.', true, 'wfo-0000946828');
 
-INSERT INTO public.plant_category_mappings (plant_id, category_id, created_at)
-SELECT p.plant_id, c.category_id, CURRENT_TIMESTAMP
-FROM (VALUES
-  ('Mangifera indica',        'Fruit Trees'),
-  ('Azadirachta indica',      'Medicinal Plants'),
-  ('Azadirachta indica',      'Shade Trees'),
-  ('Hibiscus rosa-sinensis',  'Ornamental'),
-  ('Hibiscus rosa-sinensis',  'Flowering Shrubs'),
-  ('Cocos nucifera',          'Fruit Trees'),
-  ('Moringa oleifera',        'Medicinal Plants'),
-  ('Ocimum tenuiflorum',      'Herbs'),
-  ('Ocimum tenuiflorum',      'Medicinal Plants'),
-  ('Aloe vera',               'Medicinal Plants'),
-  ('Aloe vera',               'Succulents'),
-  ('Psidium guajava',         'Fruit Trees'),
-  ('Rosa indica',             'Flowering Shrubs'),
-  ('Rosa indica',             'Ornamental'),
-  ('Catharanthus roseus',     'Flowering Shrubs'),
-  ('Ficus benjamina',         'Indoor Plants'),
-  ('Epipremnum aureum',       'Indoor Plants'),
-  ('Epipremnum aureum',       'Climbers'),
-  ('Sansevieria trifasciata', 'Indoor Plants'),
-  ('Plumeria rubra',          'Flowering Shrubs'),
-  ('Duranta erecta',          'Ornamental'),
-  ('Duranta erecta',          'Flowering Shrubs')
-) AS m(scientific_name, category_name)
-JOIN public.plants p ON p.scientific_name = m.scientific_name
-JOIN public.plant_categories c ON c.category_name = m.category_name;
 
 
 SELECT setval('public.plants_plant_id_seq', (SELECT max(plant_id) FROM public.plants), true);

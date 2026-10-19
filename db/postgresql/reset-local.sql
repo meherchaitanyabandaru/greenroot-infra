@@ -12,6 +12,8 @@
 \set ON_ERROR_STOP on
 
 DROP SCHEMA IF EXISTS public CASCADE;
+-- pg_dump does not emit CREATE SCHEMA public, so schema.sql cannot recreate it.
+CREATE SCHEMA public;
 
 \ir schema.sql
 \ir seed-master.sql

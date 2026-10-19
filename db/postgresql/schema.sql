@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict fCCSFUQeigWv912mJ23qFhGcZEoxT1zXwBdcgfhNeb3MRvFhu7FRQkVw56JyNl1
+\restrict 0he643kzN5wBQx8gZMc3m2iumi790DutYdoviJtgof8Hs5u8X8DlDIPhBXRrfTo
 
 -- Dumped from database version 17.10 (Homebrew)
 -- Dumped by pg_dump version 17.10 (Homebrew)
@@ -34,6 +34,20 @@ COMMENT ON SCHEMA public IS '';
 
 
 --
+-- Name: pg_trgm; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public;
+
+
+--
+-- Name: EXTENSION pg_trgm; Type: COMMENT; Schema: -; Owner: -
+--
+
+COMMENT ON EXTENSION pg_trgm IS 'text similarity measurement and index searching based on trigrams';
+
+
+--
 -- Name: postgis; Type: EXTENSION; Schema: -; Owner: -
 --
 
@@ -58,6 +72,15 @@ CREATE TYPE public.gender_type AS ENUM (
     'OTHER',
     'PREFER_NOT_TO_SAY'
 );
+
+
+--
+-- Name: botanical_search_key(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.botanical_search_key(name text) RETURNS text
+    LANGUAGE sql IMMUTABLE PARALLEL SAFE
+    AS $$ SELECT lower(replace(replace(name, '× ', ''), '×', '')) $$;
 
 
 --
@@ -4882,10 +4905,24 @@ CREATE INDEX idx_botanical_names_accepted_wfo_id ON public.botanical_names USING
 
 
 --
--- Name: idx_botanical_names_scientific_name; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_botanical_names_family; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_botanical_names_scientific_name ON public.botanical_names USING btree (lower(scientific_name));
+CREATE INDEX idx_botanical_names_family ON public.botanical_names USING btree (family, scientific_name, wfo_id);
+
+
+--
+-- Name: idx_botanical_names_name_order; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_botanical_names_name_order ON public.botanical_names USING btree (scientific_name, wfo_id);
+
+
+--
+-- Name: idx_botanical_names_search; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_botanical_names_search ON public.botanical_names USING gin (public.botanical_search_key(scientific_name) public.gin_trgm_ops);
 
 
 --
@@ -7208,7 +7245,7 @@ ALTER TABLE ONLY public.vehicle_tracking
 -- PostgreSQL database dump complete
 --
 
-\unrestrict fCCSFUQeigWv912mJ23qFhGcZEoxT1zXwBdcgfhNeb3MRvFhu7FRQkVw56JyNl1
+\unrestrict 0he643kzN5wBQx8gZMc3m2iumi790DutYdoviJtgof8Hs5u8X8DlDIPhBXRrfTo
 
 
 --
@@ -7232,3 +7269,5 @@ INSERT INTO public.schema_migrations VALUES ('20261017_08_naming_convention', '2
 INSERT INTO public.schema_migrations VALUES ('20261017_09_constraint_index_names', '2026-10-17 13:58:58.409355+05:30', 'f34d3da934a380ba43ce938d67974bc26c6ebe57ffdae55ddf3ca185046273c1');
 INSERT INTO public.schema_migrations VALUES ('20261017_10_client_crash_reports', '2026-10-17 16:49:43.593747+05:30', 'd45bff4742e087c9d92db61979326e1658502365257645592d2967b3adf428f6');
 INSERT INTO public.schema_migrations VALUES ('20261019_01_botanical_names', '2026-10-19 12:02:35.355175+05:30', '08d4f83d04a293811c8808a4e5aeddb97a3e772889df71f207f9c3838aa788a1');
+INSERT INTO public.schema_migrations VALUES ('20261019_02_botanical_name_search', '2026-10-19 12:14:27.610213+05:30', '8e96bcf73ef4491a9f3beaeed163a5ffc4c2a91383271951af41ef4b4c25353a');
+INSERT INTO public.schema_migrations VALUES ('20261019_03_botanical_name_browse', '2026-10-19 12:34:49.027181+05:30', '4943e2fc31883a193312b2cc5a90129ad93701106aa097e3a7c2a449205e580f');
