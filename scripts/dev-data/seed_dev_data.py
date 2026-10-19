@@ -19,6 +19,7 @@ Nursery), 9200000000 manager, 9300000000 buyer, 9400000000 driver,
 9500000000 second owner (Lakshmi Plants).
 """
 import argparse
+import base64
 import json
 import sys
 import urllib.error
@@ -46,6 +47,25 @@ def call(method, path, token=None, body=None, expect=None):
     if expect is not None:
         step(f"{method} {path} → {status}", status in (expect if isinstance(expect, tuple) else (expect,)), out)
     return status, out
+
+
+# A 1x1 PNG standing in for the camera selfie the market requires to sell or
+# start a chat.
+SELFIE_PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==")
+
+
+def selfie(token, who):
+    boundary = "seed-selfie-boundary"
+    body = (f'--{boundary}\r\nContent-Disposition: form-data; name="avatar"; filename="selfie.png"\r\n'
+            "Content-Type: image/png\r\n\r\n").encode() + SELFIE_PNG + f"\r\n--{boundary}--\r\n".encode()
+    req = urllib.request.Request(API + "/users/me/avatar", data=body, method="POST")
+    req.add_header("Content-Type", f"multipart/form-data; boundary={boundary}")
+    req.add_header("Authorization", "Bearer " + token)
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            step(f"{who} takes a profile selfie", resp.status == 200)
+    except urllib.error.HTTPError as e:
+        step(f"{who} takes a profile selfie (is MinIO running?)", False, e.read()[:200])
 
 
 def step(label, ok, detail=None):
@@ -244,6 +264,8 @@ _, n2 = call("POST", "/nurseries", second, {"name": "Lakshmi Plants", "mobile": 
              "country": "India", "address_line1": "NH 16, Kanuru"}, expect=201)
 call("PUT", f"/nurseries/{n2['nursery']['id']}/status", admin, {"status": "APPROVED"}, expect=200)
 second = refresh("9500000000")
+selfie(owner, "owner")
+selfie(second, "second owner")
 _, ad = call("POST", "/market/ads", owner, {"plant_name": "Syzygium cumini (Jamun) saplings", "title": "Surplus Jamun saplings, 2 ft",
               "description": "Healthy grafted saplings", "quantity": 200, "price_per_unit": 120, "price_unit": "PER_PLANT", "photos": []}, expect=201)
 adid = ad["ad"]["id"]
