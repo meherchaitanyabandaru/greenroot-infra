@@ -2,7 +2,6 @@
 -- PostgreSQL database dump
 --
 
-\restrict 5c6r8FHoOddzAQSEu8BhCqKWBfqIUvqlSi6lYAxf8NTWYsU6CuG6QjDIGFBthLS
 
 -- Dumped from database version 17.10 (Homebrew)
 -- Dumped by pg_dump version 17.10 (Homebrew)
@@ -7245,30 +7244,4 @@ ALTER TABLE ONLY public.vehicle_tracking
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 5c6r8FHoOddzAQSEu8BhCqKWBfqIUvqlSi6lYAxf8NTWYsU6CuG6QjDIGFBthLS
 
-
---
--- Applied migrations (greenroot-api internal/database/migrations)
---
-
-INSERT INTO public.schema_migrations VALUES ('20260714_dispatch_driver_active_trip_index', '2026-10-17 13:19:52.677661+05:30', 'baseline');
-INSERT INTO public.schema_migrations VALUES ('20260715_driver_vehicle_fleet_sync', '2026-10-17 13:19:52.679921+05:30', 'baseline');
-INSERT INTO public.schema_migrations VALUES ('20260719_user_onboarding_state', '2026-10-17 13:19:52.680092+05:30', 'baseline');
-INSERT INTO public.schema_migrations VALUES ('20260725_order_documents_verifications', '2026-10-17 13:19:52.680236+05:30', 'baseline');
-INSERT INTO public.schema_migrations VALUES ('20261016_01_messaging_sms_email', '2026-10-17 13:19:52.680372+05:30', 'baseline');
-INSERT INTO public.schema_migrations VALUES ('20261016_02_fk_lookup_indexes', '2026-10-17 13:19:52.680541+05:30', 'baseline');
-INSERT INTO public.schema_migrations VALUES ('20261017_01_domain_constraints', '2026-10-17 18:31:12.147803+05:30', '8aeeb7eec7e8de96caa06cd6e39da246f1ea7f48d91050a56a010e7c664cea37');
-INSERT INTO public.schema_migrations VALUES ('20261017_02_payment_provider_unique', '2026-10-17 18:31:12.179894+05:30', '6d159a0e970830c886d6d33a225d5c932c491224f0deafdbe66be451607f7c04');
-INSERT INTO public.schema_migrations VALUES ('20261017_03_row_version', '2026-10-17 18:31:12.180022+05:30', 'dd184b75b38ced4cdeb927dbfaf84ab28fa5b5fb7e369c735f2e57b051494175');
-INSERT INTO public.schema_migrations VALUES ('20261017_04_timestamptz', '2026-10-17 13:39:04.200278+05:30', '1c30e0fbefb72b1195029209a51c87414721d156c12763b692e59e85e705733b');
-INSERT INTO public.schema_migrations VALUES ('20261017_05_money_precision_currency', '2026-10-17 13:39:04.546609+05:30', '87db1495a875408c39aaed532d69a88a542ddbef9982c40c726a8e49662c5d94');
-INSERT INTO public.schema_migrations VALUES ('20261017_06_drop_orders_nursery_id', '2026-10-17 13:39:04.5498+05:30', 'ab2fd75f7613d5a5b483f3b185c0bbf48d9016b31a6e0c83bbcf984ae92e5cf1');
-INSERT INTO public.schema_migrations VALUES ('20261017_07_ratings_table', '2026-10-17 13:52:42.309052+05:30', '6d0d4d9250ae76f99870b051de377e4ea6823f0aa52e09a008b4df90790eb45c');
-INSERT INTO public.schema_migrations VALUES ('20261017_08_naming_convention', '2026-10-17 13:58:58.387301+05:30', '4123c46d860241ec2e5d5d5178b013a679aa063a0a43405390cdf1b4b7880eaa');
-INSERT INTO public.schema_migrations VALUES ('20261017_09_constraint_index_names', '2026-10-17 13:58:58.409355+05:30', 'f34d3da934a380ba43ce938d67974bc26c6ebe57ffdae55ddf3ca185046273c1');
-INSERT INTO public.schema_migrations VALUES ('20261017_10_client_crash_reports', '2026-10-17 16:49:43.593747+05:30', 'd45bff4742e087c9d92db61979326e1658502365257645592d2967b3adf428f6');
-INSERT INTO public.schema_migrations VALUES ('20261019_01_botanical_names', '2026-10-19 12:02:35.355175+05:30', '08d4f83d04a293811c8808a4e5aeddb97a3e772889df71f207f9c3838aa788a1');
-INSERT INTO public.schema_migrations VALUES ('20261019_02_botanical_name_search', '2026-10-19 12:14:27.610213+05:30', '8e96bcf73ef4491a9f3beaeed163a5ffc4c2a91383271951af41ef4b4c25353a');
-INSERT INTO public.schema_migrations VALUES ('20261019_03_botanical_name_browse', '2026-10-19 12:34:49.027181+05:30', '4943e2fc31883a193312b2cc5a90129ad93701106aa097e3a7c2a449205e580f');
-INSERT INTO public.schema_migrations VALUES ('20261019_04_order_dispatch_numbers', '2026-10-19 13:50:43.868181+05:30', '94ffcf56ae829fc32b9aaf430f81b0862bd23be39f2f858a8726b7ea676d98f5');

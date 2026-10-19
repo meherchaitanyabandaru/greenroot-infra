@@ -2,7 +2,7 @@
 
 ## Local Reset
 
-Use `scripts/reset-dbs.sh` for daily fresh testing.
+Use `scripts/reset-dbs.sh` for daily fresh testing. `db/postgresql/schema.sql` is the single source of truth for the schema (no migrations before launch).
 
 The reset rebuilds PostgreSQL from the canonical infra schema, clears app data, and loads only:
 
@@ -11,6 +11,14 @@ The reset rebuilds PostgreSQL from the canonical infra schema, clears app data, 
 - Plant master data
 - Subscription plans
 - One platform admin user
+
+Then, for a full dev dataset created through the API (business rules apply):
+
+```bash
+(cd ../greenroot-api && go run ./cmd/botanicalnames load)   # 1.66 M plant names, ~2 min
+# start the API (mock SMS: OTP 123456), then
+python3 scripts/dev-data/seed_dev_data.py                    # 6 users, 2 nurseries, stock, orders, trip, market
+```
 
 Admin login for local testing:
 

@@ -1,6 +1,11 @@
 -- =============================================================================
--- GreenRoot dev data seed
--- Run AFTER: seed-master.sql, seed-dev-admin.sql
+-- Recovery-drill fixture (NOT dev data)
+-- Used only by scripts/pitr-drill.sh and .github/workflows/recovery-drills.yml
+-- so backups and point-in-time recovery are proven on realistic rows.
+-- Run AFTER: schema.sql, seed-master.sql, seed-dev-admin.sql
+--
+-- Dev data is created through the API instead (business rules apply):
+--   scripts/dev-data/seed_dev_data.py
 -- =============================================================================
 -- Adds: 9 users, 2 nurseries, 2 vehicles, 2 drivers, 12 inventory items,
 --       6 quotations, 5 orders, 2 dispatches, 8 market ads

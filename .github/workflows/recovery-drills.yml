@@ -41,7 +41,7 @@ jobs:
           ADMIN="postgres://postgres@/postgres?host=$SOCK&port=5450"
           SRC="postgres://postgres@/greenroot?host=$SOCK&port=5450"
           psql "$ADMIN" -c "CREATE DATABASE greenroot"
-          for f in schema.sql seed-master.sql seed-dev-admin.sql seed-dev-data.sql; do
+          for f in schema.sql seed-master.sql seed-dev-admin.sql fixtures/recovery-drill-data.sql; do
             psql "$SRC" -q -v ON_ERROR_STOP=1 -f "db/postgresql/$f" >/dev/null
           done
           psql "$SRC" -q -v ON_ERROR_STOP=1 -f db/postgresql/roles.sql

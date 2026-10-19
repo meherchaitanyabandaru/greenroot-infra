@@ -60,7 +60,7 @@ pg_ctl -D "$PRIMARY" -l "${WORK_DIR}/primary.log" -w start >/dev/null
 psql "host=${SOCK_DIR} port=${PRIMARY_PORT} dbname=postgres user=postgres" -XAtq -c "CREATE DATABASE greenroot" -c "CREATE ROLE ${USER} SUPERUSER LOGIN" 2>/dev/null || true
 
 echo "2. schema + seed data, then base backup"
-for f in schema.sql seed-master.sql seed-dev-admin.sql seed-dev-data.sql; do
+for f in schema.sql seed-master.sql seed-dev-admin.sql fixtures/recovery-drill-data.sql; do
   p "$PRIMARY_PORT" -f "${SQL_DIR}/${f}" >/dev/null
 done
 pg_basebackup -h "$SOCK_DIR" -p "$PRIMARY_PORT" -U postgres -D "$BASE" -X stream -c fast >/dev/null
@@ -69,6 +69,8 @@ echo "3. writes after the backup"
 p "$PRIMARY_PORT" -c "INSERT INTO public.audit_logs (module, entity_type, action_type, record_id) VALUES ('pitr-drill', 'marker', 'INSERT', 424242)"
 orders_before=$(p "$PRIMARY_PORT" -c "SELECT count(*) FROM public.orders")
 items_before=$(p "$PRIMARY_PORT" -c "SELECT count(*) FROM public.order_items")
+# Recovering zero orders would prove nothing.
+[[ "$orders_before" -gt 0 ]] || { echo "drill fixture loaded no orders" >&2; exit 1; }
 sleep 1
 target=$(p "$PRIMARY_PORT" -c "SELECT now()::text")
 sleep 1

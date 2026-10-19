@@ -1,22 +1,15 @@
 #!/usr/bin/env bash
-# Regenerates db/postgresql/schema.sql from a database that is fully migrated
-# (`go run ./cmd/migrate up` in greenroot-api). The dump includes the
-# schema_migrations rows, so a fresh reset starts with every migration
-# recorded and `migrate up` has nothing to do.
+# Regenerates db/postgresql/schema.sql — the single source of truth for the
+# GreenRoot schema — from a database that has the schema you want.
+#
+# The output is stable: pg_dump's per-run \restrict/\unrestrict tokens are
+# removed, so the file only changes when the schema does. Migration rows are
+# not included: before launch there are no migrations (see greenroot-api
+# internal/database/migrations/README.md).
 set -euo pipefail
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OUT="${SCRIPT_DIR}/../db/postgresql/schema.sql"
 DB_URL="${DATABASE_URL:-postgres:///greenroot?host=/tmp}"
-
-pg_dump --schema-only --no-owner --no-privileges "$DB_URL" > "$OUT"
-{
-  echo
-  echo "--"
-  echo "-- Applied migrations (greenroot-api internal/database/migrations)"
-  echo "--"
-  echo
-  pg_dump --data-only --inserts --no-owner --no-privileges --table=public.schema_migrations "$DB_URL" \
-    | grep '^INSERT INTO'
-} >> "$OUT"
+pg_dump --schema-only --no-owner --no-privileges "$DB_URL" \
+  | grep -v -E '^\\(un)?restrict ' > "$OUT"
 echo "Wrote $OUT"

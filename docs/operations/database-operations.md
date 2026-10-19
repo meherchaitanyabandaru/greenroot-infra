@@ -121,7 +121,7 @@ Retention periods are a legal decision (DPDP Act 2023, TRAI record-keeping, tax 
 
 `public.botanical_names` holds every scientific plant name from the [WFO taxonomic backbone](https://www.worldfloraonline.org/downloadData): ~1.66 M rows (453 k accepted, 1.02 M synonyms, 182 k unchecked). It is reference data for validating names and mapping synonyms; the catalog stays in `public.plants`, linked by `plants.wfo_id`. Neither the 910 MB download nor the cleaned file is in git (`.gitignore`).
 
-Run once per database, after `migrate up`, from `greenroot-api`:
+Run once per database, after loading `schema.sql`, from `greenroot-api`:
 
 ```bash
 # 1. Put the WFO download at greenroot-infra/classification.csv (tab separated), then clean it.
@@ -132,7 +132,7 @@ go run ./cmd/botanicalnames clean
 DATABASE_URL=... go run ./cmd/botanicalnames load
 ```
 
-- **Search:** migration `20261019_02` adds `pg_trgm` and a trigram index, so picker searches over all names take a few milliseconds. If the migrator role may not create extensions, run `CREATE EXTENSION pg_trgm;` once as the admin before `migrate up`.
+- **Search:** `schema.sql` includes `pg_trgm` and a trigram index, so picker searches over all names take a few milliseconds. If the migrator role may not create extensions, run `CREATE EXTENSION pg_trgm;` once as the admin before `migrate up`.
 - **Linking:** after loading, `load` runs `link`, which sets `plants.wfo_id` for catalog plants entered by hand whose scientific name means exactly one species; ambiguous ones are listed as "still unlinked" for an admin. `go run ./cmd/botanicalnames link` runs it alone.
 - **Resume:** each batch commits together with its row count in `public.import_checkpoints`. If the load stops (Ctrl-C, lost connection, container stop), run the same command again; it continues after the last committed row. Running it after it finished does nothing.
 - **New WFO release:** download, `clean`, then `load -restart`. Rows are upserted by `wfo_id`, so names already linked from `plants` keep their IDs.
