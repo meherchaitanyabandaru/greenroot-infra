@@ -73,6 +73,7 @@ The domain is **`market`** across all layers:
 **Ad status**
 ```
 DRAFT → PUBLISHED → PAUSED → EXPIRED → ARCHIVED
+PUBLISHED/PAUSED → SUSPENDED (serious report) → PUBLISHED (admin dismisses) or REMOVED (admin upholds)
 ```
 
 | Status | Meaning |
@@ -81,7 +82,9 @@ DRAFT → PUBLISHED → PAUSED → EXPIRED → ARCHIVED
 | `PUBLISHED` | Visible to all nurseries on the platform |
 | `PAUSED` | Temporarily hidden by owner |
 | `EXPIRED` | Auto-expired after 30 days or manually expired |
-| `ARCHIVED` | Permanently closed |
+| `ARCHIVED` | Permanently closed by the seller |
+| `SUSPENDED` | Hidden by a serious report until an admin decides |
+| `REMOVED` | Taken down by GreenRoot (report upheld); counts as a strike |
 
 **Enquiry status**
 ```
@@ -120,10 +123,12 @@ NEW → IN_PROGRESS → DEAL_AGREED → CLOSED (seller)
 - Only the seller closes; only the enquiring nursery cancels; both only while the chat is open.
 - No quotation link: deals happen in the chat (the old `link-quotation` route and `quotation_id` were removed 2026-10-19).
 
-**Moderation**
-- Any nursery can report an ad (`market_ad_reports`).
-- One report per (ad, reporting user).
-- Reports have `PENDING` → `REVIEWED` / `DISMISSED` flow handled by Admin.
+**Moderation** (no AI: reports + automatic hiding + admin review)
+- Any nursery can report an ad (`market_ad_reports`), one report per (ad, reporting user). Reasons: `EXPLICIT_CONTENT`, `PROHIBITED`, `SCAM`, `FRAUD` (fake information), `WRONG_PLANT`, `SPAM`, `DUPLICATE`, `OTHER`.
+- **Serious reports hide the ad at once.** One `EXPLICIT_CONTENT` or `PROHIBITED` report moves a live or paused ad to `SUSPENDED` with a `moderation_note` the seller sees. It leaves the market, its page 404s for others, its chats turn read-only, and the seller cannot edit, resume or archive it.
+- **Admin decides** (`POST /market/reports/{id}/review`, `decision`): `DISMISS` closes the report and restores a suspended ad once no serious report is open; `REMOVE` sets the ad `REMOVED` (final), closes every open report on it, and gives the nursery a strike.
+- **Strikes** = the nursery's `REMOVED` ads. Strike 1: warning. Strike 2: no new or re-published ads for 30 days (`nurseries.market_blocked_until`). Strike 3+: 90 days, and the admin is prompted to suspend the nursery.
+- Known gap: a rival can hide a competitor's ad with a false serious report until an admin dismisses it; reporters are named in the queue, and repeated false reports need manual action.
 
 **Delete**
 - Only the nursery that created the ad can delete/archive it.

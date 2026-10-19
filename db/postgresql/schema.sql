@@ -706,7 +706,7 @@ CREATE TABLE public.market_ad_reports (
     reviewed_by_user_id bigint,
     reviewed_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT ck_market_ad_reports_reason CHECK (((reason)::text = ANY (ARRAY[('SPAM'::character varying)::text, ('WRONG_PLANT'::character varying)::text, ('DUPLICATE'::character varying)::text, ('FRAUD'::character varying)::text, ('OTHER'::character varying)::text]))),
+    CONSTRAINT ck_market_ad_reports_reason CHECK (((reason)::text = ANY ((ARRAY['SPAM'::character varying, 'WRONG_PLANT'::character varying, 'DUPLICATE'::character varying, 'FRAUD'::character varying, 'OTHER'::character varying, 'EXPLICIT_CONTENT'::character varying, 'SCAM'::character varying, 'PROHIBITED'::character varying])::text[]))),
     CONSTRAINT ck_market_ad_reports_status CHECK (((status)::text = ANY (ARRAY[('PENDING'::character varying)::text, ('REVIEWED'::character varying)::text, ('DISMISSED'::character varying)::text])))
 );
 
@@ -776,9 +776,18 @@ CREATE TABLE public.market_ads (
     expires_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    moderation_note text,
+    moderated_at timestamp with time zone,
     CONSTRAINT ck_market_ads_price CHECK (((price_per_unit IS NULL) OR (price_per_unit >= (0)::numeric))),
-    CONSTRAINT ck_market_ads_status CHECK (((status)::text = ANY (ARRAY[('DRAFT'::character varying)::text, ('PUBLISHED'::character varying)::text, ('PAUSED'::character varying)::text, ('EXPIRED'::character varying)::text, ('ARCHIVED'::character varying)::text])))
+    CONSTRAINT ck_market_ads_status CHECK (((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'PUBLISHED'::character varying, 'PAUSED'::character varying, 'EXPIRED'::character varying, 'ARCHIVED'::character varying, 'SUSPENDED'::character varying, 'REMOVED'::character varying])::text[])))
 );
+
+
+--
+-- Name: COLUMN market_ads.moderation_note; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.market_ads.moderation_note IS 'Shown to the seller: why the ad is under review (SUSPENDED) or was removed (REMOVED)';
 
 
 --
@@ -1068,8 +1077,16 @@ CREATE TABLE public.nurseries (
     suspended_at timestamp with time zone,
     unsuspended_by_user_id bigint,
     unsuspended_at timestamp with time zone,
+    market_blocked_until timestamp with time zone,
     CONSTRAINT ck_nurseries_status CHECK (((status)::text = ANY (ARRAY[('ACTIVE'::character varying)::text, ('INACTIVE'::character varying)::text, ('SUSPENDED'::character varying)::text, ('DELETED'::character varying)::text, ('PENDING'::character varying)::text, ('APPROVED'::character varying)::text, ('REJECTED'::character varying)::text])))
 );
+
+
+--
+-- Name: COLUMN nurseries.market_blocked_until; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.nurseries.market_blocked_until IS 'No new or republished market ads until then; set by repeat ad removals';
 
 
 --
