@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 0he643kzN5wBQx8gZMc3m2iumi790DutYdoviJtgof8Hs5u8X8DlDIPhBXRrfTo
+\restrict 5c6r8FHoOddzAQSEu8BhCqKWBfqIUvqlSi6lYAxf8NTWYsU6CuG6QjDIGFBthLS
 
 -- Dumped from database version 17.10 (Homebrew)
 -- Dumped by pg_dump version 17.10 (Homebrew)
@@ -404,7 +404,7 @@ CREATE TABLE public.dispatches (
     deleted_at timestamp with time zone,
     trip_uuid uuid DEFAULT gen_random_uuid() NOT NULL,
     version bigint DEFAULT 1 NOT NULL,
-    CONSTRAINT ck_dispatches_status CHECK (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'ACCEPTED'::character varying, 'DISPATCHED'::character varying, 'IN_TRANSIT'::character varying, 'DELIVERED'::character varying, 'CANCELLED'::character varying])::text[])))
+    CONSTRAINT ck_dispatches_status CHECK (((status)::text = ANY (ARRAY[('PENDING'::character varying)::text, ('ACCEPTED'::character varying)::text, ('DISPATCHED'::character varying)::text, ('IN_TRANSIT'::character varying)::text, ('DELIVERED'::character varying)::text, ('CANCELLED'::character varying)::text])))
 );
 
 
@@ -477,7 +477,7 @@ CREATE TABLE public.drivers (
     status character varying(20) DEFAULT 'ACTIVE'::character varying,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT ck_drivers_status CHECK (((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'INACTIVE'::character varying, 'SUSPENDED'::character varying, 'DELETED'::character varying])::text[])))
+    CONSTRAINT ck_drivers_status CHECK (((status)::text = ANY (ARRAY[('ACTIVE'::character varying)::text, ('INACTIVE'::character varying)::text, ('SUSPENDED'::character varying)::text, ('DELETED'::character varying)::text])))
 );
 
 
@@ -668,8 +668,8 @@ CREATE TABLE public.invites (
     accepted_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT ck_invites_status CHECK (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'ACCEPTED'::character varying, 'CANCELLED'::character varying])::text[]))),
-    CONSTRAINT ck_invites_type CHECK (((invite_type)::text = ANY ((ARRAY['MANAGER_INVITE'::character varying, 'DRIVER_INVITE'::character varying, 'CUSTOMER_INVITE'::character varying, 'NURSERY_ONBOARDING_INVITE'::character varying, 'TRIP_SHARE_INVITE'::character varying])::text[])))
+    CONSTRAINT ck_invites_status CHECK (((status)::text = ANY (ARRAY[('PENDING'::character varying)::text, ('ACCEPTED'::character varying)::text, ('CANCELLED'::character varying)::text]))),
+    CONSTRAINT ck_invites_type CHECK (((invite_type)::text = ANY (ARRAY[('MANAGER_INVITE'::character varying)::text, ('DRIVER_INVITE'::character varying)::text, ('CUSTOMER_INVITE'::character varying)::text, ('NURSERY_ONBOARDING_INVITE'::character varying)::text, ('TRIP_SHARE_INVITE'::character varying)::text])))
 );
 
 
@@ -1024,7 +1024,7 @@ CREATE TABLE public.notifications (
     read_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT ck_notifications_channel CHECK (((channel)::text = ANY ((ARRAY['PUSH'::character varying, 'SMS'::character varying, 'EMAIL'::character varying, 'IN_APP'::character varying])::text[])))
+    CONSTRAINT ck_notifications_channel CHECK (((channel)::text = ANY (ARRAY[('PUSH'::character varying)::text, ('SMS'::character varying)::text, ('EMAIL'::character varying)::text, ('IN_APP'::character varying)::text])))
 );
 
 
@@ -1079,7 +1079,7 @@ CREATE TABLE public.nurseries (
     suspended_at timestamp with time zone,
     unsuspended_by_user_id bigint,
     unsuspended_at timestamp with time zone,
-    CONSTRAINT ck_nurseries_status CHECK (((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'INACTIVE'::character varying, 'SUSPENDED'::character varying, 'DELETED'::character varying, 'PENDING'::character varying, 'APPROVED'::character varying, 'REJECTED'::character varying])::text[])))
+    CONSTRAINT ck_nurseries_status CHECK (((status)::text = ANY (ARRAY[('ACTIVE'::character varying)::text, ('INACTIVE'::character varying)::text, ('SUSPENDED'::character varying)::text, ('DELETED'::character varying)::text, ('PENDING'::character varying)::text, ('APPROVED'::character varying)::text, ('REJECTED'::character varying)::text])))
 );
 
 
@@ -1291,7 +1291,7 @@ CREATE TABLE public.nursery_inventory (
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     version bigint DEFAULT 1 NOT NULL,
     CONSTRAINT ck_nursery_inventory_quantity CHECK ((available_quantity >= 0)),
-    CONSTRAINT ck_nursery_inventory_status CHECK (((status)::text = ANY ((ARRAY['AVAILABLE'::character varying, 'LOW_STOCK'::character varying, 'OUT_OF_STOCK'::character varying, 'RESERVED'::character varying, 'DISCONTINUED'::character varying])::text[])))
+    CONSTRAINT ck_nursery_inventory_status CHECK (((status)::text = ANY (ARRAY[('AVAILABLE'::character varying)::text, ('LOW_STOCK'::character varying)::text, ('OUT_OF_STOCK'::character varying)::text, ('RESERVED'::character varying)::text, ('DISCONTINUED'::character varying)::text])))
 );
 
 
@@ -1535,7 +1535,7 @@ CREATE TABLE public.order_verifications (
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     revoked_at timestamp with time zone,
     revoked_by_user_id bigint,
-    CONSTRAINT ck_order_verifications_status CHECK (((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'REVOKED'::character varying])::text[])))
+    CONSTRAINT ck_order_verifications_status CHECK (((status)::text = ANY (ARRAY[('ACTIVE'::character varying)::text, ('REVOKED'::character varying)::text])))
 );
 
 
@@ -1592,7 +1592,7 @@ CREATE TABLE public.orders (
     version bigint DEFAULT 1 NOT NULL,
     currency character(3) DEFAULT 'INR'::bpchar NOT NULL,
     CONSTRAINT ck_orders_currency CHECK ((currency = 'INR'::bpchar)),
-    CONSTRAINT ck_orders_status CHECK (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'CONFIRMED'::character varying, 'LOADING'::character varying, 'LOADED'::character varying, 'PARTIALLY_FULFILLED'::character varying, 'COMPLETED'::character varying, 'CANCELLED'::character varying])::text[]))),
+    CONSTRAINT ck_orders_status CHECK (((status)::text = ANY (ARRAY[('PENDING'::character varying)::text, ('CONFIRMED'::character varying)::text, ('LOADING'::character varying)::text, ('LOADED'::character varying)::text, ('PARTIALLY_FULFILLED'::character varying)::text, ('COMPLETED'::character varying)::text, ('CANCELLED'::character varying)::text]))),
     CONSTRAINT ck_orders_total_non_negative CHECK ((total_amount >= (0)::numeric))
 );
 
@@ -1681,8 +1681,8 @@ CREATE TABLE public.payments (
     currency character(3) DEFAULT 'INR'::bpchar NOT NULL,
     CONSTRAINT ck_payments_amount_positive CHECK ((amount > (0)::numeric)),
     CONSTRAINT ck_payments_currency CHECK ((currency = 'INR'::bpchar)),
-    CONSTRAINT ck_payments_method CHECK (((payment_method IS NULL) OR ((payment_method)::text = ANY ((ARRAY['UPI'::character varying, 'CARD'::character varying, 'CASH'::character varying, 'BANK_TRANSFER'::character varying, 'NET_BANKING'::character varying, 'WALLET'::character varying, 'COD'::character varying, 'CHEQUE'::character varying, 'OTHER'::character varying])::text[])))),
-    CONSTRAINT ck_payments_status CHECK (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'SUCCESS'::character varying, 'FAILED'::character varying, 'REFUNDED'::character varying, 'CANCELLED'::character varying])::text[]))),
+    CONSTRAINT ck_payments_method CHECK (((payment_method IS NULL) OR ((payment_method)::text = ANY (ARRAY[('UPI'::character varying)::text, ('CARD'::character varying)::text, ('CASH'::character varying)::text, ('BANK_TRANSFER'::character varying)::text, ('NET_BANKING'::character varying)::text, ('WALLET'::character varying)::text, ('COD'::character varying)::text, ('CHEQUE'::character varying)::text, ('OTHER'::character varying)::text])))),
+    CONSTRAINT ck_payments_status CHECK (((status)::text = ANY (ARRAY[('PENDING'::character varying)::text, ('SUCCESS'::character varying)::text, ('FAILED'::character varying)::text, ('REFUNDED'::character varying)::text, ('CANCELLED'::character varying)::text]))),
     CONSTRAINT ck_payments_target CHECK (((((payment_for)::text = 'ORDER'::text) AND (order_id IS NOT NULL) AND (user_subscription_id IS NULL)) OR (((payment_for)::text = 'SUBSCRIPTION'::text) AND (user_subscription_id IS NOT NULL) AND (order_id IS NULL))))
 );
 
@@ -1871,7 +1871,7 @@ CREATE TABLE public.plant_request_responses (
     remarks text,
     status character varying(30) DEFAULT 'RESPONDED'::character varying NOT NULL,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT ck_plant_request_responses_status CHECK (((status)::text = ANY ((ARRAY['AVAILABLE'::character varying, 'PARTIAL'::character varying, 'NOT_AVAILABLE'::character varying, 'ACCEPTED'::character varying, 'REJECTED'::character varying])::text[])))
+    CONSTRAINT ck_plant_request_responses_status CHECK (((status)::text = ANY (ARRAY[('AVAILABLE'::character varying)::text, ('PARTIAL'::character varying)::text, ('NOT_AVAILABLE'::character varying)::text, ('ACCEPTED'::character varying)::text, ('REJECTED'::character varying)::text])))
 );
 
 
@@ -1914,7 +1914,7 @@ CREATE TABLE public.plant_requests (
     fulfilled_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT ck_plant_requests_status CHECK (((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'OPEN'::character varying, 'PARTIALLY_ACCEPTED'::character varying, 'ACCEPTED'::character varying, 'REJECTED'::character varying, 'CLOSED'::character varying])::text[])))
+    CONSTRAINT ck_plant_requests_status CHECK (((status)::text = ANY (ARRAY[('DRAFT'::character varying)::text, ('OPEN'::character varying)::text, ('PARTIALLY_ACCEPTED'::character varying)::text, ('ACCEPTED'::character varying)::text, ('REJECTED'::character varying)::text, ('CLOSED'::character varying)::text])))
 );
 
 
@@ -2149,7 +2149,7 @@ CREATE TABLE public.quotation_verifications (
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     revoked_at timestamp with time zone,
     revoked_by_user_id bigint,
-    CONSTRAINT ck_quotation_verifications_status CHECK (((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'REVOKED'::character varying])::text[])))
+    CONSTRAINT ck_quotation_verifications_status CHECK (((status)::text = ANY (ARRAY[('ACTIVE'::character varying)::text, ('REVOKED'::character varying)::text])))
 );
 
 
@@ -3012,7 +3012,7 @@ CREATE TABLE public.user_sessions (
     ip_address character varying(100),
     user_agent text,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT ck_user_sessions_status CHECK (((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'LOGGED_OUT'::character varying])::text[])))
+    CONSTRAINT ck_user_sessions_status CHECK (((status)::text = ANY (ARRAY[('ACTIVE'::character varying)::text, ('LOGGED_OUT'::character varying)::text])))
 );
 
 
@@ -3050,7 +3050,7 @@ CREATE TABLE public.user_subscriptions (
     is_auto_renew boolean DEFAULT false,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT ck_user_subscriptions_status CHECK (((status)::text = ANY ((ARRAY['TRIAL'::character varying, 'ACTIVE'::character varying, 'PAUSED'::character varying, 'CANCELLED'::character varying, 'EXPIRED'::character varying])::text[])))
+    CONSTRAINT ck_user_subscriptions_status CHECK (((status)::text = ANY (ARRAY[('TRIAL'::character varying)::text, ('ACTIVE'::character varying)::text, ('PAUSED'::character varying)::text, ('CANCELLED'::character varying)::text, ('EXPIRED'::character varying)::text])))
 );
 
 
@@ -3105,7 +3105,7 @@ CREATE TABLE public.users (
     unsuspended_by_user_id bigint,
     unsuspended_at timestamp with time zone,
     CONSTRAINT ck_users_initial_activity CHECK (((initial_activity IS NULL) OR ((initial_activity)::text = ANY (ARRAY[('CUSTOMER'::character varying)::text, ('OWNER'::character varying)::text, ('DRIVER'::character varying)::text, ('MANAGER'::character varying)::text])))),
-    CONSTRAINT ck_users_status CHECK (((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'SUSPENDED'::character varying, 'DELETED'::character varying])::text[])))
+    CONSTRAINT ck_users_status CHECK (((status)::text = ANY (ARRAY[('ACTIVE'::character varying)::text, ('SUSPENDED'::character varying)::text, ('DELETED'::character varying)::text])))
 );
 
 
@@ -3207,7 +3207,7 @@ CREATE TABLE public.vehicles (
     status character varying(20) DEFAULT 'ACTIVE'::character varying,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT ck_vehicles_status CHECK (((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'INACTIVE'::character varying, 'MAINTENANCE'::character varying, 'RETIRED'::character varying])::text[])))
+    CONSTRAINT ck_vehicles_status CHECK (((status)::text = ANY (ARRAY[('ACTIVE'::character varying)::text, ('INACTIVE'::character varying)::text, ('MAINTENANCE'::character varying)::text, ('RETIRED'::character varying)::text])))
 );
 
 
@@ -7245,7 +7245,7 @@ ALTER TABLE ONLY public.vehicle_tracking
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 0he643kzN5wBQx8gZMc3m2iumi790DutYdoviJtgof8Hs5u8X8DlDIPhBXRrfTo
+\unrestrict 5c6r8FHoOddzAQSEu8BhCqKWBfqIUvqlSi6lYAxf8NTWYsU6CuG6QjDIGFBthLS
 
 
 --
@@ -7271,3 +7271,4 @@ INSERT INTO public.schema_migrations VALUES ('20261017_10_client_crash_reports',
 INSERT INTO public.schema_migrations VALUES ('20261019_01_botanical_names', '2026-10-19 12:02:35.355175+05:30', '08d4f83d04a293811c8808a4e5aeddb97a3e772889df71f207f9c3838aa788a1');
 INSERT INTO public.schema_migrations VALUES ('20261019_02_botanical_name_search', '2026-10-19 12:14:27.610213+05:30', '8e96bcf73ef4491a9f3beaeed163a5ffc4c2a91383271951af41ef4b4c25353a');
 INSERT INTO public.schema_migrations VALUES ('20261019_03_botanical_name_browse', '2026-10-19 12:34:49.027181+05:30', '4943e2fc31883a193312b2cc5a90129ad93701106aa097e3a7c2a449205e580f');
+INSERT INTO public.schema_migrations VALUES ('20261019_04_order_dispatch_numbers', '2026-10-19 13:50:43.868181+05:30', '94ffcf56ae829fc32b9aaf430f81b0862bd23be39f2f858a8726b7ea676d98f5');
