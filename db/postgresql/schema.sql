@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict xgHoeEYtWzNYxlY0gDJUg1Z2JHc2jsfHvg9wdfXgVOzwLrsaQir0sLj37l06YHy
+\restrict OAeLnbfEfA5rWgEOS9jj4Q6dXcUBGqAVtFGWLFoVRHfRHcTeFk2HTlu5NhYoomZ
 
 -- Dumped from database version 17.10 (Homebrew)
 -- Dumped by pg_dump version 17.10 (Homebrew)
@@ -198,6 +198,50 @@ CREATE SEQUENCE public.audit_logs_audit_id_seq
 --
 
 ALTER SEQUENCE public.audit_logs_audit_id_seq OWNED BY public.audit_logs.audit_id;
+
+
+--
+-- Name: client_crash_reports; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.client_crash_reports (
+    client_crash_report_id bigint NOT NULL,
+    user_id bigint,
+    platform text NOT NULL,
+    app_version text NOT NULL,
+    build_number text,
+    os_version text,
+    device_model text,
+    error_type text NOT NULL,
+    message text NOT NULL,
+    stack_trace text,
+    context jsonb DEFAULT '{}'::jsonb NOT NULL,
+    is_fatal boolean DEFAULT false NOT NULL,
+    occurred_at timestamp with time zone NOT NULL,
+    received_at timestamp with time zone DEFAULT now() NOT NULL,
+    request_id text,
+    CONSTRAINT ck_client_crash_reports_platform CHECK ((platform = ANY (ARRAY['android'::text, 'ios'::text, 'web'::text]))),
+    CONSTRAINT ck_client_crash_reports_sizes CHECK (((length(app_version) <= 32) AND (length(error_type) <= 200) AND (length(message) <= 2000) AND ((stack_trace IS NULL) OR (length(stack_trace) <= 16000)) AND (pg_column_size(context) <= 8192)))
+);
+
+
+--
+-- Name: client_crash_reports_client_crash_report_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.client_crash_reports_client_crash_report_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: client_crash_reports_client_crash_report_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.client_crash_reports_client_crash_report_id_seq OWNED BY public.client_crash_reports.client_crash_report_id;
 
 
 --
@@ -3107,6 +3151,13 @@ ALTER TABLE ONLY public.audit_logs ALTER COLUMN audit_id SET DEFAULT nextval('pu
 
 
 --
+-- Name: client_crash_reports client_crash_report_id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_crash_reports ALTER COLUMN client_crash_report_id SET DEFAULT nextval('public.client_crash_reports_client_crash_report_id_seq'::regclass);
+
+
+--
 -- Name: dispatch_assignments dispatch_assignment_id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -3590,6 +3641,14 @@ ALTER TABLE ONLY public.attachments
 
 ALTER TABLE ONLY public.audit_logs
     ADD CONSTRAINT audit_logs_pkey PRIMARY KEY (audit_id);
+
+
+--
+-- Name: client_crash_reports client_crash_reports_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_crash_reports
+    ADD CONSTRAINT client_crash_reports_pkey PRIMARY KEY (client_crash_report_id);
 
 
 --
@@ -4699,6 +4758,27 @@ CREATE INDEX idx_audit_logs_user_id ON public.audit_logs USING btree (user_id) W
 
 
 --
+-- Name: idx_client_crash_reports_app_version; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_client_crash_reports_app_version ON public.client_crash_reports USING btree (app_version, received_at DESC);
+
+
+--
+-- Name: idx_client_crash_reports_received_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_client_crash_reports_received_at ON public.client_crash_reports USING btree (received_at DESC);
+
+
+--
+-- Name: idx_client_crash_reports_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_client_crash_reports_user_id ON public.client_crash_reports USING btree (user_id) WHERE (user_id IS NOT NULL);
+
+
+--
 -- Name: idx_dispatch_assignments_dispatch; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5712,6 +5792,14 @@ CREATE TRIGGER trg_quotations_version BEFORE UPDATE ON public.quotations FOR EAC
 
 ALTER TABLE ONLY public.attachments
     ADD CONSTRAINT attachments_uploaded_by_fkey FOREIGN KEY (uploaded_by_user_id) REFERENCES public.users(user_id);
+
+
+--
+-- Name: client_crash_reports client_crash_reports_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.client_crash_reports
+    ADD CONSTRAINT client_crash_reports_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(user_id) ON DELETE SET NULL;
 
 
 --
@@ -6982,7 +7070,7 @@ ALTER TABLE ONLY public.vehicle_tracking
 -- PostgreSQL database dump complete
 --
 
-\unrestrict xgHoeEYtWzNYxlY0gDJUg1Z2JHc2jsfHvg9wdfXgVOzwLrsaQir0sLj37l06YHy
+\unrestrict OAeLnbfEfA5rWgEOS9jj4Q6dXcUBGqAVtFGWLFoVRHfRHcTeFk2HTlu5NhYoomZ
 
 
 --
@@ -7004,3 +7092,4 @@ INSERT INTO public.schema_migrations VALUES ('20261017_06_drop_orders_nursery_id
 INSERT INTO public.schema_migrations VALUES ('20261017_07_ratings_table', '2026-10-17 13:52:42.309052+05:30', '6d0d4d9250ae76f99870b051de377e4ea6823f0aa52e09a008b4df90790eb45c');
 INSERT INTO public.schema_migrations VALUES ('20261017_08_naming_convention', '2026-10-17 13:58:58.387301+05:30', '4123c46d860241ec2e5d5d5178b013a679aa063a0a43405390cdf1b4b7880eaa');
 INSERT INTO public.schema_migrations VALUES ('20261017_09_constraint_index_names', '2026-10-17 13:58:58.409355+05:30', 'f34d3da934a380ba43ce938d67974bc26c6ebe57ffdae55ddf3ca185046273c1');
+INSERT INTO public.schema_migrations VALUES ('20261017_10_client_crash_reports', '2026-10-17 16:49:43.593747+05:30', 'd45bff4742e087c9d92db61979326e1658502365257645592d2967b3adf428f6');
