@@ -20,17 +20,6 @@ INSERT INTO public.roles (role_id, role_code, role_name, description, is_active)
 
 SELECT setval('public.roles_role_id_seq', (SELECT max(role_id) FROM public.roles), true);
 
--- Nursery-scoped roles
-INSERT INTO public.nursery_roles (nursery_role_id, role_code, role_name, description, is_active) VALUES
-  (1, 'OWNER',      'Owner',      'Primary owner of nursery', true),
-  (2, 'PARTNER',    'Partner',    'Business partner',         true),
-  (3, 'MANAGER',    'Manager',    'Nursery manager',          true),
-  (4, 'OPERATOR',   'Operator',   'Day-to-day operations',    true),
-  (5, 'ACCOUNTANT', 'Accountant', 'Accounts and finance',     true),
-  (6, 'DISPATCHER', 'Dispatcher', 'Dispatch operations',      true);
-
-SELECT setval('public.nursery_roles_nursery_role_id_seq', (SELECT max(nursery_role_id) FROM public.nursery_roles), true);
-
 -- Plant sizes
 INSERT INTO public.plant_sizes (size_id, size_code, display_name, display_order, is_active) VALUES
   (1, 'SEED',        'Seed',        1, true),

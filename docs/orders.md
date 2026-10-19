@@ -84,7 +84,14 @@ All cancel flows use `POST /orders/:id/cancel` — never a direct status update.
 - All other statuses: cancel first.
 - Orders are never physically deleted in production.
 
+**Creation**
+- Every order starts `PENDING`; `order_status` on create may only be empty or `PENDING` (400 otherwise).
+
+**Assigned manager**
+- Assignment does not grant access by itself: a manager who leaves the nursery loses its orders, even as the assignee.
+
 **Partial fulfillment**
+- `loaded_quantity` must be between 0 and the ordered quantity (400 otherwise).
 - When `complete-loading` is called and any item has `loaded_quantity < quantity`, status → `PARTIALLY_FULFILLED`.
 - Invoice totals recalculated based on loaded quantities only.
 
@@ -94,7 +101,7 @@ All cancel flows use `POST /orders/:id/cancel` — never a direct status update.
 
 | Action | Owner | Manager | Buyer | Admin |
 |---|---|---|---|---|
-| Create order | ✅ | ✅ | ✅ (own) | ✅ |
+| Create order | ✅ | ✅ | ✅ (own) | — (admins do not trade) |
 | View order list | own nursery | own nursery | own orders | all |
 | View order detail | own nursery | own nursery | own orders | all |
 | Confirm / status change | ✅ | ✅ | — | ✅ |
@@ -103,7 +110,7 @@ All cancel flows use `POST /orders/:id/cancel` — never a direct status update.
 | Set loaded quantity | ✅ | ✅ | — | ✅ |
 | Cancel order | ✅ | ✅ | own PENDING only | ✅ |
 | Delete order | ✅ (PENDING only) | ✅ (PENDING only) | — | ✅ |
-| Assign manager | ✅ | — | — | ✅ |
+| Assign manager | ✅ (assignee must be a nursery member; not on COMPLETED/CANCELLED) | — | — | ✅ |
 
 ---
 

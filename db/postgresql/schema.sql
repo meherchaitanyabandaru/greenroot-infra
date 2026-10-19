@@ -1314,41 +1314,6 @@ ALTER SEQUENCE public.nursery_inventory_inventory_id_seq OWNED BY public.nursery
 
 
 --
--- Name: nursery_roles; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.nursery_roles (
-    nursery_role_id smallint NOT NULL,
-    role_code character varying(50) NOT NULL,
-    role_name character varying(100) NOT NULL,
-    description text,
-    is_active boolean DEFAULT true NOT NULL,
-    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
-);
-
-
---
--- Name: nursery_roles_nursery_role_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.nursery_roles_nursery_role_id_seq
-    AS smallint
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: nursery_roles_nursery_role_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.nursery_roles_nursery_role_id_seq OWNED BY public.nursery_roles.nursery_role_id;
-
-
---
 -- Name: nursery_users; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1358,11 +1323,12 @@ CREATE TABLE public.nursery_users (
     user_id bigint NOT NULL,
     role character varying(50) DEFAULT 'MANAGER'::character varying NOT NULL,
     status character varying(20) DEFAULT 'ACTIVE'::character varying NOT NULL,
-    nursery_role_id smallint,
     invited_by_user_id bigint,
     joined_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    is_active boolean DEFAULT true
+    is_active boolean DEFAULT true,
+    CONSTRAINT ck_nursery_users_role CHECK (((role)::text = 'MANAGER'::text)),
+    CONSTRAINT ck_nursery_users_status CHECK (((status)::text = ANY (ARRAY[('ACTIVE'::character varying)::text, ('INACTIVE'::character varying)::text])))
 );
 
 
@@ -3104,6 +3070,7 @@ CREATE TABLE public.users (
     unsuspended_by_user_id bigint,
     unsuspended_at timestamp with time zone,
     CONSTRAINT ck_users_initial_activity CHECK (((initial_activity IS NULL) OR ((initial_activity)::text = ANY (ARRAY[('CUSTOMER'::character varying)::text, ('OWNER'::character varying)::text, ('DRIVER'::character varying)::text, ('MANAGER'::character varying)::text])))),
+    CONSTRAINT ck_users_mobile CHECK ((((mobile)::text ~ '^[6-9][0-9]{9}$'::text) OR ((deleted_at IS NOT NULL) AND ((mobile)::text = ('DEL'::text || (user_id)::text))))),
     CONSTRAINT ck_users_status CHECK (((status)::text = ANY (ARRAY[('ACTIVE'::character varying)::text, ('SUSPENDED'::character varying)::text, ('DELETED'::character varying)::text])))
 );
 
@@ -3416,13 +3383,6 @@ ALTER TABLE ONLY public.nursery_featured_plants ALTER COLUMN featured_id SET DEF
 --
 
 ALTER TABLE ONLY public.nursery_inventory ALTER COLUMN inventory_id SET DEFAULT nextval('public.nursery_inventory_inventory_id_seq'::regclass);
-
-
---
--- Name: nursery_roles nursery_role_id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.nursery_roles ALTER COLUMN nursery_role_id SET DEFAULT nextval('public.nursery_roles_nursery_role_id_seq'::regclass);
 
 
 --
@@ -4159,27 +4119,11 @@ ALTER TABLE ONLY public.nursery_inventory
 
 
 --
--- Name: nursery_roles nursery_roles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.nursery_roles
-    ADD CONSTRAINT nursery_roles_pkey PRIMARY KEY (nursery_role_id);
-
-
---
--- Name: nursery_roles nursery_roles_role_code_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.nursery_roles
-    ADD CONSTRAINT nursery_roles_role_code_key UNIQUE (role_code);
-
-
---
--- Name: nursery_users nursery_users_nursery_id_user_id_nursery_role_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: nursery_users nursery_users_nursery_id_user_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.nursery_users
-    ADD CONSTRAINT nursery_users_nursery_id_user_id_nursery_role_id_key UNIQUE (nursery_id, user_id, nursery_role_id);
+    ADD CONSTRAINT nursery_users_nursery_id_user_id_key UNIQUE (nursery_id, user_id);
 
 
 --
@@ -6518,14 +6462,6 @@ ALTER TABLE ONLY public.nursery_users
 
 ALTER TABLE ONLY public.nursery_users
     ADD CONSTRAINT nursery_users_nursery_id_fkey FOREIGN KEY (nursery_id) REFERENCES public.nurseries(nursery_id) ON DELETE CASCADE;
-
-
---
--- Name: nursery_users nursery_users_nursery_role_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.nursery_users
-    ADD CONSTRAINT nursery_users_nursery_role_id_fkey FOREIGN KEY (nursery_role_id) REFERENCES public.nursery_roles(nursery_role_id);
 
 
 --

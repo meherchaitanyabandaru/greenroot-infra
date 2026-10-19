@@ -130,10 +130,10 @@ SELECT setval('public.drivers_driver_id_seq', 2, true);
 -- NURSERY USERS  (managers linked to nurseries)
 -- ─────────────────────────────────────────────────────────────────────────────
 INSERT INTO public.nursery_users
-  (nursery_id, user_id, role, status, nursery_role_id, is_active)
+  (nursery_id, user_id, role, status, is_active)
 VALUES
-  (1, 3, 'MANAGER', 'ACTIVE', 3, true),   -- Gumastha manages GreenLeaf
-  (2, 7, 'MANAGER', 'ACTIVE', 3, true);   -- Suresh manages Bloom Gardens
+  (1, 3, 'MANAGER', 'ACTIVE', true),   -- Gumastha manages GreenLeaf
+  (2, 7, 'MANAGER', 'ACTIVE', true);   -- Suresh manages Bloom Gardens
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- NURSERY INVENTORY

@@ -124,16 +124,17 @@ A quotation is **expired** when `valid_until < NOW()` and status is `CUSTOMER_SE
 **Delete rules**
 - Only nursery **owners** can delete quotations. Managers cannot.
 - Soft-delete only (`deleted_at` set). Deleted quotations are hidden from lists.
-- Deletable statuses: `INTERNAL_DRAFT`, `CUSTOMER_DRAFT`, `CUSTOMER_REJECTED`, expired `CUSTOMER_SENT`.
+- Deletable statuses: `INTERNAL_DRAFT`, `CUSTOMER_DRAFT`, `CUSTOMER_REJECTED`, expired `CUSTOMER_SENT` — for every role, admin included (`IsDeletable` in `policy.go`); anything else is 409.
 - Cannot delete `CUSTOMER_ACCEPTED` or `CONVERTED`.
 
 **Convert to order**
-- `POST /quotations/:id/convert-to-order` links an accepted quotation to an existing order (`order_id` required in body).
+- `POST /quotations/:id/convert-to-order` creates the order from the accepted quotation (no body) and links it.
 - Sets `converted_order_id` and status → `CONVERTED`.
 
 **Manager visibility (private-default model)**
 - Quotations are private-default: a manager can only see quotations they **created** or are **assigned to** (`assigned_manager_user_id = manager's user_id`).
-- Owners see all quotations in their nursery regardless of assignment.
+- Owners see all quotations in their nursery regardless of assignment, including a manager's drafts.
+- Customer details (`recipient_name`, `recipient_mobile`, `customer_user_id`, `rejection_reason`) are removed for manager-only actors in every response (`enrichQuotation`), not just list and detail.
 - This applies to both `GET /quotations` (list) and `GET /quotations/:id` (detail). A manager cannot bypass the list scope by calling the detail endpoint directly.
 
 **Manager assignment**
@@ -145,7 +146,7 @@ A quotation is **expired** when `valid_until < NOW()` and status is `CUSTOMER_SE
 - There is always at most one assignee at any time — reassigning replaces the previous assignee atomically.
 
 **Expiry / valid_until**
-- `valid_until` is set by the owner (or manager) on create or edit via `valid_until` in the request body.
+- `valid_until` is set by the owner (or manager) on create or edit via `valid_until` in the request body; a date in the past is 400, and sending a draft whose `valid_until` has passed is 409.
 - If the owner did not set it, `valid_until` is auto-set to `NOW() + 15 days` when `send` is called.
 - Once in `CUSTOMER_SENT`, an expired quotation (where `valid_until < NOW()`) cannot be accepted by the buyer.
 - Mobile: create/edit screens show a "Valid Until" date picker below the Notes field.
@@ -171,7 +172,7 @@ A quotation is **expired** when `valid_until < NOW()` and status is `CUSTOMER_SE
 
 | Action | Owner | Manager | Buyer | Admin |
 |---|---|---|---|---|
-| Create quotation | ✅ | ✅ | — | ✅ |
+| Create quotation | ✅ | ✅ | — | — (admins do not trade) |
 | Pre-assign manager on create | ✅ only | — | — | ✅ |
 | View quotation list (selling) | all in nursery | created by or assigned to them | — | all |
 | View quotation list (buying) | ✅ (buying=true) | — | ✅ (own) | all |
@@ -194,7 +195,7 @@ All under `/api/v1`:
 
 ```
 GET    /quotations                        List (selling; ?buying=true for buyer view; ?unassigned=true for owner unassigned tab)
-POST   /quotations                        Create quotation (body: assigned_manager_user_id optional, owner-only)
+POST   /quotations                        Create quotation (quotation_type CUSTOMER | INTERNAL, default CUSTOMER; assigned_manager_user_id optional, owner-only — 403 for managers)
 GET    /quotations/:id                    Get detail
 PUT    /quotations/:id                    Edit (pre-approve only)
 DELETE /quotations/:id                    Soft-delete (owner only)
