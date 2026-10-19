@@ -6,9 +6,9 @@ Business code raises an **event**. The core sends it on every **channel**
 reach the user. Channel-specific rules live inside each channel: TRAI DLT for
 SMS ([sms.md](sms.md)), HTML escaping and sender identity for email (below).
 
-Status: built and tested in **mock mode** for both channels. Nothing is
-delivered until a real gateway is added in `greenroot-api/platform/sms` and
-`greenroot-api/platform/email`.
+Status: built and tested in **mock mode** for both channels. AWS gateways are
+built but off: `SMS_PROVIDER=aws` (AWS End User Messaging SMS) and
+`EMAIL_PROVIDER=ses` (Amazon SES). Nothing is delivered until one is switched on.
 
 ---
 
@@ -139,9 +139,11 @@ Errors: `409 email_taken`, `400 invalid_code`, `429 email_code_cooldown`, `429 e
 
 ### Going live
 
-1. Choose a provider (e.g. Amazon SES, SendGrid, Postmark) and verify the sending domain there. Publish SPF, DKIM and DMARC.
+1. In Amazon SES (region `ap-south-1`), verify the sending domain, publish SPF, DKIM and DMARC, and request production access (new accounts are in the sandbox and can only mail verified addresses).
 2. In Admin → Email → Sender, set the From address and tick "Domain verified". The Readiness tab turns all green.
-3. Implement the provider in `platform/email` (`Provider`: `Name`, `Live() == true`, `Send`), register it in `email.New`, and deploy with `EMAIL_PROVIDER=<name>` and Redis.
+3. Give the API an IAM role (or `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`) allowed `ses:SendEmail`, and deploy with `EMAIL_PROVIDER=ses`, `AWS_REGION=ap-south-1` and Redis. The API refuses to start if the region is missing.
+
+Another provider: implement `Provider` (`Name`, `Live() == true`, `Send`) in `platform/email` and register it in `email.New` — see `ses.go`.
 
 ### Known gaps
 

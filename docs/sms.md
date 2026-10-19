@@ -9,8 +9,9 @@ template before delivering it.
 SMS is one channel of the shared messaging core; see [messaging.md](messaging.md)
 for events, fan-out to email, and the shared OTP store.
 
-Status: built and tested in **mock mode**. Nothing reaches a handset until DLT
-registration is done and a real gateway is added in `greenroot-api/platform/sms`.
+Status: built and tested in **mock mode**. The AWS End User Messaging SMS
+gateway is built but off (`SMS_PROVIDER=aws`). Nothing reaches a handset until
+DLT registration is done and it is switched on.
 
 ---
 
@@ -145,9 +146,11 @@ New `send-otp` errors: `400 invalid_mobile`, `429 otp_cooldown`, `429 otp_rate_l
 
 ## Going live
 
-1. Register the PE, header and templates (above). Choose an aggregator and bind it on DLT (PE–TM chain). Fill in the IDs in the admin UI and set them to APPROVED. The Readiness tab turns all green.
-2. Add the gateway in `greenroot-api/platform/sms`: implement `Provider` (`Name`, `Live() == true`, `Send`) and register its name in `sms.New`.
-3. Deploy with `SMS_PROVIDER=<name>` and Redis configured.
+1. Register the PE, header and templates (above). On DLT, bind AWS as your telemarketer (PE–TM chain). Fill in the IDs in the admin UI and set them to APPROVED. The Readiness tab turns all green.
+2. In AWS End User Messaging SMS (region `ap-south-1`): register the sender ID `GRROOT` for India with your PE ID and template IDs, and request production access (new accounts are in the sandbox and can only text verified numbers). The header in the admin UI must equal the AWS sender ID.
+3. Give the API an IAM role (or `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`) allowed `sms-voice:SendTextMessage`, and deploy with `SMS_PROVIDER=aws`, `AWS_REGION=ap-south-1` and Redis. The API refuses to start if the region is missing.
+
+How it maps: each SMS goes to `+91<mobile>` as `TRANSACTIONAL`, from the header, with `IN_ENTITY_ID` = PE ID and `IN_TEMPLATE_ID` = template ID (`greenroot-api/platform/sms/aws.go`). Another gateway: implement `Provider` (`Name`, `Live() == true`, `Send`) and register it in `sms.New`.
 
 ## Known gaps
 
