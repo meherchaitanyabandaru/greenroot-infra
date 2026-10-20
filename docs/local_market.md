@@ -123,8 +123,8 @@ NEW → IN_PROGRESS → DEAL_AGREED → CLOSED (seller)
 - Only the seller closes; only the enquiring nursery cancels; both only while the chat is open.
 - No quotation link: deals happen in the chat (the old `link-quotation` route and `quotation_id` were removed 2026-10-19).
 
-**Trust: seller selfies**
-- Posting or publishing an ad and starting a chat need a profile photo (`403 selfie_required` otherwise); browsing, replying in an existing chat and reporting do not. Admins are exempt.
+**Trust: seller photos**
+- The poster's profile photo is shown on every ad and chat; it is not required to post, publish or chat (a required selfie was tried on 2026-10-19 and dropped as needless friction).
 - The app only takes the photo with the camera (front camera, no gallery). The server cannot prove a photo came from a camera; that is a client rule. It is not identity verification and no face recognition or biometric data is used.
 - `PUT /users/me` never changes the photo; only `POST/DELETE /users/me/avatar` do, and both delete the old file from storage.
 - Every ad carries `posted_by_name` and `posted_by_photo`. Tapping it opens `GET /market/nurseries/{id}`: nursery name, verified flag, city, owner name and selfie, member since, ads posted, live ads, deals agreed, and the live ads. No strikes or private data.
