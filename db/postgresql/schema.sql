@@ -4817,6 +4817,13 @@ CREATE INDEX idx_market_ads_expires_at ON public.market_ads USING btree (expires
 
 
 --
+-- Name: idx_market_ads_live_location; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_market_ads_live_location ON public.market_ads USING gist (pickup_location) WHERE ((status)::text = 'PUBLISHED'::text);
+
+
+--
 -- Name: idx_market_ads_nursery_id; Type: INDEX; Schema: public; Owner: -
 --
 

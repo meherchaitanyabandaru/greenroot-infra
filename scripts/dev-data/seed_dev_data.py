@@ -106,6 +106,8 @@ profile(owner, "Priya", "Owner", "OWNER")
 _, n = call("POST", "/nurseries", owner, {
     "name": "Priya Green Nursery", "mobile": "9100000000", "description": "Fruit and shade trees, Hyderabad",
     "address_line1": "Plot 12, Nursery Road", "city": "Hyderabad", "state": "Telangana", "country": "India", "postal_code": "500032",
+    # Coordinates: the Local Market only lists ads within 100 km of the viewer.
+    "latitude": 17.4401, "longitude": 78.3489,
 }, expect=201)
 nursery_id = n["nursery"]["id"]
 step("new nursery waits for approval (PENDING)", n["nursery"]["status"] == "PENDING", n)
@@ -261,7 +263,7 @@ print("\n── Local market (nursery to nursery) ──")
 second = login("9500000000")
 profile(second, "Lakshmi", "Owner", "OWNER")
 _, n2 = call("POST", "/nurseries", second, {"name": "Lakshmi Plants", "mobile": "9500000000", "city": "Vijayawada", "state": "Andhra Pradesh",
-             "country": "India", "address_line1": "NH 16, Kanuru"}, expect=201)
+             "country": "India", "address_line1": "NH 16, Kanuru", "latitude": 16.5062, "longitude": 80.6480}, expect=201)
 call("PUT", f"/nurseries/{n2['nursery']['id']}/status", admin, {"status": "APPROVED"}, expect=200)
 second = refresh("9500000000")
 selfie(owner, "owner")
