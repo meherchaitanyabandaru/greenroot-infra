@@ -778,8 +778,13 @@ CREATE TABLE public.market_ads (
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     moderation_note text,
     moderated_at timestamp with time zone,
+    ad_type character varying(10) DEFAULT 'SELL'::character varying NOT NULL,
+    needed_by date,
+    CONSTRAINT ck_market_ads_ad_type CHECK (((ad_type)::text = ANY ((ARRAY['SELL'::character varying, 'WANT'::character varying])::text[]))),
+    CONSTRAINT ck_market_ads_needed_by CHECK (((needed_by IS NULL) OR ((ad_type)::text = 'WANT'::text))),
     CONSTRAINT ck_market_ads_price CHECK (((price_per_unit IS NULL) OR (price_per_unit >= (0)::numeric))),
-    CONSTRAINT ck_market_ads_status CHECK (((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'PUBLISHED'::character varying, 'PAUSED'::character varying, 'EXPIRED'::character varying, 'ARCHIVED'::character varying, 'SUSPENDED'::character varying, 'REMOVED'::character varying])::text[])))
+    CONSTRAINT ck_market_ads_status CHECK (((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'PUBLISHED'::character varying, 'PAUSED'::character varying, 'EXPIRED'::character varying, 'ARCHIVED'::character varying, 'SUSPENDED'::character varying, 'REMOVED'::character varying])::text[]))),
+    CONSTRAINT ck_market_ads_want CHECK ((((ad_type)::text = 'SELL'::text) OR ((plant_id IS NOT NULL) AND (price_per_unit IS NULL) AND (price_unit IS NULL))))
 );
 
 
@@ -788,6 +793,20 @@ CREATE TABLE public.market_ads (
 --
 
 COMMENT ON COLUMN public.market_ads.moderation_note IS 'Shown to the seller: why the ad is under review (SUSPENDED) or was removed (REMOVED)';
+
+
+--
+-- Name: COLUMN market_ads.ad_type; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.market_ads.ad_type IS 'SELL: a nursery offers plants; WANT: a nursery asks for plants (no price)';
+
+
+--
+-- Name: COLUMN market_ads.needed_by; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.market_ads.needed_by IS 'Optional date a WANT is needed by';
 
 
 --
@@ -4928,6 +4947,13 @@ CREATE INDEX idx_market_ads_plant_name ON public.market_ads USING btree (plant_n
 --
 
 CREATE INDEX idx_market_ads_status ON public.market_ads USING btree (status);
+
+
+--
+-- Name: idx_market_ads_type_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_market_ads_type_status ON public.market_ads USING btree (ad_type, status);
 
 
 --

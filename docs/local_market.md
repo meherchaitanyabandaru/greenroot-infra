@@ -115,6 +115,11 @@ NEW → IN_PROGRESS → DEAL_AGREED → CLOSED (seller)
 - Ads are soft-deleted via ARCHIVED status — never hard-deleted.
 - A nursery cannot enquire on its own ad.
 
+**Wanted posts** (`ad_type`)
+- An ad is `SELL` (a nursery offers plants; the default) or `WANT` (a nursery asks for plants). Browse with `GET /market/ads?type=SELL|WANT`.
+- A WANT names a catalog plant (`plant_id` required) and a size; quantity, `needed_by` (a date, not in the past) and a note are optional. It never has a price, price unit or photos (DB CHECK `ck_market_ads_want`); nurseries that have the plant tap "I have this", which opens the usual chat, and offer a price there.
+- In a WANT chat the ad's nursery is the buyer. Everything else (publish, pause, 30-day expiry, chats read-only when not live, reports, strikes) works as for SELL. The app publishes a want at once (no draft step).
+
 **Chat (enquiry)**
 - The enquiry *is* the chat: one per (ad, enquiring nursery), unique in the DB. The ad's `my_enquiry_id` tells the viewer to open their existing chat instead of starting a new one.
 - Both nurseries' owners and managers write in `market_enquiry_messages`. A message is `TEXT`, `OFFER` or `SYSTEM`.
