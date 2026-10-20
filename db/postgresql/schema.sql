@@ -782,13 +782,27 @@ CREATE TABLE public.market_ads (
     needed_by date,
     deleted_at timestamp with time zone,
     deleted_by_user_id bigint,
+    is_road_accessible boolean,
+    is_truck_accessible boolean,
+    access_instructions text,
+    CONSTRAINT ck_market_ads_access_sell_only CHECK ((((ad_type)::text = 'SELL'::text) OR ((is_road_accessible IS NULL) AND (is_truck_accessible IS NULL) AND (access_instructions IS NULL)))),
     CONSTRAINT ck_market_ads_ad_type CHECK (((ad_type)::text = ANY ((ARRAY['SELL'::character varying, 'WANT'::character varying])::text[]))),
     CONSTRAINT ck_market_ads_deleted CHECK ((((status)::text = 'DELETED'::text) = (deleted_at IS NOT NULL))),
     CONSTRAINT ck_market_ads_needed_by CHECK (((needed_by IS NULL) OR ((ad_type)::text = 'WANT'::text))),
+    CONSTRAINT ck_market_ads_no_road_pickup CHECK (((is_road_accessible IS DISTINCT FROM false) OR (btrim((COALESCE(pickup_landmark, ''::character varying))::text) <> ''::text))),
+    CONSTRAINT ck_market_ads_photos_max CHECK ((jsonb_array_length(photos) <= 3)),
     CONSTRAINT ck_market_ads_price CHECK (((price_per_unit IS NULL) OR (price_per_unit >= (0)::numeric))),
     CONSTRAINT ck_market_ads_status CHECK (((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'PUBLISHED'::character varying, 'PAUSED'::character varying, 'EXPIRED'::character varying, 'ARCHIVED'::character varying, 'SUSPENDED'::character varying, 'REMOVED'::character varying, 'DELETED'::character varying])::text[]))),
+    CONSTRAINT ck_market_ads_truck_needs_road CHECK ((NOT (is_truck_accessible AND (is_road_accessible = false)))),
     CONSTRAINT ck_market_ads_want CHECK ((((ad_type)::text = 'SELL'::text) OR ((plant_id IS NOT NULL) AND (price_per_unit IS NULL) AND (price_unit IS NULL))))
 );
+
+
+--
+-- Name: COLUMN market_ads.pickup_landmark; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.market_ads.pickup_landmark IS 'Pickup point: the roadside spot or meeting place buyers collect from';
 
 
 --
@@ -824,6 +838,27 @@ COMMENT ON COLUMN public.market_ads.deleted_at IS 'Soft delete by the owner: the
 --
 
 COMMENT ON COLUMN public.market_ads.deleted_by_user_id IS 'User who deleted the ad (status DELETED)';
+
+
+--
+-- Name: COLUMN market_ads.is_road_accessible; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.market_ads.is_road_accessible IS 'SELL only: a road reaches the plants (NULL = not stated). When false, pickup_landmark is where buyers collect';
+
+
+--
+-- Name: COLUMN market_ads.is_truck_accessible; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.market_ads.is_truck_accessible IS 'SELL only: a truck can reach the plants directly; separate from road access (a road may be too narrow)';
+
+
+--
+-- Name: COLUMN market_ads.access_instructions; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.market_ads.access_instructions IS 'SELL only: directions, narrow roads, timing or other pickup notes';
 
 
 --
