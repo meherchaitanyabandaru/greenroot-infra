@@ -832,6 +832,8 @@ CREATE TABLE public.market_enquiries (
     agreed_price_per_unit numeric(12,2),
     agreed_quantity integer,
     agreed_at timestamp with time zone,
+    ad_nursery_read_at timestamp with time zone,
+    enquirer_read_at timestamp with time zone,
     CONSTRAINT ck_market_enquiries_deal CHECK (((((status)::text = 'DEAL_AGREED'::text) = (agreed_at IS NOT NULL)) OR ((status)::text = ANY ((ARRAY['CLOSED'::character varying, 'CANCELLED'::character varying])::text[])))),
     CONSTRAINT ck_market_enquiries_status CHECK (((status)::text = ANY ((ARRAY['NEW'::character varying, 'IN_PROGRESS'::character varying, 'DEAL_AGREED'::character varying, 'CLOSED'::character varying, 'CANCELLED'::character varying])::text[])))
 );
@@ -842,6 +844,20 @@ CREATE TABLE public.market_enquiries (
 --
 
 COMMENT ON COLUMN public.market_enquiries.agreed_price_per_unit IS 'Price both nurseries agreed through an accepted offer';
+
+
+--
+-- Name: COLUMN market_enquiries.ad_nursery_read_at; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.market_enquiries.ad_nursery_read_at IS 'When the ad''s nursery last opened the chat; its messages from the other side after this are unread';
+
+
+--
+-- Name: COLUMN market_enquiries.enquirer_read_at; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.market_enquiries.enquirer_read_at IS 'When the enquiring nursery last opened the chat';
 
 
 --
@@ -4802,6 +4818,13 @@ CREATE INDEX idx_market_enquiries_listing_nursery ON public.market_enquiries USI
 --
 
 CREATE INDEX idx_market_enquiry_messages_enquiry ON public.market_enquiry_messages USING btree (enquiry_id);
+
+
+--
+-- Name: idx_market_enquiry_messages_enquiry_time; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_market_enquiry_messages_enquiry_time ON public.market_enquiry_messages USING btree (enquiry_id, created_at);
 
 
 --
