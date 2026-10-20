@@ -74,6 +74,7 @@ The domain is **`market`** across all layers:
 ```
 DRAFT → PUBLISHED → PAUSED → EXPIRED → ARCHIVED
 PUBLISHED/PAUSED → SUSPENDED (serious report) → PUBLISHED (admin dismisses) or REMOVED (admin upholds)
+DRAFT, or PUBLISHED/PAUSED with no chats → DELETED (owner)
 ```
 
 | Status | Meaning |
@@ -85,6 +86,7 @@ PUBLISHED/PAUSED → SUSPENDED (serious report) → PUBLISHED (admin dismisses) 
 | `ARCHIVED` | Permanently closed by the seller |
 | `SUSPENDED` | Hidden by a serious report until an admin decides |
 | `REMOVED` | Taken down by GreenRoot (report upheld); counts as a strike |
+| `DELETED` | Soft-deleted by the owner: hidden everywhere (404 even for the owner), kept with `deleted_at` / `deleted_by_user_id`; admin sees it under *All ads* |
 
 **Enquiry status**
 ```
@@ -112,7 +114,8 @@ NEW → IN_PROGRESS → DEAL_AGREED → CLOSED (seller)
 - A nursery can post any number of ads.
 - Photos: max 10 per ad; index 0 is the cover photo.
 - Published ads auto-expire 30 days after `published_at`.
-- Ads are soft-deleted via ARCHIVED status — never hard-deleted.
+- Ads are never hard-deleted. The owner can **delete** (`DELETE /market/ads/{id}` → status `DELETED`) a draft, or a live/paused ad with no chats and no pending report (`capabilities.can_delete`). Anything with history (a chat, a report, expired, archived, removed) is **archived** instead, so the other side's chat and the moderation record stay intact; delete then returns 409. The check is repeated in the UPDATE, so a chat arriving mid-delete still blocks it.
+- Lists page on the server (`page`, `per_page` ≤ 50, `total`). Browse sorts: `newest` (default), `oldest`, `name` (plant name A→Z), `price_asc`, `price_desc`, `popular`. The app scrolls Browse and Saved continuously; My Ads loads every page because its tabs count on the device.
 - A nursery cannot enquire on its own ad.
 
 **Wanted posts** (`ad_type`)
@@ -181,6 +184,7 @@ POST   /market/ads/:id/pause                 PUBLISHED → PAUSED
 POST   /market/ads/:id/resume                PAUSED → PUBLISHED
 POST   /market/ads/:id/renew                 Renew expired ad
 POST   /market/ads/:id/archive               Archive ad
+DELETE /market/ads/:id                       Delete own ad (soft; drafts or no-chat live/paused ads)
 POST   /market/ads/:id/save                  Save/bookmark toggle
 POST   /market/ads/:id/report                Submit moderation report
 POST   /market/ads/:id/enquiries             Send enquiry

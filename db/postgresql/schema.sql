@@ -780,10 +780,13 @@ CREATE TABLE public.market_ads (
     moderated_at timestamp with time zone,
     ad_type character varying(10) DEFAULT 'SELL'::character varying NOT NULL,
     needed_by date,
+    deleted_at timestamp with time zone,
+    deleted_by_user_id bigint,
     CONSTRAINT ck_market_ads_ad_type CHECK (((ad_type)::text = ANY ((ARRAY['SELL'::character varying, 'WANT'::character varying])::text[]))),
+    CONSTRAINT ck_market_ads_deleted CHECK ((((status)::text = 'DELETED'::text) = (deleted_at IS NOT NULL))),
     CONSTRAINT ck_market_ads_needed_by CHECK (((needed_by IS NULL) OR ((ad_type)::text = 'WANT'::text))),
     CONSTRAINT ck_market_ads_price CHECK (((price_per_unit IS NULL) OR (price_per_unit >= (0)::numeric))),
-    CONSTRAINT ck_market_ads_status CHECK (((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'PUBLISHED'::character varying, 'PAUSED'::character varying, 'EXPIRED'::character varying, 'ARCHIVED'::character varying, 'SUSPENDED'::character varying, 'REMOVED'::character varying])::text[]))),
+    CONSTRAINT ck_market_ads_status CHECK (((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'PUBLISHED'::character varying, 'PAUSED'::character varying, 'EXPIRED'::character varying, 'ARCHIVED'::character varying, 'SUSPENDED'::character varying, 'REMOVED'::character varying, 'DELETED'::character varying])::text[]))),
     CONSTRAINT ck_market_ads_want CHECK ((((ad_type)::text = 'SELL'::text) OR ((plant_id IS NOT NULL) AND (price_per_unit IS NULL) AND (price_unit IS NULL))))
 );
 
@@ -807,6 +810,20 @@ COMMENT ON COLUMN public.market_ads.ad_type IS 'SELL: a nursery offers plants; W
 --
 
 COMMENT ON COLUMN public.market_ads.needed_by IS 'Optional date a WANT is needed by';
+
+
+--
+-- Name: COLUMN market_ads.deleted_at; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.market_ads.deleted_at IS 'Soft delete by the owner: the ad is hidden everywhere but kept for history';
+
+
+--
+-- Name: COLUMN market_ads.deleted_by_user_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.market_ads.deleted_by_user_id IS 'User who deleted the ad (status DELETED)';
 
 
 --
@@ -5854,6 +5871,14 @@ ALTER TABLE ONLY public.market_ad_views
 
 ALTER TABLE ONLY public.market_ads
     ADD CONSTRAINT market_ads_created_by_user_id_fkey FOREIGN KEY (created_by_user_id) REFERENCES public.users(user_id);
+
+
+--
+-- Name: market_ads market_ads_deleted_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.market_ads
+    ADD CONSTRAINT market_ads_deleted_by_user_id_fkey FOREIGN KEY (deleted_by_user_id) REFERENCES public.users(user_id);
 
 
 --
