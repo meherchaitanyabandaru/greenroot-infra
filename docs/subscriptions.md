@@ -67,13 +67,22 @@ Manager gate checks owner's active subscription on every protected API call
 
 ### Manager / Manager-gate rule
 
-Managers do not subscribe. On every manager API call the middleware must:
+Managers do not subscribe; the owner's subscription covers them. Built:
 
-1. Look up the nursery the manager belongs to.
-2. Check that the nursery owner has an `ACTIVE` subscription (end_date ≥ today).
-3. If not → return `402 subscription_required`.
-
-**This gate is not yet implemented in the API.** It is a required build item (see §8).
+1. At login/refresh the access token gets the nursery (owned or managed) and the
+   owner's subscription tier + end date (`auth.GetTokenContext`). PAUSED and
+   CANCELLED rows don't count; an `EXPIRED` row ends no later than the day it was
+   marked expired, even if its `end_date` is later.
+2. Write handlers call `RequireActiveSubscription`: active → OK; up to 7 days past
+   the end → OK with an `X-Subscription-Warning` header (grace); after that
+   `402 subscription_expired`; no subscription → `402 subscription_required`.
+   Buyers, drivers and admins are never gated.
+3. **Changes apply immediately.** Every create / renew / cancel / admin status change
+   marks the owner's nursery in Redis (`claims:stale:nursery:{id}`, 1 h). Access
+   tokens of that nursery (owner *and* managers) issued before the change get
+   `401 token_stale`; the app's refresh-and-retry picks up the new claims. Without
+   this a paused owner kept working — or a paying owner stayed blocked — for up to
+   the 15-minute token lifetime.
 
 ---
 
@@ -234,7 +243,7 @@ Nursery approved by admin
 ### Billing cycles
 | Cycle | Duration | Price column |
 |---|---|---|
-| `MONTHLY` (default) | start → start + 1 month − 1 day | `monthly_price` |
+| `SIX_MONTH` (default; `SEMI_ANNUAL`, legacy `MONTHLY`/empty) | start → start + 6 months − 1 day | `monthly_price` (holds the 6-month price) |
 | `YEARLY` / `ANNUAL` | start → start + 1 year − 1 day | `yearly_price` |
 
 TRIAL plan uses `monthly_price = 0` but is always created with a fixed 6-month `end_date` (set by the nursery approval handler — not by billing cycle math).
@@ -405,19 +414,19 @@ Every create, status update, renew, and cancel writes to `public.audit_logs`:
 ## 10. What Needs to Be Built
 
 ### DB migrations
-- [ ] Seed `TRIAL` and `STANDARD` plans in `subscription_plans`
+- [x] Plans seeded: `FREE`, `TRIAL`, `GROWTH`, `ENTERPRISE` (`seed-master.sql`)
 
 ### API
-- [ ] **Auto-create TRIAL subscription** when admin approves a nursery (`PATCH /nurseries/{id}/status → APPROVED` handler must call `subscriptions.Create` with TRIAL plan, 6-month end_date, ₹0)
-- [ ] **Manager gate middleware** — check nursery owner's active subscription before allowing manager API calls; return `402 subscription_required` if lapsed
-- [ ] **Auto-expiry cron** — daily job sets `status = EXPIRED` where `end_date < today AND status = ACTIVE` (the expiry worker in `internal/app/expiry_worker.go` now does this)
+- [x] **Auto-create TRIAL subscription** when admin approves a nursery (`PATCH /nurseries/{id}/status → APPROVED` handler must call `subscriptions.Create` with TRIAL plan, 6-month end_date, ₹0)
+- [x] **Manager gate middleware** (see §1 — applies to owner and managers) — check nursery owner's active subscription before allowing manager API calls; return `402 subscription_required` if lapsed
+- [x] **Auto-expiry cron** — daily job sets `status = EXPIRED` where `end_date < today AND status = ACTIVE` (the expiry worker in `internal/app/expiry_worker.go` now does this)
 - [ ] **Auto-renew cron** — when `is_auto_renew = true` and subscription expires, trigger renewal (future)
 - [ ] **Razorpay webhook handler** — receive `payment.captured` event, set `payments.status = SUCCESS` (future — when going live)
 
 ### Mobile
-- [ ] **Subscription status screen** — show current plan, start/end date, payment history; shown if trial expiring or expired
-- [ ] **Payment screen** — plan selector (Monthly / Yearly), price, total, "Pay Now" button calling mock Razorpay flow
-- [ ] **Trial expiry banner** — in-app banner 30 days before expiry
+- [x] **Subscription status screen** — show current plan, start/end date, payment history; shown if trial expiring or expired
+- [x] **Payment screen** — plan selector (Monthly / Yearly), price, total, "Pay Now" button calling mock Razorpay flow
+- [x] **Trial expiry banner** — in-app banner 30 days before expiry
 
 ### Admin UI
 - [x] **Renew form** — `POST /subscriptions/{id}/renew`
