@@ -101,33 +101,73 @@ No separate tax fields are required for the current subscription flow.
 
 ---
 
-## 3. Mock Razorpay (Current Phase)
+## 3. Razorpay Standard Checkout (2026-10-22)
 
-Real Razorpay integration comes later. For now:
+Real payments run when the API has **both** `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` (local: `greenroot-api/.env`, git-ignored). With either missing, payments stay **mock** (`razorpay_mock`, journeys and local dev unchanged).
 
-**Mobile payment screen shows:**
-- Plan name + billing cycle selector (Monthly / Yearly)
-- Price
-- Total
-- "Pay Now" button
+**Flow (owner taps Pay in the app):**
+1. `POST /api/v1/subscriptions/payment-order` `{subscription_id?, plan_id?, billing_cycle, promo_code?}`. The API prices the plan itself (plan, cycle, promo; the app never sends an amount) and creates a Razorpay order with notes `user_id`, `subscription` (`new` or the id), `plan_id`, `billing_cycle`. It returns `{payment_order: {order_id, amount (paise), currency, key_id}}`. The secret never leaves the API.
+2. The app opens Razorpay checkout (`razorpay_flutter`) with that order, and gets `razorpay_payment_id`, `razorpay_order_id`, `razorpay_signature`.
+3. `POST /subscriptions` or `/subscriptions/{id}/renew` with `provider: "razorpay"`, `provider_order_id`, `provider_payment_id`, `provider_signature`. **Before** anything is created or extended, the API:
+   - verifies `HMAC-SHA256(order_id|payment_id, secret)` (constant-time);
+   - fetches the order from Razorpay and checks its notes match this user, subscription, plan and cycle, and that the amount matches the price;
+   - rejects an order or payment already recorded (`uq_payments_provider_payment` is the last guard).
 
-**On tap "Pay Now":**
-- Mobile calls `POST /api/v1/subscriptions/{id}/renew` with:
-  ```json
-  {
-    "billing_cycle": "MONTHLY",
-    "payment_method": "UPI",
-    "provider": "razorpay_mock",
-    "provider_order_id": "MOCK-ORDER-<timestamp>"
-  }
-  ```
-- API creates payment record with `payment_status = SUCCESS`, `notes = "Mock payment — Razorpay integration pending"`, `provider = "razorpay_mock"`.
-- Response shows updated subscription with `latest_payment.payment_status = "SUCCESS"`.
+   The payment is then stored `SUCCESS` with the order id, payment id and signature.
 
-**When real Razorpay is wired:**
-- Replace `provider = "razorpay_mock"` with real Razorpay SDK flow.
-- Add webhook handler to receive `payment.captured` event and call `UpdateStatus` on the payment record.
-- No DB schema changes needed — all fields already exist.
+**Rules when Razorpay is on:** owners must pay through Razorpay (mock or no provider → `400 payment_required`); admins can still record manual payments (cash, bank transfer); 100% promo (₹0) needs no payment; orders under ₹1 (100 paise) are refused.
+
+| Error | HTTP | Code |
+|---|---|---|
+| Keys not configured (`payment-order` only) | 503 | `payments_unavailable` (the app falls back to mock) |
+| Owner skipped payment | 400 | `payment_required` (not 402: apps read 402 as "nursery subscription expired") |
+| Missing checkout fields | 400 | `invalid_input` |
+| Bad signature, or order for another user/plan/cycle/amount | 400 | `payment_verification_failed` |
+| Payment or order already used | 409 | `payment_already_used` |
+| Razorpay down or keys rejected | 502 | `payment_gateway_error` (not 401: that would sign the user out) |
+
+**Test mode:** card `4100 2800 0000 1007`, CVV `123`, expiry `12/26`, then choose **Success** on Razorpay's demo bank page; UPI `test@razorpay`. Verified on the emulator 2026-10-22 (Growth 6 months, ₹2,499, `PAY-20261022-0001`).
+
+### Refunds (admin)
+
+`POST /api/v1/subscriptions/{id}/payments/{paymentID}/refund` `{reason}`; admin UI → Subscriptions → payment row → **Refund**.
+
+| Condition | Why |
+|---|---|
+| Admin only; reason required (≥ 5 chars) | Stored in `payments.notes`, `raw_response` and the audit log |
+| Payment is `SUCCESS`, provider `razorpay` | Cash and bank payments are refunded outside the app |
+| It is the subscription's **latest** successful payment | So exactly one paid period is undone |
+| Within **7 days** of payment | Cooling-off window (`RefundWindow` in `refund.go`) |
+| Full amount only | No partial refunds |
+
+**Effect** (one transaction, after Razorpay accepts the refund):
+- payment → `REFUNDED`;
+- subscription `end_date` → the day before the refunded period started;
+- `start_date` → when the previous period was paid for (or when the subscription was created);
+- `EXPIRED` if that end date has already passed;
+- tokens refreshed, expiry rescheduled.
+
+The plan isn't restored (renewals overwrite it).
+
+Refunds go at Razorpay's "normal" speed, 5–7 working days to the customer; the refund `status` is `pending` until then.
+
+**Errors:**
+- `409 refund_not_allowed`, with the reason;
+- `409 payment_gateway_rejected`, with Razorpay's reason (e.g. already refunded);
+- `503` without keys.
+
+Verified 2026-10-22 through the admin UI: `rfnd_Tqvws48TYvSYFp` for `PAY-20261022-0001`.
+
+If Razorpay refunds but the database write fails, the API logs `refund done at Razorpay but not recorded` with the refund id, to be fixed by hand.
+
+**Admin "Record Offline Payment"** (was "Renew Subscription"):
+- for money received outside the app (cash, bank transfer, direct UPI, cheque);
+- sends no provider, so the payment is recorded `SUCCESS`;
+- shows the plan's real prices.
+
+The old dialog sent invalid methods (`NETBANKING`, `RAZORPAY_MOCK` → 400), showed made-up prices, and left payments `PENDING`.
+
+**Not built yet:** a `payment.captured` / `payment.failed` webhook. That covers a payment that succeeds after the app was closed mid-checkout; today such a payment is taken but not applied, and the user contacts support with the payment id. 
 
 ---
 
