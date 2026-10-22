@@ -173,7 +173,32 @@ If Razorpay refunds but the database write fails, the API logs `refund done at R
 
 The old dialog sent invalid methods (`NETBANKING`, `RAZORPAY_MOCK` → 400), showed made-up prices, and left payments `PENDING`.
 
-**Not built yet:** a `payment.captured` / `payment.failed` webhook. That covers a payment that succeeds after the app was closed mid-checkout; today such a payment is taken but not applied, and the user contacts support with the payment id. 
+### Production hardening (2026-10-22)
+
+| What | How |
+|---|---|
+| **Money is really captured** | The signature only proves *authorized*. Before extending, the API fetches the payment: it must belong to the order with the same amount; `authorized` → the API captures it; `failed` / `refunded` / `created` → refused. The method stored is the one actually used (card, UPI…), from Razorpay |
+| **All or nothing** | The subscription change and its payment row are one DB transaction (`Repository.InTx`). A failed payment insert can't leave free time behind. New subscriptions are also locked per user |
+| **Retries are safe** | Sending the same verified payment again (the app retrying after a timeout) returns the subscription it already paid for, not `payment_already_used`. A payment used for a *different* subscription is still refused |
+| **Webhook** | `POST /api/v1/webhooks/razorpay`, verified by `X-Razorpay-Signature` (HMAC of the raw body with `RAZORPAY_WEBHOOK_SECRET`). `payment.captured` / `order.paid` apply a paid order the app never confirmed, by re-running create/renew from the order's notes (`user_id`, `subscription`, `plan_id`, `billing_cycle`, `promo_code`). The result is the same whichever arrives first, the app or the webhook. `refund.processed` / `refund.failed` record the refund status. Answers 500 only for problems a retry can fix (DB, Razorpay, lock), so Razorpay retries; if a business rule refuses the payment (e.g. paused meanwhile), it logs `paid but not applied — refund manually` |
+| **Production start guard** | Production refuses to start with no keys, with `rzp_test_` keys (both allowed only with `ALLOW_MOCK_PROVIDERS` for a closed beta), or with keys but no `RAZORPAY_WEBHOOK_SECRET` |
+| **App** | Checkout opens on the chosen method (UPI/Card) with the user's mobile pre-filled. Cash is removed from the app (cash is an admin "offline payment"). The app no longer signs the user out when the server is unreachable on resume (it did, right after checkout) |
+
+**Verified live in Razorpay test mode:**
+- A normal payment: the app confirms, the money is captured, and a late webhook changes nothing.
+- The API was down when the user paid: the app stayed signed in, and the webhook applied the payment with real Razorpay data (`pay_TqwlQDQpR3ZXrO`, `pay_TqwsdTEVN8ZGVG`).
+- Duplicate webhook deliveries: no change.
+- `refund.processed` updated the earlier refund from `pending` to `processed`.
+
+### Going live checklist (Razorpay)
+
+1. Finish KYC in the Razorpay Dashboard and generate **live** keys. Put `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` in the secret store. **Rotate the test secret**, which was shared in chat.
+2. Dashboard → Settings → **Payment capture → Automatic** (the API also captures authorized payments, but automatic is the safe default).
+3. Dashboard → Webhooks → add `https://<api-host>/api/v1/webhooks/razorpay`, with events `payment.captured`, `order.paid`, `refund.processed`, `refund.failed`. Set a strong secret and put it in `RAZORPAY_WEBHOOK_SECRET`. Repeat in test mode for staging with its own secret.
+4. Start the API with `APP_ENV=production`; it refuses to start if any of these are missing or still test values.
+5. One real ₹1-plan payment and refund in production before announcing.
+6. Watch the logs for `paid but not applied` and `refund done at Razorpay but not recorded` (alert on both).
+
 
 ---
 
