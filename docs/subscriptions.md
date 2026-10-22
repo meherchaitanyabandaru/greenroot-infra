@@ -115,6 +115,12 @@ Real payments run when the API has **both** `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_
 
    The payment is then stored `SUCCESS` with the order id, payment id and signature.
 
+**Renewals stack and are capped (2026-10-22).**
+- A renewal starts the day after the current end date (or today, if that has passed).
+- It is refused with `409 renewal_too_early` while the subscription is already paid more than **1 year** ahead (`MaxPaidAhead`). This applies to owners and admins, and also to `payment-order`, so no money is taken for a renewal that would be refused.
+- Why: pressing renew three times stacked 1.5 years.
+- The admin "Record Offline Payment" dialog lists **paid plans only** (it used to renew the ₹0 trial, which recorded no payment) and shows the new period before confirming.
+
 **Rules when Razorpay is on:** owners must pay through Razorpay (mock or no provider → `400 payment_required`); admins can still record manual payments (cash, bank transfer); 100% promo (₹0) needs no payment; orders under ₹1 (100 paise) are refused.
 
 | Error | HTTP | Code |
