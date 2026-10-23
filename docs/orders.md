@@ -102,6 +102,25 @@ All cancel flows use `POST /orders/:id/cancel` — never a direct status update.
 - When `complete-loading` is called and any item has `loaded_quantity < quantity`, status → `PARTIALLY_FULFILLED`.
 - Invoice totals recalculated based on loaded quantities only.
 
+**Delivery and its confirmation (2026-10-24)**
+
+A dispatch (trip) goes `PENDING → (ACCEPTED) → DISPATCHED → IN_TRANSIT → DELIVERED`; delivering it completes the order. A trip is `DELIVERED` only with the **customer's** confirmation. `PUT /dispatches/:id/status` never sets `DELIVERED` (422 `delivery_confirmation_required`).
+
+| How | Who acts | `delivery_confirmation` |
+|---|---|---|
+| Customer reads their 4-digit **delivery code**; the driver or the nursery enters it (`POST /dispatches/:id/deliver {code}`) | driver, owner, manager | `CUSTOMER_CODE` |
+| Customer taps "I received the plants" (`POST /dispatches/:id/receipt`) | customer | `CUSTOMER_APP` |
+| Nursery marks it delivered without the code, giving a reason (min 10 chars) | owner, manager (never the driver) | `UNCONFIRMED` |
+
+- **The code** is shown only to the order's customer (`delivery_code` in their own view of the trip), only while `DISPATCHED`/`IN_TRANSIT`. Never to the seller, the driver, admins or the public tracking link. It is derived (HMAC-SHA256) from the server secret and the trip id, so it is never stored.
+- **Wrong codes:** each is counted (`delivery_code_attempts`, audited). The 5th locks the code for that trip (409 `delivery_code_locked`; it is no longer shown). A guess therefore succeeds 1 time in 2,000. After a lock, the customer taps "received" or the nursery uses the override.
+- **Delivery may be confirmed from `DISPATCHED`.** The lorry can arrive before the driver taps Start; the customer's confirmation is what counts.
+- **Override (`UNCONFIRMED`):** the customer is notified with the reason. For **48 hours** after delivery they can confirm it (→ `CUSTOMER_APP`) or report a problem. The override and its author are in the audit log.
+- **Problems:** within 48 hours of any delivery the customer can report one problem (`receipt {issue}`, ≤ 500 chars). The nursery owner is notified. After 48 hours: 409 `receipt_window_closed`.
+- **Outside lorry** (`is_outside_transport`, driver without the app): the vehicle number is required; the driver's name and mobile are optional. There is no QR join (accept → 409 `outside_transport`) and no GPS. The nursery marks it dispatched, then delivers it with the customer's code.
+- **Customer snapshot:** `dispatches.customer_user_id` is the order's buyer, set at creation. It decides who sees the code and who can confirm.
+- **Not yet:** the code by SMS for customers without the app (needs a TRAI DLT template), and an admin screen for overrides and disputes.
+
 ---
 
 ## RBAC

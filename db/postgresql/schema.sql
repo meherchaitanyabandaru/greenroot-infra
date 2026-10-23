@@ -403,8 +403,51 @@ CREATE TABLE public.dispatches (
     deleted_at timestamp with time zone,
     trip_uuid uuid DEFAULT gen_random_uuid() NOT NULL,
     version bigint DEFAULT 1 NOT NULL,
-    CONSTRAINT ck_dispatches_status CHECK (((status)::text = ANY (ARRAY[('PENDING'::character varying)::text, ('ACCEPTED'::character varying)::text, ('DISPATCHED'::character varying)::text, ('IN_TRANSIT'::character varying)::text, ('DELIVERED'::character varying)::text, ('CANCELLED'::character varying)::text])))
+    is_outside_transport boolean DEFAULT false NOT NULL,
+    outside_vehicle_number character varying(20),
+    outside_driver_name character varying(100),
+    outside_driver_mobile character varying(15),
+    delivery_confirmation character varying(20),
+    delivery_confirmed_by_user_id bigint,
+    delivery_confirmed_at timestamp with time zone,
+    delivery_override_reason text,
+    delivery_issue text,
+    delivery_issue_reported_at timestamp with time zone,
+    delivery_code_attempts smallint DEFAULT 0 NOT NULL,
+    CONSTRAINT ck_dispatches_delivered_is_confirmed CHECK ((((status)::text <> 'DELIVERED'::text) OR (delivery_confirmation IS NOT NULL))),
+    CONSTRAINT ck_dispatches_delivery_confirmation CHECK (((delivery_confirmation)::text = ANY ((ARRAY['CUSTOMER_CODE'::character varying, 'CUSTOMER_APP'::character varying, 'UNCONFIRMED'::character varying])::text[]))),
+    CONSTRAINT ck_dispatches_outside_has_vehicle CHECK (((NOT is_outside_transport) OR (outside_vehicle_number IS NOT NULL))),
+    CONSTRAINT ck_dispatches_status CHECK (((status)::text = ANY (ARRAY[('PENDING'::character varying)::text, ('ACCEPTED'::character varying)::text, ('DISPATCHED'::character varying)::text, ('IN_TRANSIT'::character varying)::text, ('DELIVERED'::character varying)::text, ('CANCELLED'::character varying)::text]))),
+    CONSTRAINT ck_dispatches_unconfirmed_has_reason CHECK ((((delivery_confirmation)::text <> 'UNCONFIRMED'::text) OR (delivery_override_reason IS NOT NULL)))
 );
+
+
+--
+-- Name: COLUMN dispatches.is_outside_transport; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.dispatches.is_outside_transport IS 'Outside lorry: driver has no app, no QR join or GPS; the nursery confirms delivery with the customer''s code';
+
+
+--
+-- Name: COLUMN dispatches.delivery_confirmation; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.dispatches.delivery_confirmation IS 'How delivery was confirmed: CUSTOMER_CODE (code entered by driver/nursery), CUSTOMER_APP (customer tapped received), UNCONFIRMED (nursery override with reason)';
+
+
+--
+-- Name: COLUMN dispatches.delivery_issue; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.dispatches.delivery_issue IS 'Problem the customer reported within 48 hours of delivery';
+
+
+--
+-- Name: COLUMN dispatches.delivery_code_attempts; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.dispatches.delivery_code_attempts IS 'Wrong delivery codes entered; at 5 the code stops working for this trip';
 
 
 --
@@ -706,7 +749,7 @@ CREATE TABLE public.market_ad_reports (
     reviewed_by_user_id bigint,
     reviewed_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT ck_market_ad_reports_reason CHECK (((reason)::text = ANY ((ARRAY['SPAM'::character varying, 'WRONG_PLANT'::character varying, 'DUPLICATE'::character varying, 'FRAUD'::character varying, 'OTHER'::character varying, 'EXPLICIT_CONTENT'::character varying, 'SCAM'::character varying, 'PROHIBITED'::character varying])::text[]))),
+    CONSTRAINT ck_market_ad_reports_reason CHECK (((reason)::text = ANY (ARRAY[('SPAM'::character varying)::text, ('WRONG_PLANT'::character varying)::text, ('DUPLICATE'::character varying)::text, ('FRAUD'::character varying)::text, ('OTHER'::character varying)::text, ('EXPLICIT_CONTENT'::character varying)::text, ('SCAM'::character varying)::text, ('PROHIBITED'::character varying)::text]))),
     CONSTRAINT ck_market_ad_reports_status CHECK (((status)::text = ANY (ARRAY[('PENDING'::character varying)::text, ('REVIEWED'::character varying)::text, ('DISMISSED'::character varying)::text])))
 );
 
@@ -786,13 +829,13 @@ CREATE TABLE public.market_ads (
     is_truck_accessible boolean,
     access_instructions text,
     CONSTRAINT ck_market_ads_access_sell_only CHECK ((((ad_type)::text = 'SELL'::text) OR ((is_road_accessible IS NULL) AND (is_truck_accessible IS NULL) AND (access_instructions IS NULL)))),
-    CONSTRAINT ck_market_ads_ad_type CHECK (((ad_type)::text = ANY ((ARRAY['SELL'::character varying, 'WANT'::character varying])::text[]))),
+    CONSTRAINT ck_market_ads_ad_type CHECK (((ad_type)::text = ANY (ARRAY[('SELL'::character varying)::text, ('WANT'::character varying)::text]))),
     CONSTRAINT ck_market_ads_deleted CHECK ((((status)::text = 'DELETED'::text) = (deleted_at IS NOT NULL))),
     CONSTRAINT ck_market_ads_needed_by CHECK (((needed_by IS NULL) OR ((ad_type)::text = 'WANT'::text))),
     CONSTRAINT ck_market_ads_no_road_pickup CHECK (((is_road_accessible IS DISTINCT FROM false) OR (btrim((COALESCE(pickup_landmark, ''::character varying))::text) <> ''::text))),
     CONSTRAINT ck_market_ads_photos_max CHECK ((jsonb_array_length(photos) <= 3)),
     CONSTRAINT ck_market_ads_price CHECK (((price_per_unit IS NULL) OR (price_per_unit >= (0)::numeric))),
-    CONSTRAINT ck_market_ads_status CHECK (((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'PUBLISHED'::character varying, 'PAUSED'::character varying, 'EXPIRED'::character varying, 'ARCHIVED'::character varying, 'SUSPENDED'::character varying, 'REMOVED'::character varying, 'DELETED'::character varying])::text[]))),
+    CONSTRAINT ck_market_ads_status CHECK (((status)::text = ANY (ARRAY[('DRAFT'::character varying)::text, ('PUBLISHED'::character varying)::text, ('PAUSED'::character varying)::text, ('EXPIRED'::character varying)::text, ('ARCHIVED'::character varying)::text, ('SUSPENDED'::character varying)::text, ('REMOVED'::character varying)::text, ('DELETED'::character varying)::text]))),
     CONSTRAINT ck_market_ads_truck_needs_road CHECK ((NOT (is_truck_accessible AND (is_road_accessible = false)))),
     CONSTRAINT ck_market_ads_want CHECK ((((ad_type)::text = 'SELL'::text) OR ((plant_id IS NOT NULL) AND (price_per_unit IS NULL) AND (price_unit IS NULL))))
 );
@@ -886,8 +929,8 @@ CREATE TABLE public.market_enquiries (
     agreed_at timestamp with time zone,
     ad_nursery_read_at timestamp with time zone,
     enquirer_read_at timestamp with time zone,
-    CONSTRAINT ck_market_enquiries_deal CHECK (((((status)::text = 'DEAL_AGREED'::text) = (agreed_at IS NOT NULL)) OR ((status)::text = ANY ((ARRAY['CLOSED'::character varying, 'CANCELLED'::character varying])::text[])))),
-    CONSTRAINT ck_market_enquiries_status CHECK (((status)::text = ANY ((ARRAY['NEW'::character varying, 'IN_PROGRESS'::character varying, 'DEAL_AGREED'::character varying, 'CLOSED'::character varying, 'CANCELLED'::character varying])::text[])))
+    CONSTRAINT ck_market_enquiries_deal CHECK (((((status)::text = 'DEAL_AGREED'::text) = (agreed_at IS NOT NULL)) OR ((status)::text = ANY (ARRAY[('CLOSED'::character varying)::text, ('CANCELLED'::character varying)::text])))),
+    CONSTRAINT ck_market_enquiries_status CHECK (((status)::text = ANY (ARRAY[('NEW'::character varying)::text, ('IN_PROGRESS'::character varying)::text, ('DEAL_AGREED'::character varying)::text, ('CLOSED'::character varying)::text, ('CANCELLED'::character varying)::text])))
 );
 
 
@@ -947,8 +990,8 @@ CREATE TABLE public.market_enquiry_messages (
     offer_quantity integer,
     offer_status character varying(10),
     CONSTRAINT ck_market_enquiry_messages_offer CHECK (((((message_type)::text = 'OFFER'::text) = ((offer_price_per_unit IS NOT NULL) AND (offer_status IS NOT NULL))) AND ((offer_price_per_unit IS NULL) OR (offer_price_per_unit > (0)::numeric)) AND ((offer_quantity IS NULL) OR (offer_quantity > 0)))),
-    CONSTRAINT ck_market_enquiry_messages_offer_status CHECK (((offer_status)::text = ANY ((ARRAY['PENDING'::character varying, 'ACCEPTED'::character varying, 'DECLINED'::character varying, 'WITHDRAWN'::character varying])::text[]))),
-    CONSTRAINT ck_market_enquiry_messages_type CHECK (((message_type)::text = ANY ((ARRAY['TEXT'::character varying, 'OFFER'::character varying, 'SYSTEM'::character varying])::text[])))
+    CONSTRAINT ck_market_enquiry_messages_offer_status CHECK (((offer_status)::text = ANY (ARRAY[('PENDING'::character varying)::text, ('ACCEPTED'::character varying)::text, ('DECLINED'::character varying)::text, ('WITHDRAWN'::character varying)::text]))),
+    CONSTRAINT ck_market_enquiry_messages_type CHECK (((message_type)::text = ANY (ARRAY[('TEXT'::character varying)::text, ('OFFER'::character varying)::text, ('SYSTEM'::character varying)::text])))
 );
 
 
@@ -1904,7 +1947,7 @@ CREATE TABLE public.plant_suggestions (
     reviewed_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT ck_plant_suggestions_status CHECK (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'APPROVED'::character varying, 'LINKED'::character varying, 'REJECTED'::character varying])::text[])))
+    CONSTRAINT ck_plant_suggestions_status CHECK (((status)::text = ANY (ARRAY[('PENDING'::character varying)::text, ('APPROVED'::character varying)::text, ('LINKED'::character varying)::text, ('REJECTED'::character varying)::text])))
 );
 
 
@@ -5609,6 +5652,14 @@ ALTER TABLE ONLY public.dispatch_items
 
 ALTER TABLE ONLY public.dispatches
     ADD CONSTRAINT dispatches_customer_user_id_fkey FOREIGN KEY (customer_user_id) REFERENCES public.users(user_id);
+
+
+--
+-- Name: dispatches dispatches_delivery_confirmed_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.dispatches
+    ADD CONSTRAINT dispatches_delivery_confirmed_by_user_id_fkey FOREIGN KEY (delivery_confirmed_by_user_id) REFERENCES public.users(user_id) ON DELETE SET NULL;
 
 
 --

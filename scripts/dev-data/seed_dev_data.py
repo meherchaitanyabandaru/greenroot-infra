@@ -241,8 +241,10 @@ step("driver accepts the trip → ACCEPTED", d["dispatch"]["dispatch_status"] ==
 call("PUT", f"/dispatches/{did}/status", owner, {"dispatch_status": "DISPATCHED"}, expect=200)
 call("PUT", f"/dispatches/{did}/status", driver, {"dispatch_status": "IN_TRANSIT"}, expect=200)
 call("POST", "/tracking", driver, {"dispatch_id": did, "latitude": 17.44, "longitude": 78.38}, expect=(200, 201, 400))
-_, d = call("PUT", f"/dispatches/{did}/status", driver, {"dispatch_status": "DELIVERED"}, expect=200)
-step("driver delivers → DELIVERED", d["dispatch"]["dispatch_status"] == "DELIVERED", d["dispatch"]["dispatch_status"])
+# Delivery needs the customer: the driver enters the code the buyer sees in their app.
+_, bd = call("GET", f"/dispatches/{did}", buyer, expect=200)
+_, d = call("POST", f"/dispatches/{did}/deliver", driver, {"code": bd["dispatch"].get("delivery_code", "")}, expect=200)
+step("driver delivers with the customer's code → DELIVERED", d["dispatch"]["dispatch_status"] == "DELIVERED", d["dispatch"]["dispatch_status"])
 _, o = call("GET", f"/orders/{order_id}", buyer, expect=200)
 if o["order"]["order_status"] != "COMPLETED":
     _, o = call("PUT", f"/orders/{order_id}/status", owner, {"order_status": "COMPLETED"}, expect=200)
