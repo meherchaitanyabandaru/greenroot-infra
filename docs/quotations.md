@@ -5,8 +5,8 @@
 > **A quotation always represents the Nursery as the issuing business — not the individual Owner or Manager.**
 
 - Every quotation PDF header shows the Nursery name, address, and contact details as the issuer.
-- The Owner or Manager shown under **"Validated By"** is the person who officially downloaded or shared that PDF on behalf of the Nursery.
-- "Validated By" is derived from the authenticated user at download time — the frontend never supplies the validator name.
+- The PDF names the person who prepared it (`created_by`) under **Prepared by / Issued by**, "for <Nursery>". Who handles it internally (assigned manager) is not printed.
+- **The PDF is a customer-facing document** (owners share it): it is identical for the owner, the customer and admins, and never prints internal `notes`. The only variant is a manager's copy, which hides the customer.
 - Every official PDF generation (download, WhatsApp share, share sheet) is recorded in `audit_logs` via `POST /quotations/:id/record-download`. The record captures the user, their role scope, and whether customer data was masked.
 
 ## Customer Privacy Rule
@@ -16,7 +16,8 @@
 - `recipient_name` and `recipient_mobile` are **never returned** to manager-only actors (actors who have `MANAGER` role but not `NURSERY_OWNER`/`ADMIN`).
 - Masking is enforced by the backend (`redactCustomerContact()` in `service.go`). The mobile and admin clients never need to re-mask API data.
 - Admins (`ADMIN`/`SUPER_ADMIN`) receive full customer data (support access).
-- PDF generation is client-side. Because the API already strips fields for managers, the PDF builder receives nil values and renders an explicit "🔒 Customer details protected" block in the "TO" section instead of blank.
+- PDFs are rendered by the API (`GET /quotations/:id/documents/render`, shared engine `internal/common/pdfdoc`). Because the API already strips fields for managers, the manager's copy shows "Customer details protected" instead of the customer.
+- `notes` are **internal**: returned only to the nursery side (owner, managers, admins), never to the customer, and never printed. The same applies to `assigned_manager_*`.
 - Privacy is **independent of assignment**: the owner always sees full customer data even when a manager is the exclusive editor, and a manager always sees masked data even if they are the assignee.
 
 ## Tables

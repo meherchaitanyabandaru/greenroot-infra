@@ -21,9 +21,9 @@ Status as of 2026-10-23. What the code enforces, and what infra must set up befo
 
 The object key is a random UUID with an extension taken from the type, never from the client's file name. The `Content-Type` is signed into the upload URL, so a file cannot be stored, and then served from a public bucket, as HTML or SVG.
 
-**Not enforced:**
-- **Upload size.** Presigned PUT cannot limit it; that needs presigned POST, which means an app change.
-- **Orphaned files.** Files that are replaced or deleted are not cleaned up.
+**Upload size** is enforced. The client sends `size` with the presign request; the API refuses more than 10 MB for images and 20 MB for attachments (400 `file_too_large`), and signs `Content-Length` into the URL, so storage rejects any other size.
+
+**Not enforced:** orphaned files. Files that are replaced or deleted are not cleaned up.
 
 ## 2. Moving to AWS S3
 

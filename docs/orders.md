@@ -1,5 +1,12 @@
 # Orders Module
 
+## Order PDF (2026-10-23)
+
+- Rendered by the API (`GET /orders/:id/documents/render`, engine `internal/common/pdfdoc`) and archived as the official copy the QR verifies.
+- **One document for every viewer** (seller side, buyer, admin): it never prints internal `notes` or the assigned manager. The API also hides those two from the buyer side (a nursery owner buying from another nursery is the buyer side).
+- Shows the delivery snapshot (contact, phones, full address, landmark, delivery note).
+- After loading completes, each row is billed on its loaded quantity (`COALESCE(loaded, ordered) × rate`), so rows add up to the order total; a short load shows "Ordered value / Not loaded / Total". Cancelled and partially fulfilled orders carry a callout.
+
 ## Tables
 
 | Table | Purpose |
