@@ -102,6 +102,11 @@ All cancel flows use `POST /orders/:id/cancel` — never a direct status update.
 - When `complete-loading` is called and any item has `loaded_quantity < quantity`, status → `PARTIALLY_FULFILLED`.
 - Invoice totals recalculated based on loaded quantities only.
 
+**Duplicate submits (2026-10-24)**
+- `POST` with an `Idempotency-Key` header (8–64 chars) is tracked per user, method and path for 24 h (`internal/middleware/idempotency.go`, needs Redis). A retry with the same key gets the first response back (`Idempotent-Replayed: true`) instead of creating a second record. If the first request is still running, the retry gets 409 `request_in_progress`.
+- Only successes are remembered: after a 4xx/5xx (or a crash) the key is released, so a corrected request runs.
+- The app sends one key per create form: order (seller and buyer) and quotation. Requests without the header are unchanged.
+
 **Delivery and its confirmation (2026-10-24)**
 
 A dispatch (trip) goes `PENDING → (ACCEPTED) → DISPATCHED → IN_TRANSIT → DELIVERED`; delivering it completes the order. A trip is `DELIVERED` only with the **customer's** confirmation. `PUT /dispatches/:id/status` never sets `DELIVERED` (422 `delivery_confirmation_required`).
