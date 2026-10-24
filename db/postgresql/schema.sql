@@ -6731,3 +6731,8 @@ ALTER TABLE ONLY public.vehicle_tracking
 --
 
 
+
+-- Migrations already applied in this schema (cmd/migrate skips them).
+INSERT INTO public.schema_migrations (version, checksum) VALUES ('20261019_01_remove_multilingual_plant_names', 'de5180a685d3a20ad5347bf842cac07a030f38b7cafafd96da45fcb74e31cc2a') ON CONFLICT DO NOTHING;
+INSERT INTO public.schema_migrations (version, checksum) VALUES ('20261023_01_plant_suggestions', '20e828eefbf57756007238a3973b7b4ea3bac13ca86b2554985c7a98db03d237') ON CONFLICT DO NOTHING;
+INSERT INTO public.schema_migrations (version, checksum) VALUES ('20261024_01_delivery_confirmation', '33f37da9dfb9c2907dad8b76cd6807079485ec06e0155c6f5e667172df29489a') ON CONFLICT DO NOTHING;

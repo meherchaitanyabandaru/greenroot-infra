@@ -283,7 +283,8 @@ INSERT INTO public.dispatches
    snapshot_owner_user_id, customer_user_id,
    customer_name_snapshot, customer_mobile_snapshot,
    destination_address, dispatched_at, delivered_at,
-   trip_started_at, completed_at, notes)
+   trip_started_at, completed_at, notes,
+   delivery_confirmation, delivery_confirmed_by_user_id, delivery_confirmed_at)
 VALUES
   -- Dispatch 1: order 2 (CONFIRMED), driver assigned, pending acceptance
   (1, 2, 1, 'PENDING',
@@ -294,7 +295,8 @@ VALUES
    '15, Gandhi Nagar, Koramangala, Bengaluru, Karnataka 560034',
    NOW(), NOW() + INTERVAL '2 days',
    NULL, NULL,
-   'Handle with care — grafted saplings'),
+   'Handle with care — grafted saplings',
+   NULL, NULL, NULL),
 
   -- Dispatch 2: order 4 (COMPLETED), fully delivered
   (2, 4, 1, 'DELIVERED',
@@ -305,7 +307,9 @@ VALUES
    '22, MG Road, Chennai, Tamil Nadu 600034',
    NOW() - INTERVAL '6 days', NOW() - INTERVAL '3 days',
    NOW() - INTERVAL '5 days', NOW() - INTERVAL '3 days',
-   'Delivered successfully');
+   'Delivered successfully',
+   -- A delivery needs the customer's confirmation (here: their code, entered by the driver).
+   'CUSTOMER_CODE', 9, NOW() - INTERVAL '3 days');
 
 SELECT setval('public.dispatches_dispatch_id_seq', 2, true);
 
