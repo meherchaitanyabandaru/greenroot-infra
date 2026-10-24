@@ -69,7 +69,7 @@ sudo /opt/greenroot/bin/create-admin.sh 98XXXXXXXX "First" "Last"
 ```bash
 # 4. Admin dashboard.
 cd greenroot-admin
-VITE_API_BASE_URL=https://api.<domain> npm ci && npm run build
+npm ci && VITE_API_BASE_URL=https://api.<domain> npm run build:release
 aws s3 sync dist/ "s3://$(terraform output -raw admin_bucket)/" --delete
 aws cloudfront create-invalidation --distribution-id "$(terraform output -raw admin_distribution_id)" --paths '/*'
 ```
