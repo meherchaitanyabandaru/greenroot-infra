@@ -210,8 +210,9 @@ print("\n── Order → loading (partial) ──")
 _, o = call("GET", f"/orders/{order_id}", buyer, expect=200)
 step("converted order is PENDING and visible to the buyer", o["order"]["order_status"] == "PENDING", o["order"]["order_status"])
 call("POST", f"/orders/{order_id}/confirm", buyer, expect=403)
-_, o = call("POST", f"/orders/{order_id}/confirm", manager, expect=400)
-step("confirm refuses an order without a delivery address", o.get("error", {}).get("code") == "missing_delivery_address", o)
+# The order starts with the buyer's saved default address; staff may still edit it.
+step("converted order carries the buyer's saved delivery address",
+     (o["order"].get("delivery_snapshot") or {}).get("contact_name") == "Ravi Buyer", o["order"].get("delivery_snapshot"))
 call("PUT", f"/orders/{order_id}/delivery", buyer, delivery, expect=403)
 call("PUT", f"/orders/{order_id}/delivery", manager, delivery, expect=200)
 _, o = call("POST", f"/orders/{order_id}/confirm", manager, expect=200)
