@@ -1,0 +1,83 @@
+# GreenRoot API host: Caddy (TLS) → API → Redis. RDS is managed by AWS.
+# Started by bin/deploy.sh, which writes .env (image tag, secret id, Redis
+# password) from Secrets Manager. Do not edit .env by hand.
+
+name: greenroot
+
+services:
+  caddy:
+    image: public.ecr.aws/docker/library/caddy:2.8.4-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      API_HOST: ${API_HOST:?}
+      ACME_EMAIL: ${ACME_EMAIL:?}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+    logging: &awslogs
+      driver: awslogs
+      options:
+        awslogs-region: ${AWS_REGION:?}
+        awslogs-group: ${LOG_GROUP:?}
+        tag: "{{.Name}}"
+
+  api:
+    image: ${API_IMAGE:?}
+    restart: unless-stopped
+    environment:
+      AWS_SECRETS_ID: ${AWS_SECRETS_ID:?}
+      AWS_REGION: ${AWS_REGION:?}
+      APP_VERSION: ${API_VERSION:-unknown}
+    # No published port: only Caddy reaches it on the internal network.
+    expose:
+      - "8080"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    depends_on:
+      redis:
+        condition: service_healthy
+    stop_grace_period: 25s # the API drains requests for up to 20 s
+    logging: *awslogs
+
+  redis:
+    image: public.ecr.aws/docker/library/redis:7.4.1-alpine
+    restart: unless-stopped
+    # noeviction: rate limits, sessions and locks must never be silently dropped.
+    command: >
+      redis-server --requirepass ${REDIS_PASSWORD:?} --appendonly yes --appendfsync everysec
+      --maxmemory 256mb --maxmemory-policy noeviction
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?}
+    security_opt:
+      - no-new-privileges:true
+    logging: *awslogs
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16 # inside TRUSTED_PROXIES (172.16.0.0/12)
+
+volumes:
+  caddy-data:
+  caddy-config:
+  redis-data:

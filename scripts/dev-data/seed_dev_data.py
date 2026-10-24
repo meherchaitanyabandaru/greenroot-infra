@@ -11,7 +11,7 @@ stops at the first rule that does not hold.
 Run on a fresh database:
     scripts/reset-dbs.sh                                   # schema + master data + admin (flushes Redis)
     (cd ../greenroot-api && go run ./cmd/botanicalnames load)
-    (cd ../greenroot-api && go run ./cmd/api) &           # SMS/email mock mode: OTP 123456
+    (cd ../greenroot-api && APP_ENV=local go run ./cmd/api) &           # SMS/email mock mode: OTP 123456
     python3 scripts/dev-data/seed_dev_data.py [--api http://localhost:8080/api/v1]
 
 Logins afterwards (OTP 123456): 9000000000 admin, 9100000000 owner (Priya Green

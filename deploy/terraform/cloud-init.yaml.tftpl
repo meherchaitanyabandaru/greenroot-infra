@@ -1,0 +1,24 @@
+#cloud-config
+# GreenRoot API host bootstrap (Amazon Linux 2023). Rendered by compute.tf.
+package_update: true
+packages:
+  - docker
+  - git
+  - jq
+
+write_files:
+%{ for path, f in files ~}
+  - path: ${path}
+    permissions: "${f.mode}"
+    content: |
+      ${indent(6, f.content)}
+%{ endfor ~}
+
+runcmd:
+  - mkdir -p /usr/local/lib/docker/cli-plugins
+  - curl -fsSL -o /usr/local/lib/docker/cli-plugins/docker-compose "https://github.com/docker/compose/releases/download/v2.29.7/docker-compose-linux-$(uname -m)"
+  - chmod 755 /usr/local/lib/docker/cli-plugins/docker-compose
+  - systemctl enable --now docker
+  - systemctl daemon-reload
+  - systemctl enable greenroot.service
+  - systemctl enable --now greenroot-backup.timer
