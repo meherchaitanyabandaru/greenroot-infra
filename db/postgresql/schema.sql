@@ -929,6 +929,8 @@ CREATE TABLE public.market_enquiries (
     agreed_at timestamp with time zone,
     ad_nursery_read_at timestamp with time zone,
     enquirer_read_at timestamp with time zone,
+    ad_nursery_delivered_at timestamp with time zone,
+    enquirer_delivered_at timestamp with time zone,
     CONSTRAINT ck_market_enquiries_deal CHECK (((((status)::text = 'DEAL_AGREED'::text) = (agreed_at IS NOT NULL)) OR ((status)::text = ANY (ARRAY[('CLOSED'::character varying)::text, ('CANCELLED'::character varying)::text])))),
     CONSTRAINT ck_market_enquiries_status CHECK (((status)::text = ANY (ARRAY[('NEW'::character varying)::text, ('IN_PROGRESS'::character varying)::text, ('DEAL_AGREED'::character varying)::text, ('CLOSED'::character varying)::text, ('CANCELLED'::character varying)::text])))
 );
@@ -953,6 +955,20 @@ COMMENT ON COLUMN public.market_enquiries.ad_nursery_read_at IS 'When the ad''s 
 --
 
 COMMENT ON COLUMN public.market_enquiries.enquirer_read_at IS 'When the enquiring nursery last opened the chat';
+
+
+--
+-- Name: COLUMN market_enquiries.ad_nursery_delivered_at; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.market_enquiries.ad_nursery_delivered_at IS 'When the ad''s nursery last fetched its chats; the other side''s messages before this are delivered';
+
+
+--
+-- Name: COLUMN market_enquiries.enquirer_delivered_at; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.market_enquiries.enquirer_delivered_at IS 'When the enquiring nursery last fetched its chats';
 
 
 --
