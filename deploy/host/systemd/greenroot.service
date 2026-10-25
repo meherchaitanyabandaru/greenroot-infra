@@ -1,0 +1,14 @@
+[Unit]
+Description=GreenRoot API stack (Caddy, API, Redis)
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# Containers restart themselves (restart: unless-stopped); this brings the
+# stack up after a reboot if a deploy has happened.
+ExecStart=/bin/sh -c '[ -f /opt/greenroot/current-tag ] && /opt/greenroot/bin/restart.sh || true'
+
+[Install]
+WantedBy=multi-user.target

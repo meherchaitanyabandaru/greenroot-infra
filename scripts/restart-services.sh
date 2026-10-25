@@ -94,7 +94,7 @@ stop_port "$ADMIN_PORT"
 stop_port "$MOBILE_PORT"
 
 start_service api "$API_DIR" "${LOG_DIR}/api.log" \
-  env DATABASE_URL="$DATABASE_URL" REDIS_ADDR="$REDIS_ADDR" JWT_SECRET="$JWT_SECRET" HTTP_PORT="$API_PORT" go run ./cmd/api
+  env APP_ENV="${APP_ENV:-local}" DATABASE_URL="$DATABASE_URL" REDIS_ADDR="$REDIS_ADDR" JWT_SECRET="$JWT_SECRET" HTTP_PORT="$API_PORT" go run ./cmd/api
 
 start_service admin "$ADMIN_DIR" "${LOG_DIR}/admin-ui.log" \
   npm run dev -- --host 0.0.0.0 --port "$ADMIN_PORT"

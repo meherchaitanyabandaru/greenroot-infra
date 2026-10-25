@@ -1,0 +1,9 @@
+[Unit]
+Description=GreenRoot logical database backup to S3
+Wants=network-online.target docker.service
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/greenroot/bin/backup.sh
+Nice=10

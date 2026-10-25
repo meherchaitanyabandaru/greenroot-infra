@@ -36,3 +36,10 @@ temp/
 # (large; regenerate with greenroot-api cmd/botanicalnames clean)
 classification.csv
 db/seed-data/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+terraform.tfvars
+.terraform.lock.hcl.bak

@@ -9,7 +9,7 @@ template before delivering it.
 SMS is one channel of the shared messaging core; see [messaging.md](messaging.md)
 for events, fan-out to email, and the shared OTP store.
 
-Status: built and tested in **mock mode**. The AWS End User Messaging SMS
+Status: built and tested in **mock mode**. Production refuses to start with the mock provider (it would accept OTP 123456 for every account); staging may use it. The AWS End User Messaging SMS
 gateway is built but off (`SMS_PROVIDER=aws`). Nothing reaches a handset until
 DLT registration is done and it is switched on.
 
@@ -77,6 +77,7 @@ portal's current rules when registering.
 | `PAYMENT_RECEIVED_ORDER` | `Payment of Rs.{#numeric#}.{#numeric#} received for GreenRoot order ORD-{#numeric#}-{#numeric#}. Payment ref PAY-{#numeric#}-{#numeric#}. - GreenRoot` | amount_rupees, amount_paise, order_date, order_seq, payment_date, payment_seq |
 | `PAYMENT_RECEIVED_SUBSCRIPTION` | `Payment of Rs.{#numeric#}.{#numeric#} received for your GreenRoot subscription. Payment ref PAY-{#numeric#}-{#numeric#}. - GreenRoot` | amount_rupees, amount_paise, payment_date, payment_seq |
 | `PAYMENT_FAILED` | `Your payment of Rs.{#numeric#}.{#numeric#} on GreenRoot (ref PAY-{#numeric#}-{#numeric#}) was not successful. Please try again. - GreenRoot` | amount_rupees, amount_paise, payment_date, payment_seq |
+| `DELIVERY_UNCONFIRMED` | `GreenRoot delivery DSP-{#numeric#}-{#numeric#} was marked done by the nursery without your code. Not received? Report it in the app within 48 hours. - GreenRoot` | dispatch_date, dispatch_seq |
 
 Each renders to a single 160-character SMS even with large values (checked by `TestSeedTemplatesFitOneSMS`).
 

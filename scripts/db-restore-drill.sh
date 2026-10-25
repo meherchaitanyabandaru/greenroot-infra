@@ -17,7 +17,7 @@ ADMIN_URL="${ADMIN_DATABASE_URL:?ADMIN_DATABASE_URL is required (connects to a m
 BACKUP_DIR="${BACKUP_DIR:-./backups}"
 DRILL_DB="greenroot_restore_drill_$(date -u +%Y%m%d%H%M%S)"
 
-latest="$(ls -1t "$BACKUP_DIR"/greenroot-*.dump 2>/dev/null | head -1 || true)"
+latest="$(find "$BACKUP_DIR" -maxdepth 1 -name 'greenroot-*.dump' -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -1 | cut -d' ' -f2-)"
 [[ -n "$latest" ]] || { echo "no backups in $BACKUP_DIR" >&2; exit 1; }
 
 manifest="${latest}.manifest"

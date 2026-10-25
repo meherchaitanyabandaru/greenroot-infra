@@ -1,0 +1,50 @@
+name: Deploy checks
+
+# The AWS stack (deploy/terraform) and host files (deploy/host) are checked on
+# every change: formatting, validation, a mocked apply with assertions (no AWS
+# account needed), shell lint and the compose file.
+on:
+  push:
+    branches: [master, main]
+    paths: ["deploy/**", ".github/workflows/deploy-checks.yml"]
+  pull_request:
+    branches: [master, main]
+    paths: ["deploy/**", ".github/workflows/deploy-checks.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: deploy/terraform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+      - run: terraform fmt -check -recursive
+      - run: terraform init -backend=false -input=false
+      - run: terraform validate
+      - name: Mocked apply with assertions
+        run: terraform test
+
+  host:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck
+        run: shellcheck -x -P deploy/host/bin deploy/host/bin/*.sh scripts/*.sh
+      - name: compose file
+        working-directory: deploy/host
+        env:
+          API_HOST: api.example.in
+          ACME_EMAIL: ops@example.in
+          AWS_REGION: ap-south-1
+          LOG_GROUP: /greenroot/ci/api
+          API_IMAGE: example.dkr.ecr.ap-south-1.amazonaws.com/greenroot-api:ci
+          AWS_SECRETS_ID: greenroot-ci/api
+          REDIS_PASSWORD: ci-only
+        run: docker compose -f docker-compose.yml config -q

@@ -1,0 +1,10 @@
+# Copy to terraform.tfvars (git-ignored) and fill in.
+domain          = "greenroot.in"
+route53_zone_id = "" # e.g. Z0123456789ABCDEFGHIJ; empty = create DNS records yourself
+alarm_email     = "ops@greenroot.in"
+environment     = "production"
+
+# Defaults are the cheapest sensible sizes (~USD 30-35/month in ap-south-1):
+# instance_type      = "t4g.small"
+# db_instance_class  = "db.t4g.micro"
+# db_multi_az        = false

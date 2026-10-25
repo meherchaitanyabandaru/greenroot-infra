@@ -408,10 +408,25 @@ All under `/api/v1`. Plans are public (no auth). All subscription routes require
 **`POST /api/v1/subscriptions/{id}/cancel`**
 ```json
 {
-  "cancel_immediately": true,
+  "cancel_immediately": false,
   "reason": "No longer operating"
 }
 ```
+
+- **Default (`cancel_immediately: false`):** a running subscription is cancelled
+  at the end of its paid period. It stays `ACTIVE` with `cancel_requested_at`
+  set and `auto_renew` off; at `end_date` the expiry job makes it `CANCELLED`
+  (not `EXPIRED`). Renewing before then clears the request.
+- **`cancel_immediately: true`:** `CANCELLED` now, no refund (refunds are an
+  admin action on the payment).
+- Cancelling a cancelled or expired subscription: 409.
+
+**Payment issues (admin):** a captured Razorpay payment that a rule refuses
+(e.g. the subscription was paused after checkout) and a refund Razorpay
+reports as failed become rows in `payment_issues`, logged with the
+`PAYMENT_ISSUE` marker (CloudWatch alarm). `GET /api/v1/payment-issues?status=OPEN`
+lists them; settle each in the Razorpay dashboard, then
+`POST /api/v1/payment-issues/{id}/resolve {"note": "..."}`.
 
 ### Response (subscription object)
 
@@ -505,5 +520,4 @@ Every create, status update, renew, and cancel writes to `public.audit_logs`:
 - [ ] **Extend trial** — admin sets `end_date` via `PUT /subscriptions/{id}/status`
 
 ### Known gaps (existing code)
-- `cancel_immediately = false` (cancel at end of period) is in DTO but not implemented — both values cancel immediately
 - Plan upgrades/downgrades have no proration logic — workaround: cancel + create new

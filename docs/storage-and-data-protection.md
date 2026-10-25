@@ -6,10 +6,10 @@ Status as of 2026-10-23. What the code enforces, and what infra must set up befo
 
 | Bucket | Access | Written by |
 |---|---|---|
-| `profile-images` | public read | server (`POST /users/me/avatar`) |
-| `plant-images` | public read | server |
-| `market-ads` | public read | app, direct upload |
-| `nursery-logos` | public read | app, direct upload |
+| `profile-images` | public via CDN | server (`POST /users/me/avatar`) |
+| `plant-images` | public via CDN | server |
+| `market-ads` | public via CDN | app, direct upload |
+| `nursery-logos` | public via CDN | app, direct upload |
 | `attachments` | private (presigned GET, 1 h) | app/admin, direct upload — driver licence photos, admin attachments |
 | `delivery-photos` | private | app, direct upload |
 | `loading-photos` | private | (unused) |
@@ -25,27 +25,26 @@ The object key is a random UUID with an extension taken from the type, never fro
 
 **Not enforced:** orphaned files. Files that are replaced or deleted are not cleaned up.
 
-## 2. Moving to AWS S3
+## 2. On AWS (deploy/terraform)
 
-S3 bucket names are global, so set a prefix. The code keeps using the plain names.
+Terraform creates all of this (`deploy/terraform/storage.tf`, `cdn.tf`):
+
+- **Nine buckets** with the prefix `greenroot-<env>-` (`STORAGE_BUCKET_PREFIX`); the code keeps the plain names.
+- **Block Public Access on every bucket.** The four image buckets are served by CloudFront at `files.<domain>` through Origin Access Control: `STORAGE_PUBLIC_URL=https://files.<domain>`, file URLs `/<prefix><bucket>/<key>`. A CloudFront function strips the bucket segment for those four and answers 404 for anything else, so private buckets are never reachable through the CDN.
+- **Private buckets** (licences, delivery photos, PDFs) are reachable only through presigned links from the API; old object versions are kept 30 days.
+- **No storage keys:** `STORAGE_USE_IAM_ROLE=true`; the EC2 instance role grants access to the `greenroot-<env>-*` buckets only.
+- **SSE-S3 encryption** on every bucket; **CORS** for PUT from the admin origin on the upload buckets.
 
 ```
 STORAGE_ENDPOINT=s3.ap-south-1.amazonaws.com
 STORAGE_REGION=ap-south-1
-STORAGE_USE_SSL=true                      # required in production
-STORAGE_BUCKET_PREFIX=greenroot-prod-     # → greenroot-prod-attachments, ...
-STORAGE_PUBLIC_URL=https://files.greenroot.in   # https required in production
-STORAGE_ACCESS_KEY=… STORAGE_SECRET_KEY=…  # IAM user limited to the greenroot-prod-* buckets
+STORAGE_USE_SSL=true
+STORAGE_USE_IAM_ROLE=true
+STORAGE_BUCKET_PREFIX=greenroot-production-
+STORAGE_PUBLIC_URL=https://files.greenroot.in
 ```
 
-Production does not create buckets at startup. Infra must:
-- **Create the buckets:** all nine, with the prefix.
-- **Make four of them public-read:** `profile-images`, `plant-images`, `market-ads` and `nursery-logos`. This needs S3 Block Public Access relaxed for those buckets only, or a CloudFront distribution in front of them.
-- **Keep the rest private.**
-- **Turn on default encryption.** SSE-S3 is on by default for new S3 buckets. MinIO needs KMS for encryption at rest.
-- **Allow CORS for PUT from the admin origin.** The admin uploads attachments from the browser.
-
-`STORAGE_PUBLIC_URL` must serve `/<bucket>/<key>`: path-style through a CDN or the S3 endpoint. Stored file URLs are absolute, so changing this later needs a one-off SQL rewrite of the URL columns. Old URLs then stop resolving through `Locate` (licence photo links).
+Stored file URLs are absolute, so changing `STORAGE_PUBLIC_URL` later needs a one-off SQL rewrite of the URL columns. Old URLs then stop resolving through `Locate` (licence photo links).
 
 ## 3. Data protection
 
