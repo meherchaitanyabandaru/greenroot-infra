@@ -55,19 +55,27 @@ VALUES
    '{"support":"community","analytics":"none","max_managers":0,"billing_cycles":["FREE"],"unlimited_orders":false,"unlimited_quotations":false,"market_posts_per_day":0}'::jsonb),
   ('TRIAL',
    'Community Trial',
-   '6-month free trial for new approved nurseries.',
+   '1-month free trial for new approved nurseries.',
    0.00, 0.00, 1, true,
    '{"support":"community","analytics":"basic","max_managers":1,"billing_cycles":["TRIAL"],"unlimited_orders":true,"unlimited_quotations":true,"market_posts_per_day":3}'::jsonb),
+  -- Paid plans are priced monthly; the API prices quarterly / half-yearly /
+  -- yearly from monthly_price (5 / 10 / 15 % off). yearly_price is kept in step.
   ('GROWTH',
    'Growth',
    'For growing nurseries with more managers and market activity.',
-   2499.00, 3999.00, 5, true,
-   '{"support":"email","analytics":"full","max_managers":5,"billing_cycles":["SIX_MONTH","YEARLY"],"unlimited_orders":true,"unlimited_quotations":true,"market_posts_per_day":5,"mrp_six_month":4999,"mrp_yearly":19999}'::jsonb),
+   499.00, 5089.80, 10, true,
+   '{"support":"email","analytics":"full","max_managers":10,"billing_cycles":["MONTHLY","QUARTERLY","SIX_MONTH","YEARLY"],"unlimited_orders":true,"unlimited_quotations":true,"unlimited_customers":true,"unlimited_trips":true,"market_posts_per_day":5}'::jsonb),
   ('ENTERPRISE',
    'Enterprise',
    'For large nursery operations with priority support.',
-   7499.00, 11999.00, NULL, true,
-   '{"support":"priority","analytics":"advanced","max_managers":null,"billing_cycles":["SIX_MONTH","YEARLY"],"unlimited_orders":true,"unlimited_quotations":true,"market_posts_per_day":null,"mrp_six_month":14999,"mrp_yearly":59999}'::jsonb);
+   999.00, 10189.80, 20, true,
+   '{"support":"priority","analytics":"advanced","max_managers":20,"billing_cycles":["MONTHLY","QUARTERLY","SIX_MONTH","YEARLY"],"unlimited_orders":true,"unlimited_quotations":true,"unlimited_customers":true,"unlimited_trips":true,"market_posts_per_day":null}'::jsonb),
+  -- Added last so the ids above stay as they were.
+  ('BASIC',
+   'Basic',
+   'For small nurseries getting started.',
+   299.00, 3049.80, 5, true,
+   '{"support":"community","analytics":"basic","max_managers":5,"billing_cycles":["MONTHLY","QUARTERLY","SIX_MONTH","YEARLY"],"unlimited_orders":true,"unlimited_quotations":true,"unlimited_customers":true,"unlimited_trips":true,"market_posts_per_day":3}'::jsonb);
 
 -- Plant catalogue
 -- wfo_id: World Flora Online record for the exact scientific_name (public.botanical_names)
