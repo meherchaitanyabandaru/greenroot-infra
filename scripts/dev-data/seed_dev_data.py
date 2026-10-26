@@ -235,9 +235,9 @@ driver = refresh("9400000000")  # token now carries the DRIVER role
 _, me = call("GET", "/users/me", driver, expect=200)
 step("approved driver has DRIVER and no longer BUYER", "DRIVER" in json.dumps(me) and '"BUYER"' not in json.dumps(me.get("user", {}).get("roles", [])), me.get("user", {}).get("roles"))
 _, d = call("POST", "/dispatches", owner, {"order_id": order_id, "notes": "Morning delivery"}, expect=201)
-did = d["dispatch"]["id"]
-call("POST", f"/dispatches/{did}/accept", buyer, expect=403)
-_, d = call("POST", f"/dispatches/{did}/accept", driver, expect=200)
+did, trip = d["dispatch"]["id"], "TRIP-" + d["dispatch"]["trip_uuid"]  # the nursery's QR
+call("POST", f"/dispatches/{did}/accept", buyer, {"trip_code": trip}, expect=403)
+_, d = call("POST", f"/dispatches/{did}/accept", driver, {"trip_code": trip}, expect=200)
 step("driver accepts the trip → ACCEPTED", d["dispatch"]["dispatch_status"] == "ACCEPTED", d["dispatch"]["dispatch_status"])
 call("PUT", f"/dispatches/{did}/status", owner, {"dispatch_status": "DISPATCHED"}, expect=200)
 call("PUT", f"/dispatches/{did}/status", driver, {"dispatch_status": "IN_TRANSIT"}, expect=200)
