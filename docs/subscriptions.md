@@ -2,7 +2,7 @@
 
 > Source of truth: `greenroot-api/internal/modules/subscriptions/`  
 > Schema: `greenroot-infra/db/postgresql/schema.sql`
-> Last updated: 2026-07-08
+> Last updated: 2026-10-27 (monthly pricing, 1-month trial, trial-ending reminder)
 
 ---
 
@@ -21,47 +21,42 @@
 
 ---
 
-### Plans
+### Plans (2026-10-27)
 
-| Plan code | Price | Period | Assigned by |
+| Plan code | Price | Managers | Who |
 |---|---|---|---|
-| `TRIAL` | ₹0 | 6 months from nursery approval date | Auto-created by API when admin approves a nursery |
-| `STANDARD` | ₹TBD/month or ₹TBD/year | Ongoing after trial | Owner subscribes via in-app payment screen |
+| `TRIAL` | Free for **1 month** | 1 | Auto-created when an admin approves a nursery |
+| `BASIC` | ₹299 / month | 5 | Owner buys in the app |
+| `GROWTH` | ₹499 / month | 10 | Owner buys in the app ("Most popular") |
+| `ENTERPRISE` | ₹999 / month | 20 | Owner buys in the app |
 
-Only these two plans. No Basic/Pro tiers initially — add tiers later based on real usage data.
+Every plan, the trial included, has unlimited quotations, orders, customers
+and trips. `FREE` (buyers' access) is never bought. Customers and drivers never
+pay; managers are covered by their owner's plan.
 
-**`TRIAL` plan must be seeded in `subscription_plans`:**
-```sql
-INSERT INTO public.subscription_plans
-  (plan_code, plan_name, description, monthly_price, yearly_price, max_users, max_nurseries, is_active)
-VALUES
-  ('TRIAL',    'Free Trial',     '6-month free trial for new nursery owners', 0.00, 0.00, NULL, 1, true),
-  ('STANDARD', 'Standard Plan',  'Full platform access for nursery owners',   NULL, NULL, NULL, 1, true);
--- Prices for STANDARD to be set once decided.
-```
-
----
+**Manager limits are shown, not enforced.** Nothing stops an owner inviting
+more managers than the plan says (see "What needs to be built").
 
 ### Trial flow
 
 ```
 Admin approves nursery
         ↓
-API auto-creates TRIAL subscription
-  start_date = approval date
-  end_date   = approval date + 6 months
-  amount     = ₹0  →  no payment record created
+API auto-creates TRIAL subscription: start = approval day (IST),
+end = start + 1 month − 1 day, ₹0, no payment record
         ↓
-Owner uses platform freely for 6 months
+Daily job: when 2 days or fewer are left, the owner gets one in-app + push
+notification ("Your free GreenRoot trial ends on 29 Oct. Choose a plan from
+₹299 a month…"), linked to the subscription screen
         ↓
-[TODO] 30 days before expiry → push notification + in-app banner
+Home banner counts the days down (last 30 days, so the whole trial)
         ↓
-Trial expires → `user_subscriptions.status = EXPIRED` (set by expiry job — not yet built)
+Trial expires → EXPIRED (expiry worker) → owner picks a plan and pays
         ↓
-Owner must pay → in-app Razorpay screen → subscription renewed
-        ↓
-Manager gate checks owner's active subscription on every protected API call
+Owner and managers are gated on the owner's active subscription
 ```
+
+Trials created before 2026-10-27 keep their 6-month end date.
 
 ---
 
@@ -88,18 +83,40 @@ Managers do not subscribe; the owner's subscription covers them. Built:
 
 ## 2. Pricing
 
-### Breakdown shown to user at payment
+`subscription_plans.monthly_price` is the base. The API prices every cycle from
+it (`internal/modules/subscriptions/pricing.go`):
 
-| Line | Calculation |
+| Cycle (`billing_cycle`) | Months | Discount | Basic | Growth | Enterprise |
+|---|---|---|---|---|---|
+| `MONTHLY` | 1 | 0% | ₹299.00 | ₹499.00 | ₹999.00 |
+| `QUARTERLY` | 3 | 5% | ₹852.15 | ₹1,422.15 | ₹2,847.15 |
+| `SIX_MONTH` (half-yearly) | 6 | 10% | ₹1,614.60 | ₹2,694.60 | ₹5,394.60 |
+| `YEARLY` | 12 | 15% | ₹3,049.80 | ₹5,089.80 | ₹10,189.80 |
+
+- **Amount** = monthly × months × (100 − discount) / 100, rounded to the paisa.
+  Razorpay is charged that amount in paise.
+- **No GST and no payment fee** are added: the amount is the total charged.
+  (An invoice with GST is still to be decided; see the architecture review, R10.)
+- A promo code is applied after the cycle discount.
+- `GET /subscription-plans` returns `monthly_price` and `cycle_prices`
+  (`billing_cycle`, `months`, `discount_percent`, `list_amount`, `amount`,
+  `per_month`) so the apps never compute a price. `six_month_price` and
+  `yearly_price` follow the same math for older app builds. `yearly_price` is
+  also stored, kept in step on every admin edit.
+- Accepted spellings: `SEMI_ANNUAL`/`HALF_YEARLY` → `SIX_MONTH`, `ANNUAL` →
+  `YEARLY`, empty → `SIX_MONTH` (older clients). Before 2026-10-27 `MONTHLY`
+  meant six months; it now means one month.
+- The plan list is cached in Redis (`cache:subscription_plans:v2`, 1 h,
+  cleared on every admin edit).
+
+### Breakdown shown to the owner at payment
+
+| Line | Example (Growth, quarterly) |
 |---|---|
-| Plan price | ₹X |
-| **Total charged** | ₹X |
-
-### DB storage
-
-No separate tax fields are required for the current subscription flow.
-
----
+| Growth × 3 months | ₹1,497.00 |
+| Quarterly saving (5%) | −₹74.85 |
+| Promo discount (if any) | −₹… |
+| **Total** | **₹1,422.15** |
 
 ## 3. Razorpay Standard Checkout (2026-10-22)
 
@@ -312,12 +329,9 @@ Nursery approved by admin
 `is_active = false` plans cannot be subscribed to → `400 invalid_input`.
 
 ### Billing cycles
-| Cycle | Duration | Price column |
-|---|---|---|
-| `SIX_MONTH` (default; `SEMI_ANNUAL`, legacy `MONTHLY`/empty) | start → start + 6 months − 1 day | `monthly_price` (holds the 6-month price) |
-| `YEARLY` / `ANNUAL` | start → start + 1 year − 1 day | `yearly_price` |
-
-TRIAL plan uses `monthly_price = 0` but is always created with a fixed 6-month `end_date` (set by the nursery approval handler — not by billing cycle math).
+A cycle buys start → start + N months − 1 day: `MONTHLY` 1, `QUARTERLY` 3,
+`SIX_MONTH` 6, `YEARLY` 12, priced as in §2. `TRIAL` is 1 month at ₹0, set by
+the nursery approval handler. Anything else → `400 invalid_input`.
 
 ### Renewal date
 - If existing `end_date` is in the future → new period starts the day after (no gap, no overlap).
@@ -503,6 +517,10 @@ Every create, status update, renew, and cancel writes to `public.audit_logs`:
 - [x] Plans seeded: `FREE`, `TRIAL`, `GROWTH`, `ENTERPRISE` (`seed-master.sql`)
 
 ### API
+- [x] **Monthly pricing** (2026-10-27) — four cycles from one monthly price; migration `20261027_01_monthly_plan_pricing`
+- [x] **Trial-ending reminder** (2026-10-27) — daily job, once per trial, 2 days before it ends
+- [ ] **Enforce manager limits** — invites ignore `max_managers`; decide what happens to owners already over their plan's limit before enforcing
+- [ ] **Plan changes mid-period** — a renewal on another plan starts after the current period (no proration)
 - [x] **Auto-create TRIAL subscription** when admin approves a nursery (`PATCH /nurseries/{id}/status → APPROVED` handler must call `subscriptions.Create` with TRIAL plan, 6-month end_date, ₹0)
 - [x] **Manager gate middleware** (see §1 — applies to owner and managers) — check nursery owner's active subscription before allowing manager API calls; return `402 subscription_required` if lapsed
 - [x] **Auto-expiry cron** — daily job sets `status = EXPIRED` where `end_date < today AND status = ACTIVE` (the expiry worker in `internal/app/expiry_worker.go` now does this)
