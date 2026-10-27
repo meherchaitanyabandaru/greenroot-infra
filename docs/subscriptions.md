@@ -26,12 +26,13 @@
 | Plan code | Price | Managers | Who |
 |---|---|---|---|
 | `TRIAL` | Free for **1 month** | 1 | Auto-created when an admin approves a nursery |
-| `BASIC` | ₹299 / month | 5 | Owner buys in the app |
-| `GROWTH` | ₹499 / month | 10 | Owner buys in the app ("Most popular") |
-| `ENTERPRISE` | ₹999 / month | 20 | Owner buys in the app |
+| `BASIC` — **Silver** | ₹299 / month | 1 | Owner buys in the app |
+| `GROWTH` — **Gold** | ₹499 / month | 5 | Owner buys in the app ("Most popular") |
+| `ENTERPRISE` — **Platinum** | ₹999 / month | 10 | Owner buys in the app |
 
-Every plan, the trial included, has unlimited quotations, orders, customers
-and trips. `FREE` (buyers' access) is never bought. Customers and drivers never
+Every plan, the trial included, has unlimited orders and quotations and can
+post local market ads. Paid owners get a Silver / Gold / Platinum badge on
+their profile; codes stay `BASIC` / `GROWTH` / `ENTERPRISE`. `FREE` (buyers' access) is never bought. Customers and drivers never
 pay; managers are covered by their owner's plan.
 
 **Manager limits are shown, not enforced.** Nothing stops an owner inviting
@@ -86,7 +87,7 @@ Managers do not subscribe; the owner's subscription covers them. Built:
 `subscription_plans.monthly_price` is the base. The API prices every cycle from
 it (`internal/modules/subscriptions/pricing.go`):
 
-| Cycle (`billing_cycle`) | Months | Discount | Basic | Growth | Enterprise |
+| Cycle (`billing_cycle`) | Months | Discount | Silver | Gold | Platinum |
 |---|---|---|---|---|---|
 | `MONTHLY` | 1 | 0% | ₹299.00 | ₹499.00 | ₹999.00 |
 | `QUARTERLY` | 3 | 5% | ₹852.15 | ₹1,422.15 | ₹2,847.15 |
@@ -111,9 +112,9 @@ it (`internal/modules/subscriptions/pricing.go`):
 
 ### Breakdown shown to the owner at payment
 
-| Line | Example (Growth, quarterly) |
+| Line | Example (Gold, quarterly) |
 |---|---|
-| Growth × 3 months | ₹1,497.00 |
+| Gold × 3 months | ₹1,497.00 |
 | Quarterly saving (5%) | −₹74.85 |
 | Promo discount (if any) | −₹… |
 | **Total** | **₹1,422.15** |

@@ -57,25 +57,26 @@ VALUES
    'Community Trial',
    '1-month free trial for new approved nurseries.',
    0.00, 0.00, 1, true,
-   '{"support":"community","analytics":"basic","max_managers":1,"billing_cycles":["TRIAL"],"unlimited_orders":true,"unlimited_quotations":true,"unlimited_customers":true,"unlimited_trips":true,"market_posts_per_day":3}'::jsonb),
+   '{"support":"community","analytics":"basic","max_managers":1,"billing_cycles":["TRIAL"],"unlimited_orders":true,"unlimited_quotations":true,"local_market_ads":true,"market_posts_per_day":3}'::jsonb),
   -- Paid plans are priced monthly; the API prices quarterly / half-yearly /
   -- yearly from monthly_price (5 / 10 / 15 % off). yearly_price is kept in step.
+  -- Shown as Silver / Gold / Platinum; the codes stay BASIC / GROWTH / ENTERPRISE.
   ('GROWTH',
-   'Growth',
-   'For growing nurseries with more managers and market activity.',
-   499.00, 5089.80, 10, true,
-   '{"support":"email","analytics":"full","max_managers":10,"billing_cycles":["MONTHLY","QUARTERLY","SIX_MONTH","YEARLY"],"unlimited_orders":true,"unlimited_quotations":true,"unlimited_customers":true,"unlimited_trips":true,"market_posts_per_day":5}'::jsonb),
+   'Gold',
+   'For growing nurseries with a team of managers.',
+   499.00, 5089.80, 5, true,
+   '{"tier":"GOLD","support":"email","analytics":"full","max_managers":5,"billing_cycles":["MONTHLY","QUARTERLY","SIX_MONTH","YEARLY"],"unlimited_orders":true,"unlimited_quotations":true,"local_market_ads":true,"market_posts_per_day":5}'::jsonb),
   ('ENTERPRISE',
-   'Enterprise',
-   'For large nursery operations with priority support.',
-   999.00, 10189.80, 20, true,
-   '{"support":"priority","analytics":"advanced","max_managers":20,"billing_cycles":["MONTHLY","QUARTERLY","SIX_MONTH","YEARLY"],"unlimited_orders":true,"unlimited_quotations":true,"unlimited_customers":true,"unlimited_trips":true,"market_posts_per_day":null}'::jsonb),
+   'Platinum',
+   'For large nursery operations, with priority support.',
+   999.00, 10189.80, 10, true,
+   '{"tier":"PLATINUM","support":"priority","analytics":"advanced","max_managers":10,"billing_cycles":["MONTHLY","QUARTERLY","SIX_MONTH","YEARLY"],"unlimited_orders":true,"unlimited_quotations":true,"local_market_ads":true,"market_posts_per_day":null}'::jsonb),
   -- Added last so the ids above stay as they were.
   ('BASIC',
-   'Basic',
-   'For small nurseries getting started.',
-   299.00, 3049.80, 5, true,
-   '{"support":"community","analytics":"basic","max_managers":5,"billing_cycles":["MONTHLY","QUARTERLY","SIX_MONTH","YEARLY"],"unlimited_orders":true,"unlimited_quotations":true,"unlimited_customers":true,"unlimited_trips":true,"market_posts_per_day":3}'::jsonb);
+   'Silver',
+   'For small nurseries run by the owner and one manager.',
+   299.00, 3049.80, 1, true,
+   '{"tier":"SILVER","support":"community","analytics":"basic","max_managers":1,"billing_cycles":["MONTHLY","QUARTERLY","SIX_MONTH","YEARLY"],"unlimited_orders":true,"unlimited_quotations":true,"local_market_ads":true,"market_posts_per_day":3}'::jsonb);
 
 -- Plant catalogue
 -- wfo_id: World Flora Online record for the exact scientific_name (public.botanical_names)
