@@ -57,7 +57,7 @@ VALUES
    'Community Trial',
    '1-month free trial for new approved nurseries.',
    0.00, 0.00, 1, true,
-   '{"support":"community","analytics":"basic","max_managers":1,"billing_cycles":["TRIAL"],"unlimited_orders":true,"unlimited_quotations":true,"market_posts_per_day":3}'::jsonb),
+   '{"support":"community","analytics":"basic","max_managers":1,"billing_cycles":["TRIAL"],"unlimited_orders":true,"unlimited_quotations":true,"unlimited_customers":true,"unlimited_trips":true,"market_posts_per_day":3}'::jsonb),
   -- Paid plans are priced monthly; the API prices quarterly / half-yearly /
   -- yearly from monthly_price (5 / 10 / 15 % off). yearly_price is kept in step.
   ('GROWTH',
