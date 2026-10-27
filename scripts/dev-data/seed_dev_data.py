@@ -221,7 +221,7 @@ _, o = call("POST", f"/orders/{order_id}/start-loading", manager, expect=200)
 item = o["order"]["items"][0]
 call("PUT", f"/orders/{order_id}/items/{item['id']}/loaded-quantity", buyer, {"loaded_quantity": 8}, expect=403)
 call("PUT", f"/orders/{order_id}/items/{item['id']}/loaded-quantity", manager, {"loaded_quantity": 8}, expect=200)
-_, o = call("POST", f"/orders/{order_id}/complete-loading", manager, expect=200)
+_, o = call("POST", f"/orders/{order_id}/complete-loading", manager, {"declared_no_prohibited_items": True}, expect=200)
 step("short load → PARTIALLY_FULFILLED", o["order"]["order_status"] == "PARTIALLY_FULFILLED", o["order"]["order_status"])
 call("POST", f"/orders/{order_id}/cancel", owner, {"reason": "too late"}, expect=409)  # cannot cancel once loaded
 

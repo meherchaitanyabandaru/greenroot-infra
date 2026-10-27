@@ -74,6 +74,8 @@ All cancel flows use `POST /orders/:id/cancel` — never a direct status update.
 **Loaded quantities**
 - `PUT /orders/:id/items/:itemId/loaded-quantity` sets the actual loaded amount during `LOADING`.
 - At `complete-loading`: if any item has `loaded_quantity < quantity`, order moves to `PARTIALLY_FULFILLED` and total is recalculated.
+- `complete-loading` requires `{"declared_no_prohibited_items": true}`: the owner/manager declares the vehicle carries no drugs, illegal or unauthorised items. Without it → 400 `loading_declaration_required`. The declaration is kept in the audit log (who = `loading_completed_by_user_id`).
+- Loading photos: up to 3 optional photos of the loaded vehicle, taken in the app's "Loading done" sheet, compressed like all photos, stored in the private `delivery-photos` bucket and attached with `entity_type = ORDER_LOADING`, `entity_id = order_id`.
 
 **Cancel rules**
 
@@ -158,7 +160,7 @@ GET    /orders/:id                       Get order detail
 DELETE /orders/:id                       Delete (PENDING only)
 PUT    /orders/:id/status                Update status
 POST   /orders/:id/start-loading         Transition to LOADING
-POST   /orders/:id/complete-loading      Transition to LOADED or PARTIALLY_FULFILLED
+POST   /orders/:id/complete-loading      Transition to LOADED or PARTIALLY_FULFILLED (needs declared_no_prohibited_items)
 POST   /orders/:id/cancel                Cancel order
 POST   /orders/:id/assign-manager        Assign manager to order
 GET    /orders/:id/items                 List line items
