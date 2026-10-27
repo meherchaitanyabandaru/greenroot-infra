@@ -51,6 +51,16 @@ echo "Running reset SQL:"
 echo "  ${RESET_SQL}"
 psql_exec -f "$RESET_SQL"
 
+# schema.sql is the base; later migrations live in the API repo. Without them
+# the API queries columns the fresh database does not have yet.
+API_DIR="${INFRA_DIR}/../greenroot-api"
+if [[ -d "$API_DIR/cmd/migrate" ]] && command -v go >/dev/null 2>&1; then
+  echo "Applying API migrations from ${API_DIR}"
+  (cd "$API_DIR" && DATABASE_URL="$DB_URL" go run ./cmd/migrate up)
+else
+  echo "WARNING: run 'go run ./cmd/migrate up' in greenroot-api before starting the API" >&2
+fi
+
 if [[ "$SKIP_REDIS_FLUSH" == "1" ]]; then
   echo "Skipping Redis flush because SKIP_REDIS_FLUSH=1"
 else
