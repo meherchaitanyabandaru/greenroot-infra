@@ -87,6 +87,8 @@ Managers do not subscribe; the owner's subscription covers them. Built:
 `subscription_plans.monthly_price` is the base. The API prices every cycle from
 it (`internal/modules/subscriptions/pricing.go`):
 
+Before GST (the owner pays these + 18%: Silver monthly ₹299 + ₹53.82 = ₹352.82):
+
 | Cycle (`billing_cycle`) | Months | Discount | Silver | Gold | Platinum |
 |---|---|---|---|---|---|
 | `MONTHLY` | 1 | 0% | ₹299.00 | ₹499.00 | ₹999.00 |
@@ -96,8 +98,13 @@ it (`internal/modules/subscriptions/pricing.go`):
 
 - **Amount** = monthly × months × (100 − discount) / 100, rounded to the paisa.
   Razorpay is charged that amount in paise.
-- **No GST and no payment fee** are added: the amount is the total charged.
-  (An invoice with GST is still to be decided; see the architecture review, R10.)
+- **18% GST is added on top** (2026-10-27), after the cycle discount and any
+  promo: GST = 18% of that amount, rounded to the paisa; the owner pays both.
+  Razorpay is charged the total. `payments.amount` is the total and
+  `payments.gst_amount` the GST inside it (NULL for payments before GST).
+  Plan prices (₹299 / ₹499 / ₹999) are before tax. A GST invoice (GSTIN,
+  HSN/SAC, CGST/SGST or IGST split) is still to be built; see the architecture
+  review, R10.
 - A promo code is applied after the cycle discount.
 - `GET /subscription-plans` returns `monthly_price` and `cycle_prices`
   (`billing_cycle`, `months`, `discount_percent`, `list_amount`, `amount`,
@@ -117,7 +124,8 @@ it (`internal/modules/subscriptions/pricing.go`):
 | Gold × 3 months | ₹1,497.00 |
 | Quarterly saving (5%) | −₹74.85 |
 | Promo discount (if any) | −₹… |
-| **Total** | **₹1,422.15** |
+| GST (18%) | +₹255.99 |
+| **Total (incl. GST)** | **₹1,678.14** |
 
 ## 3. Razorpay Standard Checkout (2026-10-22)
 
