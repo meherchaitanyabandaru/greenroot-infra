@@ -20,7 +20,7 @@ The domain is **`market`** across all layers:
 |---|---|
 | `market_ads` | Core ad entity (plant listing posted by a nursery) |
 | `market_ad_saves` | Bookmarks — one per (ad, saving nursery) |
-| `market_ad_views` | View tracking — one per (ad, viewing nursery) |
+| `market_ad_views` | View tracking — one per (ad, viewing nursery); `view_count` rises only on a nursery's first view |
 | `market_ad_reports` | Admin moderation reports |
 | `market_enquiries` | Enquiry from one nursery to another about an ad |
 | `market_enquiry_messages` | Message thread within an enquiry |
@@ -83,7 +83,7 @@ DRAFT, or PUBLISHED/PAUSED with no chats → DELETED (owner)
 | `PUBLISHED` | Visible to all nurseries on the platform |
 | `PAUSED` | Temporarily hidden by owner |
 | `EXPIRED` | Auto-expired after 30 days or manually expired |
-| `ARCHIVED` | Permanently closed by the seller |
+| `ARCHIVED` | Permanently closed by the seller ("Close" in the app), with an optional `close_reason`: `SOLD_OUT` or `NO_LONGER_AVAILABLE` (2026-10-28) |
 | `SUSPENDED` | Hidden by a serious report until an admin decides |
 | `REMOVED` | Taken down by GreenRoot (report upheld); counts as a strike |
 | `DELETED` | Soft-deleted by the owner: hidden everywhere (404 even for the owner), kept with `deleted_at` / `deleted_by_user_id`; admin sees it under *All ads* |
@@ -133,7 +133,7 @@ NEW → IN_PROGRESS → DEAL_AGREED → CLOSED (seller)
 - Both nurseries' owners and managers write in `market_enquiry_messages`. A message is `TEXT`, `OFFER` or `SYSTEM`.
 - **Bargaining:** either side posts an offer (`price_per_unit`, optional `quantity` ≤ the ad's quantity). A new offer marks the chat's pending one `WITHDRAWN` (at most one `PENDING` per chat, unique index). The other nursery accepts or declines; accepting sets `DEAL_AGREED` with `agreed_price_per_unit`, `agreed_quantity`, `agreed_at` and posts a SYSTEM "Deal agreed" note. No offers after a deal; text stays open to arrange pickup.
 - **Minimum offer (2026-10-22):** on a `SELL` ad with a price, the enquiring nursery (the buyer) cannot offer less than **70%** of the asking price, rounded up to the paisa (`MinOfferShare`). Below that, the API returns `400 invalid_input`: "offer at least ₹X — 70% of the asking price". The seller's own counter offers have no floor, and `WANT` ads have no price to protect. The app shows the same rule before sending: green **Fair offer** (≥ 90% of asking), orange **Bargaining** (70–89%), red **Too low** (< 70%, Send disabled, with the minimum shown). Offer cards in the chat carry the same chip for the buyer's live offers.
-- **Read-only:** nobody can write (409 `conflict`, `capabilities.read_only_reason` says why) once the chat is CLOSED or CANCELLED, or while its ad is not PUBLISHED (paused, expired, archived). Resuming the ad reopens it.
+- **Read-only:** nobody can write (409 `conflict`, `capabilities.read_only_reason` says why) once the chat is CLOSED or CANCELLED, or while its ad is not PUBLISHED (paused, expired, archived). Resuming the ad reopens it. The reason names the side by the ad type (on a WANT the ad's nursery is the buyer) and says why the ad closed, e.g. "the seller closed this ad: sold out", "this ad expired", "the buyer paused this ad for now".
 - **Ticks (2026-10-25):** each message carries `receipt` for the other side: `SENT` (✓), `DELIVERED` (✓✓ grey — their app fetched its chats since, `*_delivered_at` set by `GET /market/enquiries`), `READ` (✓✓ blue — they opened the chat, `*_read_at`). Messages also carry `sender_avatar_url` (the sender's profile photo).
 - Only the seller closes; only the enquiring nursery cancels; both only while the chat is open.
 - No quotation link: deals happen in the chat (the old `link-quotation` route and `quotation_id` were removed 2026-10-19).
@@ -190,7 +190,7 @@ POST   /market/ads/:id/publish               DRAFT → PUBLISHED
 POST   /market/ads/:id/pause                 PUBLISHED → PAUSED
 POST   /market/ads/:id/resume                PAUSED → PUBLISHED
 POST   /market/ads/:id/renew                 Renew expired ad
-POST   /market/ads/:id/archive               Archive ad
+POST   /market/ads/:id/archive               Close (archive) ad; optional body {"reason": "SOLD_OUT"|"NO_LONGER_AVAILABLE"}
 DELETE /market/ads/:id                       Delete own ad (soft; drafts or no-chat live/paused ads)
 POST   /market/ads/:id/save                  Save/bookmark toggle
 POST   /market/ads/:id/report                Submit moderation report
