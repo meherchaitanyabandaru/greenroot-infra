@@ -60,6 +60,18 @@ Email templates use the originals.
 | `PAYMENT_FAILED` | ✓ | ✓ | payments, on transition into FAILED |
 | `AUTH_LOGIN_OTP` / `AUTH_REGISTER_OTP` | ✓ | — | sent directly (the number may not be an account yet) |
 | `EMAIL_VERIFY_OTP` | — | ✓ | sent directly (the address is not verified yet) |
+| `DELIVERY_UNCONFIRMED` | ✓ | ✓ | dispatches, nursery marks delivered without the customer's code |
+| `QUOTATION_RECEIVED` | ✓ not on app | — | quotations, on send (to the customer user, or to the typed mobile when there is no account) |
+| `ORDER_PLACED` | ✓ not on app | — | orders, nursery creates an order for a customer |
+| `DELIVERY_ON_THE_WAY` | ✓ not on app | — | dispatches, truck leaves (DISPATCHED, or the driver starts); carries the delivery code (masked in the log) |
+| `ORDER_PARTIAL` | ✓ | — | orders, loaded with fewer plants (the amount changed) |
+| `NURSERY_APPROVED` | ✓ | — | nurseries, admin approves |
+| `TRIAL_ENDING` | ✓ | ✓ | subscriptions trial-reminder job |
+| `DELIVERY_ISSUE` | ✓ | — | dispatches, customer reports a problem (to the owner) |
+
+**"Not on app"** (`Event.NotOnAppOnly`): sent only to someone who has never signed in (`users.last_login_at IS NULL`) or who has no account (`Event.Mobile`, user id NULL in the log). App users get the same news in-app and by push, so they are not also charged an SMS.
+
+**In-app + push** (notification queue, so it is pushed once FCM is configured): order placed and order confirmed (customer), order/quotation assigned (manager), quotation sent/accepted/rejected, partial load, trip accepted (owner), on the way and delivered (customer), address changed during a trip and trip cancelled (driver), delivery problem (owner), nursery approved/rejected, trial ending, and market enquiries, messages, offers and offer answers (the other nursery's owner, type `MARKET_MESSAGE`). Admin promo offers stay inbox-only (no push).
 
 **To add a new alert:** create templates with the same code in Admin → SMS / DLT and/or Admin → Email, then raise `messaging.Event{Code: ...}` from the business module. No channel code changes are needed.
 

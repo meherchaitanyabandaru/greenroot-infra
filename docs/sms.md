@@ -78,6 +78,13 @@ portal's current rules when registering.
 | `PAYMENT_RECEIVED_SUBSCRIPTION` | `Payment of Rs.{#numeric#}.{#numeric#} received for your GreenRoot subscription. Payment ref PAY-{#numeric#}-{#numeric#}. - GreenRoot` | amount_rupees, amount_paise, payment_date, payment_seq |
 | `PAYMENT_FAILED` | `Your payment of Rs.{#numeric#}.{#numeric#} on GreenRoot (ref PAY-{#numeric#}-{#numeric#}) was not successful. Please try again. - GreenRoot` | amount_rupees, amount_paise, payment_date, payment_seq |
 | `DELIVERY_UNCONFIRMED` | `GreenRoot delivery DSP-{#numeric#}-{#numeric#} was marked done by the nursery without your code. Not received? Report it in the app within 48 hours. - GreenRoot` | dispatch_date, dispatch_seq |
+| `QUOTATION_RECEIVED` | `You have a GreenRoot quotation QUO-{#numeric#}-{#numeric#} for Rs.{#numeric#}.{#numeric#}. Sign in to the GreenRoot app with this number to view and accept it. - GreenRoot` | quotation_date, quotation_seq, amount_rupees, amount_paise |
+| `ORDER_PLACED` | `Your GreenRoot order ORD-{#numeric#}-{#numeric#} for Rs.{#numeric#}.{#numeric#} has been placed. Sign in to the GreenRoot app with this number to track it. - GreenRoot` | order_date, order_seq, amount_rupees, amount_paise |
+| `DELIVERY_ON_THE_WAY` | `Your GreenRoot delivery DSP-{#numeric#}-{#numeric#} is on the way. Give code {#numeric#} to the driver only after you check your plants. - GreenRoot` | dispatch_date, dispatch_seq, delivery_code |
+| `ORDER_PARTIAL` | `GreenRoot order ORD-{#numeric#}-{#numeric#} was loaded with fewer plants than ordered. New total Rs.{#numeric#}.{#numeric#}. - GreenRoot` | order_date, order_seq, amount_rupees, amount_paise |
+| `NURSERY_APPROVED` | `Your nursery is approved on GreenRoot. Sign in to start taking orders. - GreenRoot` | (none) |
+| `TRIAL_ENDING` | `Your GreenRoot free trial ends in {#numeric#} days. Choose a plan in the app to keep taking orders. - GreenRoot` | days_left |
+| `DELIVERY_ISSUE` | `A customer reported a problem with GreenRoot delivery DSP-{#numeric#}-{#numeric#}. Open the app to respond. - GreenRoot` | dispatch_date, dispatch_seq |
 
 Each renders to a single 160-character SMS even with large values (checked by `TestSeedTemplatesFitOneSMS`).
 
