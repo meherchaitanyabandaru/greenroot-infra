@@ -77,7 +77,21 @@ CUSTOMER type:
   CUSTOMER_DRAFT → CUSTOMER_SENT → CUSTOMER_ACCEPTED → CONVERTED
                                  ↘ CUSTOMER_REJECTED
                                  ↘ (expired via valid_until)
+
+Customer request (2026-10-30):
+  CUSTOMER_REQUESTED → (nursery prices every line) → send → CUSTOMER_SENT → …as above
+                     ↘ REQUEST_DECLINED (nursery, with a reason)
+                     ↘ REQUEST_CANCELLED (customer, while unanswered)
+  Recall of a request-origin quotation returns to CUSTOMER_REQUESTED (never a free draft).
 ```
+
+### Customer requests (2026-10-30)
+
+- `POST /quotations/requests` (customer): one APPROVED nursery, up to 50 lines. Each line is a catalog plant (`plant_id`) **or** the customer's own name for a plant not in the catalog (`custom_plant_name`, kept exactly as entered, optional `scientific_name`), with optional `variety`, `size_description`, `grade`, `description`. Not for admins, drivers or the nursery's own staff. The nursery owner is the quotation's author (`created_by_user_id`), the customer is `requested_by_user_id` and `customer_user_id`; `request_note` is the customer's message (both sides see it; `notes` stays internal).
+- The nursery has 7 days (`request_expires_at`) to send a first quotation. `POST /quotations/{id}/price` sets prices and supplied quantities on existing lines only — a line's plant never changes, so a custom plant is never silently replaced. `send` needs every line priced (422 `request_not_priced`). `POST /quotations/{id}/decline` (reason ≥ 5 chars) and `POST /quotations/{id}/cancel-request` (the requester) close it.
+- Duplicates: `uq_quotations_open_request` allows one open identical request (same lines, normalized) per customer (409 `duplicate_request`); `Idempotency-Key` replays a retried create. 20 requests per customer per day (429).
+- Notifications (queued, retried by the worker; stored in-app if Redis is down): owner on a new request, customer on prices sent / declined, owner on cancel.
+- Custom lines register their name in `plant_suggestions` (source `QUOTATION_ITEM`) for admins to map later. Mapping never edits the line; the API shows GreenRoot's match as `linked_plant_name`. On conversion, a custom line becomes an order item with `plant_id` NULL and `plant_name_snapshot` = the customer's name (`is_custom` in the order API).
 
 | Status | Meaning |
 |---|---|

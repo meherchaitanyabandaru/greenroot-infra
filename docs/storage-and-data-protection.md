@@ -8,20 +8,27 @@ Status as of 2026-10-23. What the code enforces, and what infra must set up befo
 |---|---|---|
 | `profile-images` | public via CDN | server (`POST /users/me/avatar`) |
 | `plant-images` | public via CDN | server |
-| `market-ads` | public via CDN | app, direct upload |
-| `nursery-logos` | public via CDN | app, direct upload |
-| `attachments` | private (presigned GET, 1 h) | app/admin, direct upload — driver licence photos, admin attachments |
-| `delivery-photos` | private | app, direct upload |
+| `market-ads` | public via CDN | server (`POST /storage/images`, MARKET_AD) |
+| `nursery-logos` | public via CDN | server (`POST /storage/images`, NURSERY_BRANDING) |
+| `attachments` | private (presigned GET, 1 h) | documents: app/admin direct upload (presign); photos: server (`POST /storage/images`, DRIVER_LICENCE / ATTACHMENT) |
+| `delivery-photos` | private | server (`POST /storage/images`, DELIVERY_PROOF / LOADING_PROOF) |
 | `loading-photos` | private | (unused) |
 | `quotation-pdfs`, `order-pdfs` | private | server |
 
-**Direct uploads** (`POST /storage/presign`) are limited to the four "app" buckets. Each bucket takes only listed types:
-- images (jpeg, png, webp, heic, heif, gif);
-- `attachments` also takes pdf, doc(x), xls(x), csv, txt and octet-stream.
+**Photos are never presigned (2026-10-30).** Every photo goes through the API, which checks it against its category's image policy (`public.image_policies`, admin page *Media → Image Policies*) before storing it:
+- the type comes from the bytes (JPEG or PNG, as the category allows); WebP/HEIC/GIF are refused (the apps convert to JPEG);
+- the image must decode completely (truncated or corrupt files are refused);
+- the header's width × height is checked against a fixed 40 MP cap **before** decoding (decompression-bomb guard), then the longest side against `max_side` and the shortest against `min_side`; sides are compared longest/shortest so EXIF rotation does not matter;
+- at most 4 full decodes run at once per API instance (each can take tens of MB);
+- private categories get the key prefix `u<user_id>/`, so a record can only point at its own upload (licence photos are checked this way).
 
-The object key is a random UUID with an extension taken from the type, never from the client's file name. The `Content-Type` is signed into the upload URL, so a file cannot be stored, and then served from a public bucket, as HTML or SVG.
+Defaults: selfie 800/200 px q85 1 MB; market ad 1600/400 q82 2 MB JPEG; nursery branding 800/200 q90 1 MB (PNG kept for transparency); delivery and loading proof 2048/480 q85 3 MB JPEG; driver licence 2048/600 q90 4 MB (floors: ≥1280 px, ≥480 px short side, quality ≥80, so licences stay readable); attachment photos 4096/200 q90 8 MB. Admins change values only within bounds (side 320–4096, quality 50–95, 50 KB–10 MB); format, decode and pixel checks cannot be turned off. A change is a new version with a reason (`image_policy_versions` + audit log), applies to new uploads only (stored photos are never changed), and reaches every API instance within a minute (per-instance cache). If the table cannot be read, the API uses the last good copy, else the built-in defaults.
 
-**Upload size** is enforced. The client sends `size` with the presign request; the API refuses more than 10 MB for images and 20 MB for attachments (400 `file_too_large`), and signs `Content-Length` into the URL, so storage rejects any other size.
+The apps read `GET /image-policies` and prepare each photo once: turned upright, refused with a retake hint if too small, resized to `max_side`, EXIF (GPS, camera) removed and compressed at `quality`; a photo that already meets the policy (upright, no EXIF, within size) is sent unchanged, so nothing is compressed twice. Market ads are watermarked in the same single encode. Ad photos must be files the API stored in `market-ads` (`POST /market/ads` refuses other links).
+
+**Documents** (`POST /storage/presign`, `attachments` only): pdf, doc(x), xls(x), csv, txt, octet-stream; any `image/*` type gets 400 `use_image_upload`. The object key is a random UUID with an extension taken from the type, never from the client's file name. The `Content-Type` and `Content-Length` (≤ 20 MB) are signed into the upload URL.
+
+**Gap:** top-item photos (`POST /top-items`) still take any URL; no app uploads them yet.
 
 **Not enforced:** orphaned files. Files that are replaced or deleted are not cleaned up.
 
