@@ -186,4 +186,36 @@ Your plan details are in the GreenRoot app under Subscription.$text$),
 
 Please try again from the GreenRoot app.$text$);
 
+-- Image upload rules per category (same as the API's built-in defaults; 2026-10-30).
+-- Safe defaults (same as imagepolicy.Defaults), version 1.
+INSERT INTO public.image_policies (category, max_side, min_side, quality, max_bytes, allowed_formats) VALUES
+    ('SELFIE',           800,  200, 85, 1048576, '["JPEG", "PNG"]'),
+    ('MARKET_AD',        1600, 400, 82, 2097152, '["JPEG"]'),
+    ('NURSERY_BRANDING', 800,  200, 90, 1048576, '["JPEG", "PNG"]'),
+    ('DELIVERY_PROOF',   2048, 480, 85, 3145728, '["JPEG"]'),
+    ('LOADING_PROOF',    2048, 480, 85, 3145728, '["JPEG"]'),
+    ('DRIVER_LICENCE',   2048, 600, 90, 4194304, '["JPEG", "PNG"]'),
+    ('ATTACHMENT',       4096, 200, 90, 8388608, '["JPEG", "PNG"]')
+ON CONFLICT (category) DO NOTHING;
+INSERT INTO public.image_policy_versions (image_policy_id, category, version, policy, change_note)
+SELECT image_policy_id, category, version,
+       jsonb_build_object('category', category, 'max_side', max_side, 'min_side', min_side, 'quality', quality,
+                          'max_bytes', max_bytes, 'allowed_formats', allowed_formats,
+                          'is_compression_enabled', is_compression_enabled, 'version', version),
+       'safe default'
+FROM public.image_policies
+ON CONFLICT DO NOTHING;
+
+-- Unusual-activity checks and their thresholds (2026-10-30).
+INSERT INTO public.risk_rules (signal_code, threshold, risk_level, description) VALUES
+    ('HIGH_AMOUNT', 500000, 'MEDIUM', 'An order total above this amount (₹)'),
+    ('PRICE_OUTLIER', 5, 'LOW', 'A unit price this many times above or below the usual price of the plant (needs 5+ earlier prices); pricing alone is never fraud'),
+    ('DUPLICATE_ORDER', 10, 'MEDIUM', 'The same buyer, nursery and amount again within this many minutes'),
+    ('REPEATED_CANCELLATIONS', 3, 'MEDIUM', 'This many cancelled orders by one buyer or nursery in 7 days'),
+    ('QUANTITY_SHORTFALL', 50, 'LOW', 'Loaded less than this % of the ordered quantity'),
+    ('DELIVERY_DISPUTE', 1, 'MEDIUM', 'The buyer reported a problem with a delivery'),
+    ('PAYMENT_MISMATCH', 5, 'MEDIUM', 'Successful payments exceed the order total by more than this %'),
+    ('DRIVER_DISPUTES', 3, 'HIGH', 'This many delivery problems reported on one driver''s trips in 30 days')
+ON CONFLICT (signal_code) DO NOTHING;
+
 COMMIT;
