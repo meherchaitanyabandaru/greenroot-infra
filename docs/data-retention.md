@@ -52,6 +52,21 @@ Related: [storage-and-data-protection.md](storage-and-data-protection.md) (files
 
 Admin → **Archive (by FY)**: Orders and Quotations by financial year, searchable by code, customer or nursery, exported as CSV (opens in Excel) or PDF (first 1,000 rows; mobiles never printed). It reads the live records through the reports API (`GET /reports/{orders|quotations}?fy=2026-27&q=…&format=csv|pdf`): nothing is moved, copied or deleted, so every screen, report, API and reference keeps working. Owners and managers get the same financial-year filter on their own slice.
 
+### Clean-up jobs (built 2026-10-31, not committed; every rule's jobs OFF)
+
+Admin → Data retention → **Clean-up jobs**: a monthly or quarterly clean-up run at night, using the same rules.
+
+- **Pick:** data type (a rule), a date range (India dates, both inclusive; *Last month* / *Last quarter* shortcuts), and status / nursery where the rule has them. Fixed filters only: no SQL is typed anywhere, and every value is a query parameter.
+- **Preview** (any admin): matching, on-hold and excluded counts, and up to 50 record codes each. Changes nothing.
+- **Queue** (super admin): type the matching count, give a reason (10+ characters), choose *Export, then delete/mask* or *Delete/mask only*, and a time (default **2:00 AM India time**). Audit-logged.
+- **Runs** in the retention scheduler (checks every minute) under the rule's advisory lock, as a `retention_runs` row with trigger `JOB` and status `QUEUED → RUNNING → DONE / FAILED / CANCELLED`. The records it may touch are fixed when it starts: if more match than were confirmed, it stops (`count_changed`) and changes nothing.
+- **Each batch** checks for a cancel request, then runs the rule's own statement, which re-checks the period, legal holds and every exclusion (open payments, refund cases, disputes, open enquiries, risk signals). Anything that changed is skipped. Progress (done, skipped, failed, batches) is saved after every batch.
+- **Export first:** with export, every record (the whole row as JSON) is written to a CSV in the private `retention-exports` bucket before anything changes. If the export fails, the job fails and nothing changes. Download: super admin only, streamed through the API (never a public or presigned URL), audit-logged. Files are removed **30 days** after the job.
+- **Cancel:** a queued job is cancelled at once; a running one stops at the next batch boundary. A job left `RUNNING` by a server that stopped is marked `FAILED interrupted`.
+- **Retry** copies the filters into a new job (preview and confirm again). Records already done no longer match, so they are never processed twice. A failed batch changes nothing (one statement); earlier batches stay done.
+- **Duplicates:** only one queued or running job per rule, date range and filters (a unique index).
+- **Who may have jobs:** per rule, the switch *Clean-up jobs allowed* (`allows_manual_jobs`), **off for all 21 rules**. It is separate from the daily switch (`is_enabled`), which is unchanged. The database refuses the switch on rules on legal review hold or report-only. Orders, payments and quotations are never deleted, and **anonymising them by job is blocked in code** until a legal review approves it (`needsLegalApproval` in `jobs.go`). They can still be previewed.
+
 Not a rule: account-deletion clean-up (§3) runs daily for deleted accounts; resolved risk signals have **no** rule (purpose and legal requirement to be reviewed first).
 
 **How a rule runs** (`greenroot-api/internal/modules/retention`):

@@ -1,4 +1,4 @@
-# Production rollout: data retention (migrations `20261031_03_retention_rules`, `20261031_04_market_retention`, `20261031_05_orders_quotations_retention`)
+# Production rollout: data retention (migrations `20261031_03_retention_rules`, `20261031_04_market_retention`, `20261031_05_orders_quotations_retention`, `20261031_06_retention_jobs`)
 
 > Status (2026-10-31): **ready, not deployed.** Do not deploy until the legal gates below are cleared. Policy: [`../data-retention.md`](../data-retention.md).
 
@@ -9,6 +9,7 @@
 | Schema | — | Tables `retention_rules`, `retention_runs`, `retention_holds` (legal holds); `retention_runs.excluded`; 7 indexes on time columns used by cleanups |
 | Rules | Hard-coded: read notifications 90 days, Mango usage 90 days (`AI_USAGE_RETENTION_DAYS`), Mango proposals 7 days | The same three as rules, **ON, same periods**; 18 new rules **OFF** (8 on legal review hold, 4 report-only) |
 | Orders/quotations | — | Rule classification and period unit; financial-year functions `fy_start`, `fy_retained_until`; holds on orders, quotations, payments; 3 indexes; financial-year archive in the reports API (`fy`, `q`, `format=pdf`) |
+| Clean-up jobs (`06`) | — | `retention_rules.allows_manual_jobs` (**off** for every rule; refused on held and report-only rules); job columns on `retention_runs` (date range, filters, schedule, reason, confirmed count, progress, export key and expiry); statuses `QUEUED`, `DONE`, `CANCELLED` and trigger `JOB` added; one live job per rule + range + filters (unique index). New private bucket `retention-exports` |
 | API | Purges in the background loop | Retention scheduler (daily per rule, advisory lock); admin routes `/admin/retention*` |
 | Admin | — | Logs → Data Retention |
 
@@ -43,7 +44,12 @@ MIGRATE_DATABASE_URL='<greenroot_migrator URL, sslmode=verify-full>' go run ./cm
 # expected: applied 20261031_03_retention_rules
 #           applied 20261031_04_market_retention
 #           applied 20261031_05_orders_quotations_retention
+#           applied 20261031_06_retention_jobs
 ```
+
+**Before `06` in production:** create the bucket `<prefix>retention-exports` **private** (no bucket policy, no CDN, encryption at rest, versioning off), readable and writable only by the API's role. Local MinIO and CI create it on start (`EnsureBuckets`). The API streams downloads itself; never add a public or presigned path to it.
+
+Verify: `SELECT count(*) FROM public.retention_rules WHERE allows_manual_jobs;` → **0**.
 
 Each migration is one transaction: it either applies fully or not at all. It is idempotent (`IF NOT EXISTS`, `ON CONFLICT DO NOTHING`) and never overwrites existing rule rows. The API refuses to start in production while a migration is pending, so this must run before the new API starts.
 
@@ -103,7 +109,7 @@ Deploy the API build containing `internal/modules/retention`, then the admin bui
 | Situation | Action |
 |---|---|
 | New API misbehaves, schema fine | Roll back the API (and admin) to the previous build. The old build ignores the new tables and runs its old purges (same three cleanups, same periods). Leave the tables in place. |
-| Need to remove the schema too | After the API rollback, as the migrator: run `20261031_05_orders_quotations_retention.down.sql`, then `20261031_04_market_retention.down.sql`, then `20261031_03_retention_rules.down.sql` (in `greenroot-api/internal/database/migrations`), then `DELETE FROM public.schema_migrations WHERE version IN ('20261031_03_retention_rules', '20261031_04_market_retention', '20261031_05_orders_quotations_retention');`. Loses only rule settings, run history and legal holds (record the active holds first: `SELECT * FROM public.retention_holds WHERE released_at IS NULL`). No personal data. |
+| Need to remove the schema too | After the API rollback, as the migrator: run `20261031_06_retention_jobs.down.sql` (remove job export files first: `SELECT export_object_key FROM public.retention_runs WHERE export_object_key IS NOT NULL`), then `20261031_05_orders_quotations_retention.down.sql`, then `20261031_04_market_retention.down.sql`, then `20261031_03_retention_rules.down.sql` (in `greenroot-api/internal/database/migrations`), then `DELETE FROM public.schema_migrations WHERE version IN ('20261031_03_retention_rules', '20261031_04_market_retention', '20261031_05_orders_quotations_retention', '20261031_06_retention_jobs');`. Loses only rule settings, run history and legal holds (record the active holds first: `SELECT * FROM public.retention_holds WHERE released_at IS NULL`). No personal data. |
 | Data must be recovered (any cause) | Restore the `pre-retention-20261031_03` snapshot or PITR to just before the incident, per `database-operations.md` §2. Then reconcile account deletions made after the restore point (`data-retention.md` §5). |
 
 The migration deletes nothing and the three ON rules match the old behaviour, so a data restore is not an expected part of this rollout.
