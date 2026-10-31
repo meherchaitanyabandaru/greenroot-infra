@@ -176,3 +176,7 @@ PUT    /orders/:id/items/:itemId         Edit item
 DELETE /orders/:id/items/:itemId         Remove item
 PUT    /orders/:id/items/:itemId/loaded-quantity   Set loaded qty
 ```
+
+## Retention and archive (2026-10-31)
+
+Orders are never deleted. Rules `ORDERS_COMPLETED`, `ORDERS_CANCELLED`, `PAYMENTS`, `ORDER_DOCUMENTS` and `DELIVERY_PROOF` (all off; default 8 financial years; legal review hold) anonymise the customer's details or report files once an order is past its period and nothing keeps it (pending payment, open payment issue, delivery issue, risk signal, legal hold). Admin → Archive (by FY) shows orders by financial year. See `data-retention.md`.

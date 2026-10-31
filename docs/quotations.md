@@ -242,3 +242,7 @@ POST   /quotations/:id/record-download    Record PDF generation/download audit e
 | `sort_by`, `sort_order` | string | Sort field and `asc`/`desc` |
 
 > Manager list is automatically scoped server-side; clients don't need to pass extra params.
+
+## Retention and archive (2026-10-31)
+
+Quotations are never deleted by retention. Rules (all off): `QUOTATIONS_ACCEPTED` follows the order (8 financial years), `QUOTATIONS_CLOSED` 730 days, `QUOTATIONS_DRAFT` 365 days; each anonymises the recipient's name, mobile and request note and keeps the order link. Admin → Archive (by FY) shows quotations by financial year. See `data-retention.md`.
