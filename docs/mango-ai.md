@@ -62,13 +62,25 @@ Flutter app ──HTTPS, user JWT, X-Mango-Notice──▶ Go API /api/v1/assist
 - The clips were made once with `greenroot-ai/scripts/make_greetings.py` (voice `coral`, a native-speaker style instruction).
 - **Replace them with a native Telugu speaker's recordings** under the same file names for the most natural sound. The text lines are in `mango_voice.dart`.
 
-## Telugu voice
+## Telugu voice (updated 2026-10-31)
 
-- **Ten OpenAI voices compared** (samples in `greenroot-ai/test-audio/voices/te_<voice>.mp3`, gitignored): coral, sage, nova, shimmer, alloy, ash, ballad, verse, marin, cedar.
-- **All are understandable:** played back through speech-to-text, 0–2.4% character error.
-- **Naturalness needs a human listener.** Pick one and set `AI_TTS_VOICE` in greenroot-ai, then rerun `make_greetings.py` with it.
-- Read-aloud now asks for "natural, warm Telugu like a native speaker from Andhra Pradesh".
-- If no OpenAI voice is natural enough, add an Indian-language TTS provider behind the `TextToSpeech` interface (e.g. Sarvam AI, Google Cloud or Azure Telugu voices). That needs an account and key.
+- **Voice:** `cedar`. OpenAI's text-to-speech guide says "For best quality, we recommend using marin or cedar".
+  - The same Telugu answer was read by marin, cedar and coral, then played back through speech-to-text: cedar 9% character error, coral 32%, marin 38.5%.
+  - marin again said "నీకు" (informal) for "మీకు"; coral misread "ఆర్డర్లు" as "వాడర్లు".
+  - Samples for listening: `greenroot-ai/test-audio/voices/compare_{marin,cedar,coral}.mp3`. Change `AI_TTS_VOICE` and rerun `make_greetings.py` to switch.
+- **Instruction:** conversational Telugu in a warm Telangana style, with clear pronunciation, smooth Telugu-English mixing, natural pauses, not robotic, moderate pace (`teluguVoice` in the API; the same text is used for the greeting clips).
+- **Telugu script:** Telugu answers are written entirely in Telugu script, English words included (ఆర్డర్, స్టేటస్, డెలివరీ), so read-aloud pronounces them as Telugu. Codes such as ORD-… and numbers stay as they are.
+- **Short sentences:** answers use at most 3 short, one-idea sentences. greenroot-ai reads longer text in pieces of whole sentences of up to 180 characters and joins the MP3s.
+- **Known weakness:** long order codes ("ORD-20261031-0001") are read awkwardly in every voice, partly as English numbers.
+- **Best quality still:** a native Telugu speaker recording the greeting and goodbye clips, or an Indian-language TTS provider behind the `TextToSpeech` interface.
+
+## Read-aloud model shutdown: January 6, 2027
+
+OpenAI deprecated `gpt-4o-mini-tts` (and `tts-1`, `tts-1-hd`) on 2026-10-01. The models will be removed from the API on **January 6, 2027** (OpenAI deprecations page and text-to-speech guide, checked 2026-10-31).
+
+- **Replacement:** `gpt-realtime-2.1-mini` through the Realtime API. It is **not** supported on `/v1/audio/speech`, so it is not a drop-in replacement: the Realtime API is a live session over a WebSocket or WebRTC, not one request and one MP3.
+- **Plan (not built yet):** add a second `TextToSpeech` implementation in greenroot-ai that opens a short Realtime session, sends the text with the same voice and instruction, collects the audio and returns it as today. The Go API and the app do not change. Re-check voices, cost and Telugu quality, and regenerate the greeting clips.
+- **Deadline:** in production before 2027-01-06, or read-aloud stops working. Speech-to-text and answers are not affected.
 
 ## Business tools (Go, `internal/modules/assistant/tools.go`)
 
@@ -122,7 +134,7 @@ Every response carries a request id, which is also in both services' logs.
 |---|---|---|---|
 | Speech to text | `/v1/audio/transcriptions` | `gpt-4o-mini-transcribe` | $1.25 / $5.00 per 1M in/out tokens (≈ $0.003 per minute) |
 | Answers + tools | `/v1/chat/completions` (`store=false`, `temperature=0.2`, ≤350 output tokens) | `gpt-4.1-mini` | $0.40 in, $0.10 cached, $1.60 out per 1M tokens |
-| Read aloud | `/v1/audio/speech` (MP3) | `gpt-4o-mini-tts`, voice `coral` | $0.60 per 1M text tokens in, $12 per 1M audio tokens out. The endpoint reports no usage, so the budget estimates $0.015 per minute of audio returned. |
+| Read aloud | `/v1/audio/speech` (MP3) | `gpt-4o-mini-tts`, voice `cedar` (deprecated: see below) | $0.60 per 1M text tokens in, $12 per 1M audio tokens out. The endpoint reports no usage, so the budget estimates $0.015 per minute of audio returned. |
 
 All are configurable (`AI_*_MODEL`, `AI_PRICE_*`). Cheaper text models exist (`gpt-5-nano`, `gpt-4.1-nano`) but were not evaluated for Telugu tool use.
 
@@ -250,3 +262,29 @@ Not tested yet:
 | Mobile | 455 passed: every orb state, greeting and goodbye clips, auto-send, limit state, mic denied, error/retry, driver tile hidden, 360×640 at 130% on Android and iOS, reduced motion |
 | Admin | 51 passed |
 | greenroot-ai | 23 passed |
+
+## Languages and hands-free (2026-10-31)
+
+### Languages
+
+- **Choice:** the 🌐 chip on the Mango screen offers తెలుగు, हिन्दी, ಕನ್ನಡ, मराठी, தமிழ், اردو and English. It is saved on the phone (`mango_voice_lang`). Changing it plays that language's greeting at once.
+- **English always works:** the reply follows the **script the user wrote or spoke in**, so an English question gets an English answer whatever the choice.
+- **What the choice decides:** whether Devanagari is Hindi or Marathi, the greeting and goodbye clips, and the sample question.
+- **Replies:** written entirely in that language's script, English words included; codes and numbers stay as they are. Statuses are said as words.
+- **Read-aloud:** the same instruction pattern per language and region (Telugu: Telangana, Hindi: North India, Kannada: Karnataka, Marathi: Maharashtra, Tamil: Tamil Nadu, Urdu: Hyderabad).
+- **Speech-to-text:** stays on automatic detection. Forcing the chosen language turned spoken English into Telugu letters and hurt mixed speech.
+  - Limit: spoken Urdu may come back in Devanagari (Hindi) script, because the two sound alike.
+- **Greeting clips:** 28 clips (7 languages × morning, day and evening greetings plus a goodbye), about 1.9 MB.
+  - The Hindi, Kannada, Marathi, Tamil and Urdu lines were written by the developer: **have native speakers check them**.
+  - Regenerate with `greenroot-ai/scripts/make_greetings.py`.
+- **Checked live 2026-10-31:** Hindi, Tamil and Urdu questions were answered in their own script with correct data and read aloud. An English question with Hindi chosen was answered in English.
+
+### Hands-free (on by default; ⋮ menu to turn off)
+
+1. After the greeting, Mango starts listening by itself.
+2. When the user has spoken (louder than -40 dBFS) and then pauses for 1.5 s, the recording stops and is transcribed.
+3. The transcript is sent after 2 s; tap the words to edit instead.
+4. The answer is read aloud. When it ends, Mango listens again for a follow-up.
+5. If nobody speaks within 8 s, Mango stops listening quietly. **Nothing is uploaded, so there is no cost.**
+
+It does not listen again after a manual Stop, after the goodbye, or when the day's questions are used up. A noisy place may keep the recording open up to the 30 s cap; tap ■ to stop.
