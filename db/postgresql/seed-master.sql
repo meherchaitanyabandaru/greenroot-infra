@@ -221,4 +221,63 @@ INSERT INTO public.risk_rules (signal_code, threshold, risk_level, description) 
     ('DRIVER_DISPUTES', 3, 'HIGH', 'This many delivery problems reported on one driver''s trips in 30 days')
 ON CONFLICT (signal_code) DO NOTHING;
 
+-- Delivered without the customer's code (migration 20261025_02).
+INSERT INTO public.sms_templates (template_code, template_name, category, header_id, body, variables)
+SELECT 'DELIVERY_UNCONFIRMED', 'Delivered without customer code', 'SERVICE_IMPLICIT', h.header_id,
+       'GreenRoot delivery DSP-{#numeric#}-{#numeric#} was marked done by the nursery without your code. Not received? Report it in the app within 48 hours. - GreenRoot',
+       '["dispatch_date", "dispatch_seq"]'
+FROM (SELECT min(header_id) AS header_id FROM public.sms_headers) h
+ON CONFLICT (template_code) DO NOTHING;
+
+INSERT INTO public.email_templates (template_code, template_name, subject, body_html, body_text) VALUES
+  ('DELIVERY_UNCONFIRMED', 'Delivered without customer code', 'Your GreenRoot delivery {{dispatch_code}} was marked delivered',
+   $html$<p>The nursery marked delivery <strong>{{dispatch_code}}</strong> as done without your delivery code.</p>
+<p>Reason given: {{reason}}</p>
+<p>If you did not receive your plants, open the order in the GreenRoot app and report a problem within 48 hours.</p>$html$,
+   $text$The nursery marked delivery {{dispatch_code}} as done without your delivery code.
+
+Reason given: {{reason}}
+
+If you did not receive your plants, open the order in the GreenRoot app and report a problem within 48 hours.$text$)
+ON CONFLICT (template_code) DO NOTHING;
+
+-- Order-lifecycle messages (migration 20261028_01; fresh installs get them here,
+-- since schema.sql records that migration as applied).
+INSERT INTO public.sms_templates (template_code, template_name, category, header_id, body, variables)
+SELECT t.code, t.name, 'SERVICE_IMPLICIT', h.header_id, t.body, t.vars::jsonb
+FROM (SELECT min(header_id) AS header_id FROM public.sms_headers) h,
+(VALUES
+  ('QUOTATION_RECEIVED', 'Quotation for a customer not on the app',
+   'You have a GreenRoot quotation QUO-{#numeric#}-{#numeric#} for Rs.{#numeric#}.{#numeric#}. Sign in to the GreenRoot app with this number to view and accept it. - GreenRoot',
+   '["quotation_date", "quotation_seq", "amount_rupees", "amount_paise"]'),
+  ('ORDER_PLACED', 'Order placed for a customer not on the app',
+   'Your GreenRoot order ORD-{#numeric#}-{#numeric#} for Rs.{#numeric#}.{#numeric#} has been placed. Sign in to the GreenRoot app with this number to track it. - GreenRoot',
+   '["order_date", "order_seq", "amount_rupees", "amount_paise"]'),
+  ('DELIVERY_ON_THE_WAY', 'On the way, with the delivery code',
+   'Your GreenRoot delivery DSP-{#numeric#}-{#numeric#} is on the way. Give code {#numeric#} to the driver only after you check your plants. - GreenRoot',
+   '["dispatch_date", "dispatch_seq", "delivery_code"]'),
+  ('ORDER_PARTIAL', 'Order loaded with fewer plants',
+   'GreenRoot order ORD-{#numeric#}-{#numeric#} was loaded with fewer plants than ordered. New total Rs.{#numeric#}.{#numeric#}. - GreenRoot',
+   '["order_date", "order_seq", "amount_rupees", "amount_paise"]'),
+  ('NURSERY_APPROVED', 'Nursery approved',
+   'Your nursery is approved on GreenRoot. Sign in to start taking orders. - GreenRoot',
+   '[]'),
+  ('TRIAL_ENDING', 'Free trial ending',
+   'Your GreenRoot free trial ends in {#numeric#} days. Choose a plan in the app to keep taking orders. - GreenRoot',
+   '["days_left"]'),
+  ('DELIVERY_ISSUE', 'Customer reported a delivery problem',
+   'A customer reported a problem with GreenRoot delivery DSP-{#numeric#}-{#numeric#}. Open the app to respond. - GreenRoot',
+   '["dispatch_date", "dispatch_seq"]')
+) AS t(code, name, body, vars)
+ON CONFLICT (template_code) DO NOTHING;
+
+INSERT INTO public.email_templates (template_code, template_name, subject, body_html, body_text) VALUES
+  ('TRIAL_ENDING', 'Free trial ending', 'Your GreenRoot free trial ends in {{days_left}} days',
+   $html$<p>Your GreenRoot free trial ends in <strong>{{days_left}} days</strong>.</p>
+<p>Open the app and choose a plan to keep taking orders and quotations without a break.</p>$html$,
+   $text$Your GreenRoot free trial ends in {{days_left}} days.
+
+Open the app and choose a plan to keep taking orders and quotations without a break.$text$)
+ON CONFLICT (template_code) DO NOTHING;
+
 COMMIT;
