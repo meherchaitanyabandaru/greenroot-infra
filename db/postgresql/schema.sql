@@ -2969,10 +2969,12 @@ CREATE TABLE public.retention_rules (
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     classification character varying(20) DEFAULT 'RECOMMENDATION'::character varying NOT NULL,
     period_unit character varying(16) DEFAULT 'DAYS'::character varying NOT NULL,
+    allows_manual_jobs boolean DEFAULT false NOT NULL,
     CONSTRAINT ck_retention_rules_action CHECK (((action)::text = ANY ((ARRAY['DELETE'::character varying, 'MASK'::character varying, 'REPORT'::character varying])::text[]))),
     CONSTRAINT ck_retention_rules_batch CHECK (((batch_size >= 1) AND (batch_size <= 10000))),
     CONSTRAINT ck_retention_rules_classification CHECK (((classification)::text = ANY ((ARRAY['LEGAL_REQUIREMENT'::character varying, 'RECOMMENDATION'::character varying, 'LEGAL_REVIEW'::character varying])::text[]))),
     CONSTRAINT ck_retention_rules_enable CHECK (((NOT is_enabled) OR ((NOT is_dry_run_only) AND (NOT requires_legal_review) AND ((action)::text <> 'REPORT'::text)))),
+    CONSTRAINT ck_retention_rules_manual_jobs CHECK (((NOT allows_manual_jobs) OR ((NOT is_dry_run_only) AND (NOT requires_legal_review) AND ((action)::text <> 'REPORT'::text)))),
     CONSTRAINT ck_retention_rules_period CHECK (((period_days >= min_period_days) AND (period_days <= 3650) AND (min_period_days >= 1))),
     CONSTRAINT ck_retention_rules_period_unit CHECK (((period_unit)::text = ANY ((ARRAY['DAYS'::character varying, 'FINANCIAL_YEARS'::character varying])::text[])))
 );
@@ -2997,6 +2999,13 @@ COMMENT ON COLUMN public.retention_rules.classification IS 'Why the period: LEGA
 --
 
 COMMENT ON COLUMN public.retention_rules.period_unit IS 'DAYS: period_days days; FINANCIAL_YEARS: period_days full Indian financial years (Apr–Mar) after the one the record belongs to';
+
+
+--
+-- Name: COLUMN retention_rules.allows_manual_jobs; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.retention_rules.allows_manual_jobs IS 'Super admins may queue clean-up jobs for this rule (independent of the daily schedule, is_enabled)';
 
 
 --
@@ -3035,9 +3044,26 @@ CREATE TABLE public.retention_runs (
     started_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     finished_at timestamp with time zone,
     excluded bigint DEFAULT 0 NOT NULL,
+    range_starts_at timestamp with time zone,
+    range_ends_at timestamp with time zone,
+    filter_status character varying(30),
+    filter_nursery_id bigint,
+    has_export boolean DEFAULT false NOT NULL,
+    scheduled_at timestamp with time zone,
+    reason text,
+    confirmed_count bigint,
+    cancel_requested_at timestamp with time zone,
+    cancelled_by_user_id bigint,
+    batches_done integer DEFAULT 0 NOT NULL,
+    export_object_key text,
+    export_bytes bigint,
+    export_expires_at timestamp with time zone,
+    failure_detail text,
+    retry_of_run_id bigint,
+    CONSTRAINT ck_retention_runs_job CHECK ((((trigger_source)::text <> 'JOB'::text) OR ((range_starts_at IS NOT NULL) AND (range_ends_at IS NOT NULL) AND (range_starts_at < range_ends_at) AND (scheduled_at IS NOT NULL) AND (reason IS NOT NULL) AND (length(reason) >= 10) AND (confirmed_count IS NOT NULL)))),
     CONSTRAINT ck_retention_runs_mode CHECK (((mode)::text = ANY ((ARRAY['DRY_RUN'::character varying, 'EXECUTE'::character varying])::text[]))),
-    CONSTRAINT ck_retention_runs_status CHECK (((status)::text = ANY ((ARRAY['RUNNING'::character varying, 'SUCCEEDED'::character varying, 'FAILED'::character varying, 'SKIPPED'::character varying])::text[]))),
-    CONSTRAINT ck_retention_runs_trigger CHECK (((trigger_source)::text = ANY ((ARRAY['SCHEDULE'::character varying, 'ADMIN'::character varying])::text[])))
+    CONSTRAINT ck_retention_runs_status CHECK (((status)::text = ANY ((ARRAY['QUEUED'::character varying, 'RUNNING'::character varying, 'DONE'::character varying, 'SUCCEEDED'::character varying, 'FAILED'::character varying, 'SKIPPED'::character varying, 'CANCELLED'::character varying])::text[]))),
+    CONSTRAINT ck_retention_runs_trigger CHECK (((trigger_source)::text = ANY ((ARRAY['SCHEDULE'::character varying, 'ADMIN'::character varying, 'JOB'::character varying])::text[])))
 );
 
 
@@ -6514,6 +6540,27 @@ CREATE UNIQUE INDEX idx_retention_holds_active ON public.retention_holds USING b
 
 
 --
+-- Name: idx_retention_runs_due_jobs; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_retention_runs_due_jobs ON public.retention_runs USING btree (scheduled_at) WHERE ((status)::text = 'QUEUED'::text);
+
+
+--
+-- Name: idx_retention_runs_export_expiry; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_retention_runs_export_expiry ON public.retention_runs USING btree (export_expires_at) WHERE (export_object_key IS NOT NULL);
+
+
+--
+-- Name: idx_retention_runs_live_job; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_retention_runs_live_job ON public.retention_runs USING btree (retention_rule_id, range_starts_at, range_ends_at, COALESCE(filter_status, ''::character varying), COALESCE(filter_nursery_id, (0)::bigint)) WHERE (((trigger_source)::text = 'JOB'::text) AND ((status)::text = ANY ((ARRAY['QUEUED'::character varying, 'RUNNING'::character varying])::text[])));
+
+
+--
 -- Name: idx_retention_runs_rule_started; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -8129,11 +8176,27 @@ ALTER TABLE ONLY public.retention_rules
 
 
 --
+-- Name: retention_runs retention_runs_cancelled_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.retention_runs
+    ADD CONSTRAINT retention_runs_cancelled_by_user_id_fkey FOREIGN KEY (cancelled_by_user_id) REFERENCES public.users(user_id) ON DELETE SET NULL;
+
+
+--
 -- Name: retention_runs retention_runs_retention_rule_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.retention_runs
     ADD CONSTRAINT retention_runs_retention_rule_id_fkey FOREIGN KEY (retention_rule_id) REFERENCES public.retention_rules(retention_rule_id);
+
+
+--
+-- Name: retention_runs retention_runs_retry_of_run_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.retention_runs
+    ADD CONSTRAINT retention_runs_retry_of_run_id_fkey FOREIGN KEY (retry_of_run_id) REFERENCES public.retention_runs(retention_run_id) ON DELETE SET NULL;
 
 
 --

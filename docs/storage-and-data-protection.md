@@ -14,6 +14,7 @@ Status as of 2026-10-23. What the code enforces, and what infra must set up befo
 | `delivery-photos` | private | server (`POST /storage/images`, DELIVERY_PROOF / LOADING_PROOF) |
 | `loading-photos` | private | (unused) |
 | `quotation-pdfs`, `order-pdfs` | private | server |
+| `retention-exports` | private; **no presigned URLs**, not addressable by file URL | server only: clean-up job exports (CSV, personal data), streamed to super admins through `GET /admin/retention/jobs/{id}/export` (audit-logged), removed 30 days after the job |
 
 **Photos are never presigned (2026-10-30).** Every photo goes through the API, which checks it against its category's image policy (`public.image_policies`, admin page *Media → Image Policies*) before storing it:
 - the type comes from the bytes (JPEG or PNG, as the category allows); WebP/HEIC/GIF are refused (the apps convert to JPEG);
