@@ -2,7 +2,7 @@
 
 Status: built and tested 2026-10-30 / 31 in mock-free local runs against the real provider. **Not deployed.** Off by default (`AI_ENABLED=false` in the API).
 
-Mango already existed as offline, step-by-step guides (the 🥭 button). This adds an AI assistant to the same button: **Ask Mango (voice or text)**. It is for **nursery owners, managers and customers only**: drivers and admin accounts are refused by the API (403) and do not see it in the app. Users ask in Telugu, English or a mix. Mango answers from the user's own GreenRoot data and can prepare one change (confirming a pending order), which runs only after the user taps Confirm.
+Mango already existed as offline, step-by-step guides (the 🥭 button). This adds an AI assistant to the same button: **Ask Mango (voice or text)**. It is for **nursery owners, managers, customers and drivers**; admin accounts are refused by the API (403) and do not see it in the app. (2026-10-31: the offline 🥭 guides were removed; the 🥭 button now opens Mango AI. Drivers were added: they can ask about their trips and where to deliver.) Users ask in Telugu, English or a mix. Mango answers from the user's own GreenRoot data and can prepare one change (confirming a pending order), which runs only after the user taps Confirm.
 
 ## Request flow
 
@@ -27,12 +27,11 @@ Flutter app ──HTTPS, user JWT, X-Mango-Notice──▶ Go API /api/v1/assist
 
 ## Who can use it
 
-- **Allowed:** NURSERY_OWNER, MANAGER and BUYER roles.
-- **Refused:**
-  - A driver-only account gets 403 `assistant_role_not_allowed`.
-  - ADMIN and SUPER_ADMIN get 403 `assistant_not_for_admins`.
-- **Owner who also drives:** keeps access, but there is no "driving" trips view.
-- **In the app:** the "Ask Mango" tile is hidden and `/mango` is route-guarded for drivers. The API check is the one that counts.
+- **Allowed:** NURSERY_OWNER, MANAGER, BUYER and DRIVER roles.
+- **Refused:** ADMIN and SUPER_ADMIN get 403 `assistant_not_for_admins`. An account with none of the allowed roles gets 403 `assistant_role_not_allowed`.
+- **Drivers:** get only `list_trips` with side `driving`. Their own trips include `deliver_to`, the delivery address, which the trip screen already shows them. Never the delivery code, phone numbers or coordinates.
+- **Owner who also drives:** sees the nursery views, with no separate "driving" view.
+- **In the app:** the 🥭 button is hidden for admins and while signing up. The API check is the one that counts.
 
 ## Daily questions (migration `20261031_01`)
 
@@ -78,7 +77,7 @@ Flutter app ──HTTPS, user JWT, X-Mango-Notice──▶ Go API /api/v1/assist
 | `list_orders` (side, status, placed today, search) | `GET /orders` (`buying=true` for the buying side) | owners, managers (selling); buyers, owners (buying) |
 | `get_order` | `GET /orders?search=` then `GET /orders/{id}` | same |
 | `list_quotations`, `get_quotation` | `GET /quotations` | same |
-| `list_trips` (selling, buying) | `GET /dispatches` | owners, managers, customers |
+| `list_trips` (selling, buying, driving + `deliver_to`) | `GET /dispatches` | owners, managers, customers; drivers get only this |
 | `get_delivery_status` | `GET /orders/{id}/dispatches` | sellers, buyers |
 | `propose_confirm_order` | stores a proposal; runs `POST /orders/{id}/confirm` after Confirm | owners, managers |
 
