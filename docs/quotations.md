@@ -71,7 +71,8 @@
 
 ```
 INTERNAL type:
-  INTERNAL_DRAFT → (no further transitions — planning only)
+  INTERNAL_DRAFT → CUSTOMER_DRAFT (owner sets a customer: PUT /quotations/:id/customer
+                   flips quotation_type to CUSTOMER; then the normal customer flow)
 
 CUSTOMER type:
   CUSTOMER_DRAFT → CUSTOMER_SENT → CUSTOMER_ACCEPTED → CONVERTED
