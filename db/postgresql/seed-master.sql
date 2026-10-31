@@ -42,7 +42,10 @@ INSERT INTO public.platform_config (config_key, config_value, data_type, descrip
   ('min_order_amount',        '100',  'numeric', 'Minimum order total in INR'),
   ('platform_fee_pct',        '0',    'numeric', 'Platform fee percentage applied to orders'),
   ('driver_approval_days',    '3',    'integer', 'Days before a pending driver approval auto-expires'),
-  ('nursery_approval_days',   '7',    'integer', 'Days before a pending nursery application auto-expires');
+  ('nursery_approval_days',   '7',    'integer', 'Days before a pending nursery application auto-expires'),
+  ('assistant_enabled',         'true', 'boolean', 'Mango AI on for owners, managers and customers (the API''s AI_ENABLED must also be on)'),
+  ('assistant_daily_questions', '5',    'integer', 'Mango AI questions each user may ask per day (India time)')
+ON CONFLICT (config_key) DO NOTHING;
 
 -- Subscription plans
 INSERT INTO public.subscription_plans
