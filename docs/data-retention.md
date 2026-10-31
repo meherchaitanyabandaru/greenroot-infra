@@ -1,8 +1,39 @@
 # Data retention and deletion
 
-> Status: **draft for approval (2026-10-31).** "Current" columns are verified against the code and the database on 2026-10-31. "Proposed" periods are **not enforced** until the product owner approves them and, where marked ⚖️, legal counsel confirms them. Until then the only automatic deletion is what the "Current" column says.
+> Status (2026-10-31): the rules below are **configured in Admin → Data retention** (super admin; every change needs a reason and is audit-logged). Periods marked *provisional* were approved by the product owner as operational settings, **not** as legal confirmation. **Every new rule is switched off**; only the three cleanups that already ran before (read notifications, Mango usage, Mango proposals) are on, with their old periods. Rules marked ⚖️ **legal hold** cannot be switched on until legal review clears them (the API and the database both refuse). The uploaded-files rule only reports. Nothing below was run against production.
 
 Related: [storage-and-data-protection.md](storage-and-data-protection.md) (files, hashing, encryption), [operations/database-operations.md](operations/database-operations.md) (backups, PITR), [mango-ai.md](mango-ai.md) (assistant privacy), `greenroot-docs/02-product/users-and-roles.md` (account lifecycle).
+
+## 0. Rules in the admin UI (implemented 2026-10-31)
+
+| Rule (code) | Data | Action | Period | State | Why |
+|---|---|---|---|---|---|
+| `NOTIFICATIONS_READ` | Read in-app notifications | Delete | 90 days after read | **On** (as before) | Unread ones are never deleted (product decision pending) |
+| `MANGO_USAGE` | Mango cost/usage rows (no content) | Delete | 90 days | **On** (as before; replaces `AI_USAGE_RETENTION_DAYS`) | |
+| `MANGO_PROPOSALS` | Mango proposals | Delete | 7 days | **On** (as before) | |
+| `CRASH_REPORTS` | App crash reports | Delete | 90 days (provisional) | Off | Awaiting the go-ahead to enable |
+| `SMS_LOG_MASK` | SMS log | Mask mobile to last 4 digits, remove text | 180 days (provisional) | Off | TRAI/DLT question (§4) |
+| `EMAIL_LOG_MASK` | Email log | Mask address to domain, remove body | 180 days (provisional) | Off | |
+| `MARKET_CHAT` | Market chat messages | Delete (enquiry row kept) | 1 year after the enquiry closed (provisional) | Off | Held while the ad has a pending report |
+| `OTP_REQUEST_LOG` | OTP request log (mobile, IP) | Delete | 30 days (proposed) | Off, ⚖️ **legal hold** | CERT-In 180-day logs (§4a) |
+| `SESSIONS` | Login sessions (IP, user agent, device) | Delete (activities kept, unlinked) | 30 days idle (proposed) | Off, ⚖️ **legal hold** | CERT-In 180-day logs (§4a) |
+| `GPS_TRAILS` | Trip GPS points, driver location points | Delete (trip record kept) | 90 days after the trip ended (proposed) | Off, ⚖️ **legal hold** | Dispute evidence; held per trip with a delivery issue or an open risk signal |
+| `ORPHAN_FILES` | Stored files nothing points to | **Report only** | Older than 30 days | Report only (can never delete) | Dry run first; deletion needs a separate, approved change |
+
+Not a rule: account-deletion clean-up (§3) runs daily for deleted accounts; resolved risk signals have **no** rule (purpose and legal requirement to be reviewed first).
+
+**How a rule runs** (`greenroot-api/internal/modules/retention`):
+- The SQL each rule may run is fixed in code (`rules.go`); the database holds only its settings (`retention_rules`).
+- Daily (whichever API server gets there first): a rule that is on executes; every other rule gets a **dry run** that only counts, so the admin page always shows what it would do.
+- **Safe on several servers:** a Postgres advisory lock per rule (a second run is recorded as `SKIPPED already_running`) and a "ran in the last 20 hours" check, re-checked under the lock.
+- **Batches** (default 1,000 rows per statement, short locks); every delete re-checks the period and holds, so a hold added mid-run still wins. A failed batch rolls back alone and is retried on the next run (the job is idempotent).
+- **Time:** periods are compared with the database clock (`now()`, UTC); no app-side time-zone maths.
+- **Run history** (`retention_runs`): eligible, held, changed, failed, skipped, bytes, error category. Never names, numbers or row contents. Logs carry counts and SQL error codes only.
+- **Guards:** switching on is refused by the API and by a database constraint while a rule is on legal hold or report-only; periods have a per-rule minimum; a reason (10+ characters) is required and the old and new values go to the audit log. Clearing a legal hold needs a note saying who confirmed it and when.
+
+**Production rollout:** [operations/retention-rollout.md](operations/retention-rollout.md) (migration `20261031_03_retention_rules`, checks, rollback).
+
+**Turning a rule on (after approval):** Admin → Data retention → *Dry run* → check the counts → *Change* → switch on, with the reason. For a ⚖️ rule, first tick *Legal review is complete* with the note.
 
 ## 1. Kinds of removal
 
@@ -77,6 +108,22 @@ Sensitivity: **High** = identifies a person or locates them (mobile, address, GP
 
 Tests: `greenroot-api/tests/api/account_deletion_test.go` (real database): personal rows removed, user anonymised, business-record counts unchanged, audit entry written, token refused; the sweep cleans an old-style deletion, runs twice in parallel without error, and leaves active accounts alone.
 
+## 4a. CERT-In logging obligations (review for counsel)
+
+**Source:** CERT-In Directions under section 70B(6) of the IT Act, 28 April 2022 (and CERT-In's FAQs of May 2022). They require service providers, intermediaries, data centres and body corporates to "enable logs of all their ICT systems and maintain them securely for a rolling period of 180 days", within Indian jurisdiction, and to provide them to CERT-In when asked. Whether GreenRoot is in scope as a "body corporate" or "intermediary", and which of its logs count as ICT system logs, is for counsel to confirm. Read conservatively, these GreenRoot records would be covered:
+
+| Record | Fields that make it an ICT log | Current | Conflict |
+|---|---|---|---|
+| `user_sessions` | `ip_address`, `user_agent`, `os_name`, login/activity times | Kept (rule off) | Proposed 30 days < 180 → **legal hold** |
+| `otp_requests` | `mobile`, `ip_address`, time (authentication attempts) | Kept (rule off) | Proposed 30 days < 180 → **legal hold** |
+| `security_audit_logs` | `ip_address`, event, time | Kept forever | None today (no rule) |
+| `audit_logs` | `source_ip`, `user_agent`, change, time | Kept forever | None today (no rule) |
+| `user_activities` | login entries (session, time) | Kept; deleted on account deletion | Account deletion vs 180 days: counsel to confirm which wins (DPDP erasure vs CERT-In) |
+| API log files (`LOG_DIR`) | client IP, path, status, time (mobiles masked) | Deleted after 90 days (`LOG_RETENTION_DAYS`) | **Below 180 days** — raise to 180 if counsel confirms scope |
+| `consent_records` | `ip_address`, `user_agent` | Kept forever | None |
+
+Not ICT logs under this reading (business records): GPS trails, SMS/email delivery logs, chat messages, orders, payments. GPS trails are on hold for dispute evidence, not CERT-In.
+
 ## 4. Indian law to confirm with counsel ⚖️
 
 These are the laws that bear on the periods above. **The periods are for counsel to confirm; none is enforced on their basis yet.**
@@ -107,8 +154,9 @@ Open decisions for counsel: #3, #5, #6, #8–#18, #20, #26, #28, #29, #32.
 
 ## 6. Remaining risks (2026-10-31)
 
-- Most tables in the matrix have **no automatic deletion yet**; they wait for the approved periods (#5, #6, #8, #10–#12, #17–#22, #30).
-- Orphaned files in storage are not swept (#27); old deleted accounts' photo files cannot be found by URL.
+- New rules are **built but off**; the three ⚖️ rules stay off until legal review (§0, §4a).
+- Orphaned files are only reported (#27); deleting them needs a separate approved change. In development, dev, journey and test APIs share one MinIO, so "unreferenced" there includes files of other databases — the report is only meaningful per environment. Old deleted accounts' photo files cannot be found by URL.
+- API log files are kept 90 days, below the 180 days CERT-In may require (§4a).
 - Driver licence and lorry owner data after account deletion (#28, #29) need a legal decision.
 - Restore reconciliation (§5) relies on logs; a small external deletion ledger would make it reliable.
 - Unread notifications are kept indefinitely (by design, pending a product decision).

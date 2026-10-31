@@ -115,7 +115,7 @@ FROM pg_stat_user_tables ORDER BY pg_total_relation_size(relid) DESC LIMIT 10;
 
 Append-only tables: `audit_logs`, `security_audit_logs`, `user_activities`, `user_sessions`, `sms_messages`, `email_messages`, `vehicle_locations`. They are indexed by time today. **Partition by month when a table passes ~10 million rows** (declarative partitioning; detach and archive old partitions instead of deleting rows).
 
-Retention periods are a legal decision (DPDP Act 2023, TRAI record-keeping, tax law). The per-table matrix, the proposed periods and the questions for counsel are in [`../data-retention.md`](../data-retention.md). **Owner action:** approve the periods there before go-live. Until then only the deletions that page lists as current run (read notifications, Mango usage, account deletion clean-up).
+Retention periods are a legal decision (DPDP Act 2023, TRAI record-keeping, tax law). The per-table matrix, the proposed periods and the questions for counsel are in [`../data-retention.md`](../data-retention.md). Rollout and rollback of the retention tables: [`retention-rollout.md`](retention-rollout.md). **Owner action:** approve the periods there before go-live. Until then only the deletions that page lists as current run (read notifications, Mango usage, account deletion clean-up).
 
 ## 6. Botanical names (World Flora Online)
 

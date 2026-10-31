@@ -281,3 +281,20 @@ Open the app and choose a plan to keep taking orders and quotations without a br
 ON CONFLICT (template_code) DO NOTHING;
 
 COMMIT;
+
+-- Data retention rules (2026-10-31). Every new rule starts switched OFF.
+-- The first three keep the cleanups that already ran (same periods, ON).
+-- requires_legal_review: cannot be switched on until legal review clears it.
+INSERT INTO public.retention_rules (rule_code, category, description, action, period_days, min_period_days, is_enabled, is_dry_run_only, requires_legal_review, legal_review_note) VALUES
+('NOTIFICATIONS_READ', 'Notifications', 'In-app notifications read more than N days ago. Unread ones are never deleted.', 'DELETE', 90, 7, true, false, false, NULL),
+('MANGO_USAGE', 'Mango AI usage', 'Mango cost and usage rows (no conversation content) older than N days.', 'DELETE', 90, 30, true, false, false, NULL),
+('MANGO_PROPOSALS', 'Mango AI proposals', 'Mango confirm-before-change proposals older than N days (they expire after 10 minutes).', 'DELETE', 7, 1, true, false, false, NULL),
+('CRASH_REPORTS', 'App crash reports', 'Crash reports received more than N days ago.', 'DELETE', 90, 7, false, false, false, NULL),
+('SMS_LOG_MASK', 'SMS delivery log', 'SMS log rows older than N days: mobile reduced to its last 4 digits, message text removed. Delivery status is kept.', 'MASK', 180, 30, false, false, false, NULL),
+('EMAIL_LOG_MASK', 'Email delivery log', 'Email log rows older than N days: address reduced to its domain, body removed. Subject and status are kept.', 'MASK', 180, 30, false, false, false, NULL),
+('MARKET_CHAT', 'Market chat messages', 'Messages of market enquiries closed or cancelled more than N days ago. Kept while the ad has a pending report.', 'DELETE', 365, 30, false, false, false, NULL),
+('OTP_REQUEST_LOG', 'OTP request log', 'OTP request rows (mobile, IP) older than N days.', 'DELETE', 30, 1, false, false, true, 'Legal review: CERT-In Directions (Apr 2022) may require ICT logs, including IP addresses, for 180 days.'),
+('SESSIONS', 'Login sessions', 'Session rows (IP, user agent, device) with no activity for N days.', 'DELETE', 30, 1, false, false, true, 'Legal review: CERT-In Directions (Apr 2022) may require logs with IP/device fields for 180 days.'),
+('GPS_TRAILS', 'GPS trails', 'Trip GPS points N days after the trip ended (and driver location points older than N days). Held while the trip has a delivery issue or the order an open risk signal.', 'DELETE', 90, 30, false, false, true, 'Legal review: GPS trails may be evidence in delivery and payment disputes (limitation periods).'),
+('ORPHAN_FILES', 'Uploaded files', 'Stored files older than N days that no database row points to. Report only: this rule never deletes.', 'REPORT', 30, 7, false, true, false, NULL)
+ON CONFLICT (rule_code) DO NOTHING;
