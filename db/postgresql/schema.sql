@@ -19,6 +19,13 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 --
+-- Name: public; Type: SCHEMA; Schema: -; Owner: -
+--
+
+-- *not* creating schema, since initdb creates it
+
+
+--
 -- Name: SCHEMA public; Type: COMMENT; Schema: -; Owner: -
 --
 
@@ -172,7 +179,7 @@ CREATE TABLE public.assistant_actions (
     expires_at timestamp with time zone NOT NULL,
     decided_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT ck_assistant_actions_status CHECK (((status)::text = ANY (ARRAY[('PENDING'::character varying)::text, ('DONE'::character varying)::text, ('FAILED'::character varying)::text, ('CANCELLED'::character varying)::text]))),
+    CONSTRAINT ck_assistant_actions_status CHECK (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'DONE'::character varying, 'FAILED'::character varying, 'CANCELLED'::character varying])::text[]))),
     CONSTRAINT ck_assistant_actions_type CHECK (((action_type)::text = 'CONFIRM_ORDER'::text))
 );
 
@@ -250,7 +257,7 @@ CREATE TABLE public.assistant_usage_events (
     estimated_cost_usd numeric(12,6) DEFAULT 0 NOT NULL,
     request_id character varying(100),
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT ck_assistant_usage_events_kind CHECK (((usage_kind)::text = ANY (ARRAY[('STT'::character varying)::text, ('LLM'::character varying)::text, ('TTS'::character varying)::text]))),
+    CONSTRAINT ck_assistant_usage_events_kind CHECK (((usage_kind)::text = ANY ((ARRAY['STT'::character varying, 'LLM'::character varying, 'TTS'::character varying])::text[]))),
     CONSTRAINT ck_assistant_usage_events_units CHECK (((input_tokens >= 0) AND (output_tokens >= 0) AND (cached_input_tokens >= 0) AND (audio_seconds >= (0)::numeric) AND (characters >= 0) AND (estimated_cost_usd >= (0)::numeric)))
 );
 
@@ -461,7 +468,7 @@ CREATE TABLE public.consent_records (
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT ck_consent_records_statements CHECK (((jsonb_typeof(statements) = 'array'::text) AND (jsonb_array_length(statements) > 0))),
     CONSTRAINT ck_consent_records_subject CHECK (((order_id IS NOT NULL) OR (dispatch_id IS NOT NULL) OR (quotation_id IS NOT NULL))),
-    CONSTRAINT ck_consent_records_type CHECK (((consent_type)::text = ANY (ARRAY[('SELLER_LOADING'::character varying)::text, ('DRIVER_DISPATCH'::character varying)::text, ('BUYER_QUOTATION_ACCEPT'::character varying)::text, ('BUYER_DELIVERY'::character varying)::text])))
+    CONSTRAINT ck_consent_records_type CHECK (((consent_type)::text = ANY ((ARRAY['SELLER_LOADING'::character varying, 'DRIVER_DISPATCH'::character varying, 'BUYER_QUOTATION_ACCEPT'::character varying, 'BUYER_DELIVERY'::character varying])::text[])))
 );
 
 
@@ -602,7 +609,7 @@ CREATE TABLE public.dispatches (
     CONSTRAINT ck_dispatches_delivered_is_confirmed CHECK ((((status)::text <> 'DELIVERED'::text) OR (delivery_confirmation IS NOT NULL))),
     CONSTRAINT ck_dispatches_delivery_confirmation CHECK (((delivery_confirmation)::text = ANY (ARRAY[('CUSTOMER_CODE'::character varying)::text, ('CUSTOMER_APP'::character varying)::text, ('UNCONFIRMED'::character varying)::text]))),
     CONSTRAINT ck_dispatches_outside_has_vehicle CHECK (((NOT is_outside_transport) OR (outside_vehicle_number IS NOT NULL))),
-    CONSTRAINT ck_dispatches_required_vehicle_type CHECK (((required_vehicle_type IS NULL) OR ((required_vehicle_type)::text = ANY (ARRAY[('TRUCK'::character varying)::text, ('VAN'::character varying)::text, ('PICKUP'::character varying)::text, ('AUTO'::character varying)::text])))),
+    CONSTRAINT ck_dispatches_required_vehicle_type CHECK (((required_vehicle_type IS NULL) OR ((required_vehicle_type)::text = ANY ((ARRAY['TRUCK'::character varying, 'VAN'::character varying, 'PICKUP'::character varying, 'AUTO'::character varying])::text[])))),
     CONSTRAINT ck_dispatches_status CHECK (((status)::text = ANY (ARRAY[('PENDING'::character varying)::text, ('ACCEPTED'::character varying)::text, ('DISPATCHED'::character varying)::text, ('IN_TRANSIT'::character varying)::text, ('DELIVERED'::character varying)::text, ('CANCELLED'::character varying)::text]))),
     CONSTRAINT ck_dispatches_unconfirmed_has_reason CHECK ((((delivery_confirmation)::text <> 'UNCONFIRMED'::text) OR (delivery_override_reason IS NOT NULL)))
 );
@@ -746,7 +753,7 @@ CREATE TABLE public.vehicle_drivers (
     removed_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT ck_vehicle_drivers_status CHECK (((status)::text = ANY (ARRAY[('PENDING'::character varying)::text, ('APPROVED'::character varying)::text, ('REJECTED'::character varying)::text, ('SUSPENDED'::character varying)::text, ('REMOVED'::character varying)::text])))
+    CONSTRAINT ck_vehicle_drivers_status CHECK (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'APPROVED'::character varying, 'REJECTED'::character varying, 'SUSPENDED'::character varying, 'REMOVED'::character varying])::text[])))
 );
 
 
@@ -777,7 +784,7 @@ CREATE TABLE public.vehicles (
     approved_by_user_id bigint,
     approved_at timestamp with time zone,
     approval_note text,
-    CONSTRAINT ck_vehicles_approval_status CHECK (((approval_status)::text = ANY (ARRAY[('PENDING'::character varying)::text, ('APPROVED'::character varying)::text, ('REJECTED'::character varying)::text, ('SUSPENDED'::character varying)::text]))),
+    CONSTRAINT ck_vehicles_approval_status CHECK (((approval_status)::text = ANY ((ARRAY['PENDING'::character varying, 'APPROVED'::character varying, 'REJECTED'::character varying, 'SUSPENDED'::character varying])::text[]))),
     CONSTRAINT ck_vehicles_status CHECK (((status)::text = ANY (ARRAY[('ACTIVE'::character varying)::text, ('INACTIVE'::character varying)::text, ('MAINTENANCE'::character varying)::text, ('RETIRED'::character varying)::text])))
 );
 
@@ -813,7 +820,7 @@ CREATE VIEW public.driver_vehicle_eligibility AS
     d.license_expiry_date,
     (EXISTS ( SELECT 1
            FROM public.dispatches t
-          WHERE ((t.vehicle_id = v.vehicle_id) AND ((t.status)::text = ANY (ARRAY[('ACCEPTED'::character varying)::text, ('DISPATCHED'::character varying)::text, ('IN_TRANSIT'::character varying)::text]))))) AS is_on_active_trip,
+          WHERE ((t.vehicle_id = v.vehicle_id) AND ((t.status)::text = ANY ((ARRAY['ACCEPTED'::character varying, 'DISPATCHED'::character varying, 'IN_TRANSIT'::character varying])::text[]))))) AS is_on_active_trip,
         CASE
             WHEN ((vd.status)::text = 'PENDING'::text) THEN 'LINK_PENDING'::text
             WHEN ((vd.status)::text = 'SUSPENDED'::text) THEN 'LINK_SUSPENDED'::text
@@ -823,7 +830,7 @@ CREATE VIEW public.driver_vehicle_eligibility AS
             WHEN ((d.license_expiry_date IS NOT NULL) AND (d.license_expiry_date < CURRENT_DATE)) THEN 'LICENCE_EXPIRED'::text
             WHEN (EXISTS ( SELECT 1
                FROM public.dispatches t
-              WHERE ((t.vehicle_id = v.vehicle_id) AND ((t.status)::text = ANY (ARRAY[('ACCEPTED'::character varying)::text, ('DISPATCHED'::character varying)::text, ('IN_TRANSIT'::character varying)::text]))))) THEN 'VEHICLE_ON_TRIP'::text
+              WHERE ((t.vehicle_id = v.vehicle_id) AND ((t.status)::text = ANY ((ARRAY['ACCEPTED'::character varying, 'DISPATCHED'::character varying, 'IN_TRANSIT'::character varying])::text[]))))) THEN 'VEHICLE_ON_TRIP'::text
             ELSE NULL::text
         END AS blocked_reason
    FROM ((public.vehicle_drivers vd
@@ -833,7 +840,7 @@ CREATE VIEW public.driver_vehicle_eligibility AS
           WHERE (drivers.user_id = vd.driver_user_id)
           ORDER BY drivers.driver_id DESC
          LIMIT 1) d ON (true))
-  WHERE ((vd.status)::text = ANY (ARRAY[('PENDING'::character varying)::text, ('APPROVED'::character varying)::text, ('SUSPENDED'::character varying)::text]));
+  WHERE ((vd.status)::text = ANY ((ARRAY['PENDING'::character varying, 'APPROVED'::character varying, 'SUSPENDED'::character varying])::text[]));
 
 
 --
@@ -994,8 +1001,8 @@ CREATE TABLE public.image_policies (
     version integer DEFAULT 1 NOT NULL,
     updated_by_user_id bigint,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT ck_image_policies_bounds CHECK (((max_side >= 320) AND (max_side <= 4096) AND ((min_side >= 64) AND (min_side <= max_side)) AND ((quality >= 50) AND (quality <= 95)) AND ((max_bytes >= 51200) AND (max_bytes <= 10485760)))),
-    CONSTRAINT ck_image_policies_category CHECK (((category)::text = ANY (ARRAY[('SELFIE'::character varying)::text, ('MARKET_AD'::character varying)::text, ('NURSERY_BRANDING'::character varying)::text, ('DELIVERY_PROOF'::character varying)::text, ('LOADING_PROOF'::character varying)::text, ('DRIVER_LICENCE'::character varying)::text, ('ATTACHMENT'::character varying)::text]))),
+    CONSTRAINT ck_image_policies_bounds CHECK ((((max_side >= 320) AND (max_side <= 4096)) AND ((min_side >= 64) AND (min_side <= max_side)) AND ((quality >= 50) AND (quality <= 95)) AND ((max_bytes >= 51200) AND (max_bytes <= 10485760)))),
+    CONSTRAINT ck_image_policies_category CHECK (((category)::text = ANY ((ARRAY['SELFIE'::character varying, 'MARKET_AD'::character varying, 'NURSERY_BRANDING'::character varying, 'DELIVERY_PROOF'::character varying, 'LOADING_PROOF'::character varying, 'DRIVER_LICENCE'::character varying, 'ATTACHMENT'::character varying])::text[]))),
     CONSTRAINT ck_image_policies_formats CHECK (((jsonb_typeof(allowed_formats) = 'array'::text) AND (jsonb_array_length(allowed_formats) > 0) AND (allowed_formats <@ '["JPEG", "PNG"]'::jsonb)))
 );
 
@@ -1231,7 +1238,7 @@ CREATE TABLE public.market_ads (
     close_reason character varying(30),
     CONSTRAINT ck_market_ads_access_sell_only CHECK ((((ad_type)::text = 'SELL'::text) OR ((is_road_accessible IS NULL) AND (is_truck_accessible IS NULL) AND (access_instructions IS NULL)))),
     CONSTRAINT ck_market_ads_ad_type CHECK (((ad_type)::text = ANY (ARRAY[('SELL'::character varying)::text, ('WANT'::character varying)::text]))),
-    CONSTRAINT ck_market_ads_close_reason CHECK (((close_reason IS NULL) OR ((close_reason)::text = ANY (ARRAY[('SOLD_OUT'::character varying)::text, ('NO_LONGER_AVAILABLE'::character varying)::text])))),
+    CONSTRAINT ck_market_ads_close_reason CHECK (((close_reason IS NULL) OR ((close_reason)::text = ANY ((ARRAY['SOLD_OUT'::character varying, 'NO_LONGER_AVAILABLE'::character varying])::text[])))),
     CONSTRAINT ck_market_ads_deleted CHECK ((((status)::text = 'DELETED'::text) = (deleted_at IS NOT NULL))),
     CONSTRAINT ck_market_ads_needed_by_date CHECK (((needed_by_date IS NULL) OR ((ad_type)::text = 'WANT'::text))),
     CONSTRAINT ck_market_ads_no_road_pickup CHECK (((is_road_accessible IS DISTINCT FROM false) OR (btrim((COALESCE(pickup_landmark, ''::character varying))::text) <> ''::text))),
@@ -2203,9 +2210,9 @@ CREATE TABLE public.payment_issues (
     resolved_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT ck_payment_issues_issue_type CHECK (((issue_type)::text = ANY (ARRAY[('PAID_NOT_APPLIED'::character varying)::text, ('REFUND_FAILED'::character varying)::text]))),
+    CONSTRAINT ck_payment_issues_issue_type CHECK (((issue_type)::text = ANY ((ARRAY['PAID_NOT_APPLIED'::character varying, 'REFUND_FAILED'::character varying])::text[]))),
     CONSTRAINT ck_payment_issues_resolved CHECK ((((status)::text = 'RESOLVED'::text) = (resolved_at IS NOT NULL))),
-    CONSTRAINT ck_payment_issues_status CHECK (((status)::text = ANY (ARRAY[('OPEN'::character varying)::text, ('RESOLVED'::character varying)::text])))
+    CONSTRAINT ck_payment_issues_status CHECK (((status)::text = ANY ((ARRAY['OPEN'::character varying, 'RESOLVED'::character varying])::text[])))
 );
 
 
@@ -2311,8 +2318,8 @@ CREATE TABLE public.plant_aliases (
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT ck_plant_aliases_name CHECK ((btrim((name)::text) <> ''::text)),
-    CONSTRAINT ck_plant_aliases_source CHECK (((source)::text = ANY (ARRAY[('ADMIN'::character varying)::text, ('SUGGESTION'::character varying)::text]))),
-    CONSTRAINT ck_plant_aliases_type CHECK (((alias_type)::text = ANY (ARRAY[('COMMON'::character varying)::text, ('LOCAL'::character varying)::text, ('SYNONYM'::character varying)::text, ('TRADE'::character varying)::text, ('MISSPELLING'::character varying)::text])))
+    CONSTRAINT ck_plant_aliases_source CHECK (((source)::text = ANY ((ARRAY['ADMIN'::character varying, 'SUGGESTION'::character varying])::text[]))),
+    CONSTRAINT ck_plant_aliases_type CHECK (((alias_type)::text = ANY ((ARRAY['COMMON'::character varying, 'LOCAL'::character varying, 'SYNONYM'::character varying, 'TRADE'::character varying, 'MISSPELLING'::character varying])::text[])))
 );
 
 
@@ -2509,8 +2516,8 @@ CREATE TABLE public.plant_suggestions (
     search_key text GENERATED ALWAYS AS (public.plant_search_key((name)::text)) STORED,
     source character varying(20) DEFAULT 'SUGGESTION'::character varying NOT NULL,
     merged_into_suggestion_id bigint,
-    CONSTRAINT ck_plant_suggestions_source CHECK (((source)::text = ANY (ARRAY[('SUGGESTION'::character varying)::text, ('QUOTATION_ITEM'::character varying)::text]))),
-    CONSTRAINT ck_plant_suggestions_status CHECK (((status)::text = ANY (ARRAY[('PENDING'::character varying)::text, ('APPROVED'::character varying)::text, ('LINKED'::character varying)::text, ('REJECTED'::character varying)::text, ('MERGED'::character varying)::text])))
+    CONSTRAINT ck_plant_suggestions_source CHECK (((source)::text = ANY ((ARRAY['SUGGESTION'::character varying, 'QUOTATION_ITEM'::character varying])::text[]))),
+    CONSTRAINT ck_plant_suggestions_status CHECK (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'APPROVED'::character varying, 'LINKED'::character varying, 'REJECTED'::character varying, 'MERGED'::character varying])::text[])))
 );
 
 
@@ -2783,7 +2790,7 @@ CREATE TABLE public.quotations (
     cancelled_at timestamp with time zone,
     CONSTRAINT ck_quotations_currency CHECK ((currency = 'INR'::bpchar)),
     CONSTRAINT ck_quotations_quotation_type CHECK (((quotation_type)::text = ANY (ARRAY[('INTERNAL'::character varying)::text, ('CUSTOMER'::character varying)::text]))),
-    CONSTRAINT ck_quotations_status CHECK (((status)::text = ANY (ARRAY[('INTERNAL_DRAFT'::character varying)::text, ('CUSTOMER_DRAFT'::character varying)::text, ('CUSTOMER_SENT'::character varying)::text, ('CUSTOMER_ACCEPTED'::character varying)::text, ('CUSTOMER_REJECTED'::character varying)::text, ('CONVERTED'::character varying)::text, ('EXPIRED'::character varying)::text, ('CUSTOMER_REQUESTED'::character varying)::text, ('REQUEST_DECLINED'::character varying)::text, ('REQUEST_CANCELLED'::character varying)::text]))),
+    CONSTRAINT ck_quotations_status CHECK (((status)::text = ANY ((ARRAY['INTERNAL_DRAFT'::character varying, 'CUSTOMER_DRAFT'::character varying, 'CUSTOMER_SENT'::character varying, 'CUSTOMER_ACCEPTED'::character varying, 'CUSTOMER_REJECTED'::character varying, 'CONVERTED'::character varying, 'EXPIRED'::character varying, 'CUSTOMER_REQUESTED'::character varying, 'REQUEST_DECLINED'::character varying, 'REQUEST_CANCELLED'::character varying])::text[]))),
     CONSTRAINT ck_quotations_total_non_negative CHECK (((total_amount IS NULL) OR (total_amount >= (0)::numeric)))
 );
 
@@ -2880,7 +2887,7 @@ CREATE TABLE public.risk_rules (
     description text NOT NULL,
     updated_by_user_id bigint,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT ck_risk_rules_level CHECK (((risk_level)::text = ANY (ARRAY[('LOW'::character varying)::text, ('MEDIUM'::character varying)::text, ('HIGH'::character varying)::text]))),
+    CONSTRAINT ck_risk_rules_level CHECK (((risk_level)::text = ANY ((ARRAY['LOW'::character varying, 'MEDIUM'::character varying, 'HIGH'::character varying])::text[]))),
     CONSTRAINT ck_risk_rules_threshold CHECK ((threshold > (0)::numeric))
 );
 
@@ -2959,9 +2966,9 @@ CREATE TABLE public.risk_signals (
     resolved_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT ck_risk_signals_entity CHECK (((entity_type)::text = ANY (ARRAY[('ORDER'::character varying)::text, ('QUOTATION'::character varying)::text, ('NURSERY'::character varying)::text, ('USER'::character varying)::text, ('DRIVER'::character varying)::text]))),
-    CONSTRAINT ck_risk_signals_level CHECK (((risk_level)::text = ANY (ARRAY[('LOW'::character varying)::text, ('MEDIUM'::character varying)::text, ('HIGH'::character varying)::text, ('CONFIRMED_FRAUD'::character varying)::text]))),
-    CONSTRAINT ck_risk_signals_status CHECK (((status)::text = ANY (ARRAY[('OPEN'::character varying)::text, ('UNDER_REVIEW'::character varying)::text, ('RESOLVED'::character varying)::text, ('DISMISSED'::character varying)::text])))
+    CONSTRAINT ck_risk_signals_entity CHECK (((entity_type)::text = ANY ((ARRAY['ORDER'::character varying, 'QUOTATION'::character varying, 'NURSERY'::character varying, 'USER'::character varying, 'DRIVER'::character varying])::text[]))),
+    CONSTRAINT ck_risk_signals_level CHECK (((risk_level)::text = ANY ((ARRAY['LOW'::character varying, 'MEDIUM'::character varying, 'HIGH'::character varying, 'CONFIRMED_FRAUD'::character varying])::text[]))),
+    CONSTRAINT ck_risk_signals_status CHECK (((status)::text = ANY ((ARRAY['OPEN'::character varying, 'UNDER_REVIEW'::character varying, 'RESOLVED'::character varying, 'DISMISSED'::character varying])::text[])))
 );
 
 
@@ -5639,7 +5646,7 @@ CREATE INDEX idx_dispatches_vehicle ON public.dispatches USING btree (vehicle_id
 -- Name: idx_dispatches_vehicle_active; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_dispatches_vehicle_active ON public.dispatches USING btree (vehicle_id) WHERE ((vehicle_id IS NOT NULL) AND ((status)::text = ANY (ARRAY[('ACCEPTED'::character varying)::text, ('DISPATCHED'::character varying)::text, ('IN_TRANSIT'::character varying)::text])));
+CREATE INDEX idx_dispatches_vehicle_active ON public.dispatches USING btree (vehicle_id) WHERE ((vehicle_id IS NOT NULL) AND ((status)::text = ANY ((ARRAY['ACCEPTED'::character varying, 'DISPATCHED'::character varying, 'IN_TRANSIT'::character varying])::text[])));
 
 
 --
@@ -5797,17 +5804,17 @@ CREATE INDEX idx_notification_templates_code_channel ON public.notification_temp
 
 
 --
--- Name: idx_notifications_user_type_status_created; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_notifications_user_type_status_created ON public.notifications USING btree (user_id, notification_type, status, created_at DESC);
-
-
---
 -- Name: idx_notifications_push_attempted_at; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_notifications_push_attempted_at ON public.notifications USING btree (push_attempted_at) WHERE (push_attempted_at IS NOT NULL);
+
+
+--
+-- Name: idx_notifications_user_type_status_created; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_notifications_user_type_status_created ON public.notifications USING btree (user_id, notification_type, status, created_at DESC);
 
 
 --
@@ -6626,7 +6633,7 @@ CREATE UNIQUE INDEX uq_ratings_trip ON public.ratings USING btree (rated_by_user
 -- Name: uq_risk_signals_open; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX uq_risk_signals_open ON public.risk_signals USING btree (signal_code, entity_type, entity_id) WHERE ((status)::text = ANY (ARRAY[('OPEN'::character varying)::text, ('UNDER_REVIEW'::character varying)::text]));
+CREATE UNIQUE INDEX uq_risk_signals_open ON public.risk_signals USING btree (signal_code, entity_type, entity_id) WHERE ((status)::text = ANY ((ARRAY['OPEN'::character varying, 'UNDER_REVIEW'::character varying])::text[]));
 
 
 --
@@ -6640,7 +6647,7 @@ CREATE UNIQUE INDEX uq_sms_dlt_entities_singleton ON public.sms_dlt_entities USI
 -- Name: uq_vehicle_drivers_open; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX uq_vehicle_drivers_open ON public.vehicle_drivers USING btree (vehicle_id, driver_user_id) WHERE ((status)::text = ANY (ARRAY[('PENDING'::character varying)::text, ('APPROVED'::character varying)::text, ('SUSPENDED'::character varying)::text]));
+CREATE UNIQUE INDEX uq_vehicle_drivers_open ON public.vehicle_drivers USING btree (vehicle_id, driver_user_id) WHERE ((status)::text = ANY ((ARRAY['PENDING'::character varying, 'APPROVED'::character varying, 'SUSPENDED'::character varying])::text[]));
 
 
 --
@@ -8103,27 +8110,3 @@ ALTER TABLE ONLY public.vehicles
 --
 
 
-
--- Migrations already applied in this schema (cmd/migrate skips them).
-INSERT INTO public.schema_migrations (version, checksum) VALUES ('20261019_01_remove_multilingual_plant_names', 'de5180a685d3a20ad5347bf842cac07a030f38b7cafafd96da45fcb74e31cc2a') ON CONFLICT DO NOTHING;
-INSERT INTO public.schema_migrations (version, checksum) VALUES ('20261023_01_plant_suggestions', '20e828eefbf57756007238a3973b7b4ea3bac13ca86b2554985c7a98db03d237') ON CONFLICT DO NOTHING;
-INSERT INTO public.schema_migrations (version, checksum) VALUES ('20261024_01_delivery_confirmation', '33f37da9dfb9c2907dad8b76cd6807079485ec06e0155c6f5e667172df29489a') ON CONFLICT DO NOTHING;
-INSERT INTO public.schema_migrations (version, checksum) VALUES ('20261025_01_naming_conventions', '308bd8544f9c8d41769a46b77bc73f7cd35ec107123b9835f683d2c957ac6564') ON CONFLICT DO NOTHING;
-INSERT INTO public.schema_migrations (version, checksum) VALUES ('20261025_02_delivery_unconfirmed_message', 'da966986ccdaef210e6c036de18c2821a722919167165fc83321556dc9ff5d28') ON CONFLICT DO NOTHING;
-INSERT INTO public.schema_migrations (version, checksum) VALUES ('20261025_03_payment_issues', '7a2ea440cdcbc3ffd12bbd445d3a1e193785d1b89394b3de9035c6f8f49a4f25') ON CONFLICT DO NOTHING;
-INSERT INTO public.schema_migrations (version, checksum) VALUES ('20261025_04_subscription_cancel_at_period_end', 'b0a90a885b636736073d2da209747f3e0cd9f3db78a227d8d60379dc5fea2cf9') ON CONFLICT DO NOTHING;
-INSERT INTO public.schema_migrations (version, checksum) VALUES ('20261025_05_order_confirmed_at', 'bbd215ae19e00609db23becb9c79b2dd7a97b940d1211865a4f6655440fe2248') ON CONFLICT DO NOTHING;
-INSERT INTO public.schema_migrations (version, checksum) VALUES ('20261025_06_chat_delivery_receipts', '978f7107171f73162f4c0a1bea967712b033e56a645fde22fec775293163b451') ON CONFLICT DO NOTHING;
-INSERT INTO public.schema_migrations (version, checksum) VALUES ('20261027_01_monthly_plan_pricing', 'f453c791eac989ca83dfb3d8a72ac6c70ede37385fec687fcc4bff8927969625') ON CONFLICT DO NOTHING;
-INSERT INTO public.schema_migrations (version, checksum) VALUES ('20261027_02_payment_gst', '3f6aee22b851861d97fe6d8ef0f292953f9f64203049a6930f72473c53fda316') ON CONFLICT DO NOTHING;
-INSERT INTO public.schema_migrations (version, checksum) VALUES ('20261028_01_lifecycle_messages', '0b0a6887ba3ae3ee2753be344d8f56775cd4b4ab2111121f439030f89b55fd80') ON CONFLICT DO NOTHING;
-INSERT INTO public.schema_migrations (version, checksum) VALUES ('20261028_02_market_close_reason', '3c23f8403a55206c6da5ce6e6c9988b6fb86b36d39242e4711e4ca339af971af') ON CONFLICT DO NOTHING;
-INSERT INTO public.schema_migrations (version, checksum) VALUES ('20261028_03_trip_invites', '57f41cf1cb988226526275f44524080aafd458929b84792a45c8bbe45a7fe79b') ON CONFLICT DO NOTHING;
-INSERT INTO public.schema_migrations (version, checksum) VALUES ('20261030_01_vehicle_ownership', '3524a6a6316062fb878b4a2e0e0caabd1e251d6b23da6cee7c2f15e42338fa72') ON CONFLICT DO NOTHING;
-INSERT INTO public.schema_migrations (version, checksum) VALUES ('20261030_02_image_policies', 'a554275f36441f4d54c2b15c5a25fa09a9a19d4923af8d30dea6b65a80085e1f') ON CONFLICT DO NOTHING;
-INSERT INTO public.schema_migrations (version, checksum) VALUES ('20261030_03_plant_names', 'aa2168a9a38c87b6b1f46216b074af2de7296ab1e44ca56e577e44611620b27d') ON CONFLICT DO NOTHING;
-INSERT INTO public.schema_migrations (version, checksum) VALUES ('20261030_04_quotation_requests', '8fe2d1d10b66e3523e031e7c0cea0bdab9ea3f79d60939391254fb756a93dd7e') ON CONFLICT DO NOTHING;
-INSERT INTO public.schema_migrations (version, checksum) VALUES ('20261030_05_consent_and_risk', '0ac1e4132ecb6fab00d215b2965fbb4c86a1e217e6930790ed5264010c83907d') ON CONFLICT DO NOTHING;
-INSERT INTO public.schema_migrations (version, checksum) VALUES ('20261030_06_assistant', 'ecc20be455754e9f5a0ba186b3e71f19022d95c621660951248e07ff3489a254') ON CONFLICT DO NOTHING;
-INSERT INTO public.schema_migrations (version, checksum) VALUES ('20261031_01_assistant_questions', '14527a97418ac3cac7704332ef0ff37654d161a0b4fa5a436165bfc2d145b723') ON CONFLICT DO NOTHING;
-INSERT INTO public.schema_migrations (version, checksum) VALUES ('20261031_02_notification_push_outcome', '204c9aa3091043bc07e51111326ccddf25af6a8b1aa2904623f8e5a5083738af') ON CONFLICT DO NOTHING;

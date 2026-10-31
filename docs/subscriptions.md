@@ -526,7 +526,7 @@ Every create, status update, renew, and cancel writes to `public.audit_logs`:
 - [x] Plans seeded: `FREE`, `TRIAL`, `GROWTH`, `ENTERPRISE` (`seed-master.sql`)
 
 ### API
-- [x] **Monthly pricing** (2026-10-27) — four cycles from one monthly price; migration `20261027_01_monthly_plan_pricing`
+- [x] **Monthly pricing** (2026-10-27) — four cycles from one monthly price (in `schema.sql` and `seed-master.sql`)
 - [x] **Trial-ending reminder** (2026-10-27) — daily job, once per trial, 2 days before it ends
 - [ ] **Enforce manager limits** — invites ignore `max_managers`; decide what happens to owners already over their plan's limit before enforcing
 - [ ] **Plan changes mid-period** — a renewal on another plan starts after the current period (no proration)

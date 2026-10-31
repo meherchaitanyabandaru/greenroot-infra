@@ -212,7 +212,7 @@ Not tested yet:
 ## Local setup
 
 1. greenroot-ai: see its README (`./run.sh`, port 8090, `.env` with the key and `AI_SERVICE_TOKEN`).
-2. API: `go run ./cmd/migrate up` (migration `20261030_06_assistant`), then start with `AI_ENABLED=true AI_SERVICE_URL=http://127.0.0.1:8090 AI_SERVICE_TOKEN=<same>`.
+2. API: database built from `schema.sql` and `seed-master.sql` (Mango tables included), then start with `AI_ENABLED=true AI_SERVICE_URL=http://127.0.0.1:8090 AI_SERVICE_TOKEN=<same>`.
 3. App: open the 🥭 button, then **Ask Mango (voice or text)**.
 
 ## Before production
