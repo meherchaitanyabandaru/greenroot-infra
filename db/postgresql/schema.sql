@@ -1577,8 +1577,25 @@ CREATE TABLE public.notifications (
     read_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT ck_notifications_channel CHECK (((channel)::text = ANY (ARRAY[('PUSH'::character varying)::text, ('SMS'::character varying)::text, ('EMAIL'::character varying)::text, ('IN_APP'::character varying)::text])))
+    push_status character varying(20),
+    push_attempted_at timestamp with time zone,
+    CONSTRAINT ck_notifications_channel CHECK (((channel)::text = ANY (ARRAY[('PUSH'::character varying)::text, ('SMS'::character varying)::text, ('EMAIL'::character varying)::text, ('IN_APP'::character varying)::text]))),
+    CONSTRAINT ck_notifications_push_status CHECK (((push_status IS NULL) OR ((push_status)::text = ANY ((ARRAY['SENT'::character varying, 'FAILED'::character varying, 'NO_DEVICE'::character varying])::text[]))))
 );
+
+
+--
+-- Name: COLUMN notifications.push_status; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.notifications.push_status IS 'Push delivery outcome (SENT, FAILED, NO_DEVICE); NULL = no push tried';
+
+
+--
+-- Name: COLUMN notifications.push_attempted_at; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.notifications.push_attempted_at IS 'When the push sender recorded push_status';
 
 
 --
@@ -5787,6 +5804,13 @@ CREATE INDEX idx_notifications_user_type_status_created ON public.notifications 
 
 
 --
+-- Name: idx_notifications_push_attempted_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_notifications_push_attempted_at ON public.notifications USING btree (push_attempted_at) WHERE (push_attempted_at IS NOT NULL);
+
+
+--
 -- Name: idx_nurseries_approved_by; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -8102,3 +8126,4 @@ INSERT INTO public.schema_migrations (version, checksum) VALUES ('20261030_04_qu
 INSERT INTO public.schema_migrations (version, checksum) VALUES ('20261030_05_consent_and_risk', '0ac1e4132ecb6fab00d215b2965fbb4c86a1e217e6930790ed5264010c83907d') ON CONFLICT DO NOTHING;
 INSERT INTO public.schema_migrations (version, checksum) VALUES ('20261030_06_assistant', 'ecc20be455754e9f5a0ba186b3e71f19022d95c621660951248e07ff3489a254') ON CONFLICT DO NOTHING;
 INSERT INTO public.schema_migrations (version, checksum) VALUES ('20261031_01_assistant_questions', '14527a97418ac3cac7704332ef0ff37654d161a0b4fa5a436165bfc2d145b723') ON CONFLICT DO NOTHING;
+INSERT INTO public.schema_migrations (version, checksum) VALUES ('20261031_02_notification_push_outcome', '204c9aa3091043bc07e51111326ccddf25af6a8b1aa2904623f8e5a5083738af') ON CONFLICT DO NOTHING;
