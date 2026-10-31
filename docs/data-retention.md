@@ -14,11 +14,43 @@ Related: [storage-and-data-protection.md](storage-and-data-protection.md) (files
 | `CRASH_REPORTS` | App crash reports | Delete | 90 days (provisional) | Off | Awaiting the go-ahead to enable |
 | `SMS_LOG_MASK` | SMS log | Mask mobile to last 4 digits, remove text | 180 days (provisional) | Off | TRAI/DLT question (§4) |
 | `EMAIL_LOG_MASK` | Email log | Mask address to domain, remove body | 180 days (provisional) | Off | |
-| `MARKET_CHAT` | Market chat messages | Delete (enquiry row kept) | 1 year after the enquiry closed (provisional) | Off | Held while the ad has a pending report |
+| `MARKET_CHAT` | Market chat messages | Delete (enquiry row kept) | 1 year after the **enquiry** closed (provisional) | Off | Held by a pending report or a legal hold on the enquiry or its ad; the ad ending never starts the clock |
+| `MARKET_AD_LOCATION` | Market ads: pickup address, landmark, GPS | Mask (clear) | 90 days after the ad ended (deleted / removed / archived / expired) | Off | Excluded while an enquiry is open; held by a pending report or legal hold. Plant, description, price and enquiries stay |
+| `MARKET_AD_PHOTOS` | Market ad photos | **Report only** | 90 days after the ad ended (deleted / removed / archived) | Report only (can never delete) | Excluded while an enquiry is open or closed within the period, or the file is used by another record; held by a pending report or legal hold. Also counts market photos nothing points to (replaced uploads) |
 | `OTP_REQUEST_LOG` | OTP request log (mobile, IP) | Delete | 30 days (proposed) | Off, ⚖️ **legal hold** | CERT-In 180-day logs (§4a) |
 | `SESSIONS` | Login sessions (IP, user agent, device) | Delete (activities kept, unlinked) | 30 days idle (proposed) | Off, ⚖️ **legal hold** | CERT-In 180-day logs (§4a) |
 | `GPS_TRAILS` | Trip GPS points, driver location points | Delete (trip record kept) | 90 days after the trip ended (proposed) | Off, ⚖️ **legal hold** | Dispute evidence; held per trip with a delivery issue or an open risk signal |
 | `ORPHAN_FILES` | Stored files nothing points to | **Report only** | Older than 30 days | Report only (can never delete) | Dry run first; deletion needs a separate, approved change |
+
+**Legal holds** (`retention_holds`, Admin → Data Retention → Legal holds): a super admin puts a market ad or enquiry (by its code) on hold with a reason; every rule skips it until a super admin releases it, again with a reason. A hold on an ad covers its location and photos; on an enquiry, its chat. Both actions are audit-logged.
+
+**Ad ending vs enquiry closing vs clean-up (market):**
+- *Ad ends* (seller archives, admin removes, seller deletes a draft or an ad without enquiries): it leaves search and takes no new enquiries. Nothing is deleted: the ad row stays, so its enquiries keep showing its title, price, quantity and first photo. Existing enquiries stay open and readable by both sides; enquiry views never include the pickup address or GPS.
+- *Enquiry closes* (seller closes or buyer cancels): only this starts the chat retention clock.
+- *Clean-up* (only when a rule is on): clears the ended ad's location, and later its photos, and later the closed enquiry's messages. Enquiry rows are never deleted.
+
+### Orders, payments and quotations (implemented 2026-10-31, all OFF)
+
+| Rule | Covers | Default period | Classification | Action when switched on | Excluded (kept, business reason) | Held |
+|---|---|---|---|---|---|---|
+| `ORDERS_COMPLETED` | Completed and partially fulfilled orders | 8 financial years | ⚖️ Legal review | Anonymise customer name, mobile, notes; delivery snapshot contact, address lines, GPS; trip customer details; tracking-link mobile. Amounts, items, status, city/state/PIN, audit history stay | Pending payment, open payment issue (refund case), trip delivery issue, open risk signal | Legal hold on the order |
+| `ORDERS_CANCELLED` | Cancelled orders | 8 financial years | ⚖️ Legal review | Same | Same | Same |
+| `PAYMENTS` | Order and subscription payments, incl. refunded | 8 financial years | ⚖️ Legal review | Remove provider raw payload, signature, notes. Amount, GST, status, references, dates stay | Pending; open payment issue for it | Hold on the payment or its order |
+| `ORDER_DOCUMENTS` | Order PDFs (no separate GST invoices or credit notes exist) | 8 financial years | ⚖️ Legal review | **Report only** (counts, bytes) | As its order | As its order |
+| `DELIVERY_PROOF` | Trip photos and points | 8 financial years | ⚖️ Legal review | **Report only** (size not stored) | As its order | As its order |
+| `QUOTATIONS_ACCEPTED` | Accepted and converted (incl. internal ones converted) | Follows the order (8 FY; without an order, 8 FY after acceptance) | Recommendation | Anonymise recipient name, mobile, request note; the order link stays | Order not yet past its period or busy | Hold on the quotation or its order |
+| `QUOTATIONS_CLOSED` | Rejected, declined, cancelled, expired | 730 days after last update | Recommendation | Same anonymisation | — | Legal hold |
+| `QUOTATIONS_DRAFT` | Internal and customer drafts | 365 days after last update | Recommendation | Same anonymisation | — | Legal hold |
+
+- **Financial years** are 1 April – 31 March, India time (`public.fy_start`, `public.fy_retained_until`). "N financial years" = kept through the end of the Nth financial year after the record's own: an order of FY 2026-27 with 8 years becomes eligible on 1 April 2035. 31 March 23:59 IST belongs to the earlier year; 1 April 00:00 IST to the next.
+- **Never deleted:** these rules anonymise or report; no order, payment, quotation, invoice or audit row is removed, and an accepted quotation stays linked to its order.
+- **Classification** (Legal requirement / GreenRoot recommendation / Legal review required) and **period** are set in Admin → Data Retention by a super admin, with a reason (old and new value, who and when are audit-logged). The period unit is fixed per rule. Rules marked ⚖️ start on legal review hold: after counsel confirms, a super admin ticks *Legal review is complete* (with who confirmed it), optionally sets classification to *Legal requirement*, and switches the rule on. The two report-only rules cannot be switched on (file deletion is a separate, reviewed change).
+- **Legal holds** now also cover orders, quotations and payments (by code). A held record is skipped; when the hold is released its normal clock applies again (time on hold is not added).
+- **Statutory vs recommended:** none of the periods above is confirmed as a statutory requirement yet. Counsel to confirm: GST Act s.36 (accounts for 72 months from the annual-return due date), Companies Act s.128 (books for 8 financial years), Income-tax books of account, RBI payment data storage. GreenRoot does not issue GST invoices or credit notes today; if it starts, they need their own record type and rule.
+
+### Financial-year archive (implemented 2026-10-31)
+
+Admin → **Archive (by FY)**: Orders and Quotations by financial year, searchable by code, customer or nursery, exported as CSV (opens in Excel) or PDF (first 1,000 rows; mobiles never printed). It reads the live records through the reports API (`GET /reports/{orders|quotations}?fy=2026-27&q=…&format=csv|pdf`): nothing is moved, copied or deleted, so every screen, report, API and reference keeps working. Owners and managers get the same financial-year filter on their own slice.
 
 Not a rule: account-deletion clean-up (§3) runs daily for deleted accounts; resolved risk signals have **no** rule (purpose and legal requirement to be reviewed first).
 
@@ -71,8 +103,8 @@ Sensitivity: **High** = identifies a person or locates them (mobile, address, GP
 | 18 | Security log (`security_audit_logs`: IP) | Logins, refusals | High | Kept forever | ⚖️ 1 year (not below 180 days) | CERT-In | Automatic deletion | — |
 | 19 | Crash reports (`client_crash_reports`) | Fix app crashes | Medium (scrubbed of tokens/phones/emails) | Kept forever | 90 days | Only useful while the build is current | Automatic deletion | → `users` (SET NULL) |
 | 20 | Risk signals (`risk_signals`, `risk_signal_notes`) | Fraud and abuse | Medium | Kept forever | ⚖️ Resolved: 2 years after resolution. Open or confirmed fraud: legal hold | Repeat-offender detection; investigations | Automatic deletion with hold | `risk_rules` |
-| 21 | Market chat (`market_enquiries`, `market_enquiry_messages`) | Buyer–seller messages | Medium (free text) | Kept forever | 1 year after the enquiry closes; reported ones held | Both parties may need the history briefly | Automatic deletion with hold | `market_ads` |
-| 22 | Market ads (`market_ads`: pickup address, GPS) | Listings | High (pickup point) | Soft-deleted / expired, kept forever | Pickup address and GPS cleared 90 days after an ad ends | Listing is over | Anonymise | `market_enquiries`, reports, saves, views |
+| 21 | Market chat (`market_enquiries`, `market_enquiry_messages`) | Buyer–seller messages | Medium (free text) | Kept forever (rule `MARKET_CHAT` off) | 1 year after the enquiry closes; reported or legally held ones kept | Both parties may need the history briefly | Automatic deletion with hold | `market_ads` |
+| 22 | Market ads (`market_ads`: pickup address, GPS) | Listings | High (pickup point) | Never deleted (status only); location kept (rule `MARKET_AD_LOCATION` off) | Location cleared 90 days after the ad ended, unless an enquiry is open, a report is pending or a legal hold applies | Listing is over | Mask | `market_enquiries`, reports, saves, views |
 | 23 | Notifications (`notifications`) | In-app inbox | Medium | **Read:** deleted 90 days after reading (daily job). **Unread:** kept. **Fixed:** deleted on account deletion | No change (unread are kept unless the product owner decides otherwise) | — | Automatic deletion | none reference it |
 | 24 | Mango usage (`assistant_usage_events`) | Cost and limits; no content | Low | Deleted after 90 days (`AI_USAGE_RETENTION_DAYS`); unlinked on account deletion | No change | Budget | Automatic deletion | → `users` (SET NULL) |
 | 25 | Mango proposals (`assistant_actions`) | Confirm-before-change | Low | Expire after 10 min; deleted after 7 days; deleted on account deletion | No change | — | Automatic deletion | → `users` (CASCADE) |
